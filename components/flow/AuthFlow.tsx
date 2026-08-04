@@ -2,57 +2,32 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowRight, Check, Copy, Loader2, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ArrowRight, Check, Copy, Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { mockAddress, type Session } from "@/lib/useSession";
+import { useSession } from "@/lib/useSession";
 import { T } from "@/lib/motion";
 
 /**
- * Entrada al producto. NO pide ningún dato: al pulsar, se genera una wallet
- * y se entra. Es el flujo de un proveedor de embedded wallets, sin la
- * fricción de registro.
- *
- * La verificación de identidad no desaparece del producto: se mueve al
- * momento de invertir, que es donde la regulación la exige de verdad.
+ * Entrada al producto: conexión de wallet real (wagmi), no una generada.
+ * La verificación de identidad no está acá — se mueve al momento de
+ * invertir, que es donde la regulación la exige de verdad.
  */
 
-type Step = "intro" | "creating" | "ready";
+type Step = "intro" | "connecting" | "ready";
 
-const PASOS = [
-  "Generando el par de claves",
-  "Desplegando tu cuenta en Arbitrum",
-  "Registrando el acceso al mercado",
-];
-
-export function AuthFlow({
-  onDone,
-}: {
-  onDone: (s: Omit<Session, "verified">) => void;
-}) {
+export function AuthFlow({ onDone }: { onDone: () => void }) {
+  const { session, connectWallet, connecting, connectError, hasInjectedWallet } =
+    useSession();
   const [step, setStep] = useState<Step>("intro");
-  const [progress, setProgress] = useState(0);
-  const [address, setAddress] = useState("");
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    if (step !== "creating") return;
-    setProgress(0);
-    const t1 = setTimeout(() => setProgress(1), 620);
-    const t2 = setTimeout(() => setProgress(2), 1240);
-    const t3 = setTimeout(() => {
-      const seed =
-        typeof crypto !== "undefined" && "randomUUID" in crypto
-          ? crypto.randomUUID()
-          : String(performance.now());
-      setAddress(mockAddress(seed));
-      setStep("ready");
-    }, 1900);
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-    };
-  }, [step]);
+    if (connecting) setStep("connecting");
+  }, [connecting]);
+
+  useEffect(() => {
+    if (session) setStep("ready");
+  }, [session]);
 
   return (
     <div
@@ -93,18 +68,29 @@ export function AuthFlow({
 
               <p className="mt-3 text-[14px] leading-relaxed text-mid">
                 Crédito privado respaldado por garantía real, en USDC sobre
-                Arbitrum. Te creamos una wallet al instante: sin registro, sin
-                contraseñas, sin frase semilla.
+                Arbitrum. Conecta tu wallet para explorar: sin registro, sin
+                contraseñas.
               </p>
 
               <Button
                 size="lg"
                 className="mt-7 w-full"
-                onClick={() => setStep("creating")}
+                onClick={connectWallet}
                 iconRight={<ArrowRight className="h-4 w-4" />}
               >
-                Crear mi wallet y entrar
+                Conectar wallet
               </Button>
+
+              {!hasInjectedWallet && (
+                <div className="mt-3 flex items-start gap-2 text-[12px] text-mid">
+                  <AlertTriangle
+                    className="mt-0.5 h-3.5 w-3.5 shrink-0"
+                    style={{ color: "var(--warning)" }}
+                  />
+                  No detectamos una wallet instalada en este navegador (ej.
+                  MetaMask). Instálala para poder conectarte.
+                </div>
+              )}
 
               <div className="mt-6 flex flex-col gap-2.5">
                 {[
@@ -127,72 +113,59 @@ export function AuthFlow({
             </motion.div>
           )}
 
-          {/* ------------------------------------------------- CREANDO */}
-          {step === "creating" && (
+          {/* --------------------------------------------- CONECTANDO */}
+          {step === "connecting" && (
             <motion.div
-              key="creating"
+              key="connecting"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={T.fast}
             >
-              <h1 className="h1 text-[30px]">Creando tu wallet</h1>
-              <p className="mt-2 text-[14px] text-mid">Toma unos segundos.</p>
+              <h1 className="h1 text-[30px]">
+                {connectError ? "No se pudo conectar" : "Conectando tu wallet"}
+              </h1>
+              <p className="mt-2 text-[14px] text-mid">
+                {connectError
+                  ? connectError
+                  : "Confirma la conexión en la extensión de tu wallet."}
+              </p>
 
-              <div className="mt-8 flex flex-col gap-4">
-                {PASOS.map((label, i) => {
-                  const done = i < progress;
-                  const active = i === progress;
-                  return (
-                    <motion.div
-                      key={label}
-                      initial={{ opacity: 0, x: -8 }}
-                      animate={{ opacity: done || active ? 1 : 0.4, x: 0 }}
-                      transition={T.fast}
-                      className="flex items-center gap-3"
-                    >
-                      <span
-                        className="flex h-6 w-6 items-center justify-center rounded-full border transition-colors"
-                        style={{
-                          borderColor: done
-                            ? "var(--positive)"
-                            : active
-                              ? "var(--brand-ink)"
-                              : "var(--border)",
-                          backgroundColor: done
-                            ? "var(--positive)"
-                            : "transparent",
-                        }}
-                      >
-                        {done ? (
-                          <Check className="h-3 w-3 text-white" strokeWidth={3} />
-                        ) : active ? (
-                          <Loader2
-                            className="h-3 w-3 animate-spin"
-                            style={{ color: "var(--brand-ink)" }}
-                          />
-                        ) : null}
-                      </span>
-                      <span
-                        className="text-[14px]"
-                        style={{
-                          color:
-                            done || active
-                              ? "var(--text-hi)"
-                              : "var(--text-low)",
-                        }}
-                      >
-                        {label}
-                      </span>
-                    </motion.div>
-                  );
-                })}
+              <div className="mt-8 flex items-center gap-3">
+                <span
+                  className="flex h-6 w-6 items-center justify-center rounded-full border"
+                  style={{
+                    borderColor: connectError ? "var(--negative)" : "var(--brand-ink)",
+                  }}
+                >
+                  {connectError ? (
+                    <AlertTriangle className="h-3 w-3" style={{ color: "var(--negative)" }} />
+                  ) : (
+                    <Loader2
+                      className="h-3 w-3 animate-spin"
+                      style={{ color: "var(--brand-ink)" }}
+                    />
+                  )}
+                </span>
+                <span className="text-[14px] text-hi">
+                  {connectError ? "Conexión rechazada o fallida" : "Esperando confirmación"}
+                </span>
               </div>
+
+              {connectError && (
+                <Button
+                  variant="outline"
+                  className="mt-6 w-full"
+                  onClick={connectWallet}
+                >
+                  Reintentar
+                </Button>
+              )}
             </motion.div>
           )}
 
           {/* --------------------------------------------------- LISTO */}
-          {step === "ready" && (
+          {step === "ready" && session && (
             <motion.div
               key="ready"
               initial={{ opacity: 0, y: 16 }}
@@ -216,10 +189,10 @@ export function AuthFlow({
                 />
               </motion.span>
 
-              <h1 className="h1 mt-6 text-[30px]">Tu wallet está lista</h1>
+              <h1 className="h1 mt-6 text-[30px]">Wallet conectada</h1>
               <p className="mt-2 text-[14px] leading-relaxed text-mid">
-                Vive en tu navegador y opera sobre Arbitrum. No hay nada que
-                instalar ni que memorizar.
+                Operas sobre Arbitrum con tu propia wallet. No custodiamos
+                nada de tu lado.
               </p>
 
               <motion.div
@@ -233,7 +206,7 @@ export function AuthFlow({
                   <span className="label">Tu dirección</span>
                   <button
                     onClick={() => {
-                      navigator.clipboard?.writeText(address);
+                      navigator.clipboard?.writeText(session.address);
                       setCopied(true);
                       setTimeout(() => setCopied(false), 1600);
                     }}
@@ -251,7 +224,7 @@ export function AuthFlow({
                   </button>
                 </div>
                 <div className="num mt-1.5 break-all text-[13px] text-hi">
-                  {address}
+                  {session.address}
                 </div>
               </motion.div>
 
@@ -278,9 +251,7 @@ export function AuthFlow({
               <Button
                 size="lg"
                 className="mt-5 w-full"
-                onClick={() =>
-                  onDone({ address, createdAt: new Date().toISOString() })
-                }
+                onClick={onDone}
                 iconRight={<ArrowRight className="h-4 w-4" />}
               >
                 Entrar al mercado

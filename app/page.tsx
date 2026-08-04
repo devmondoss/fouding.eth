@@ -19,7 +19,7 @@ import type { Opportunity } from "@/lib/types";
  * Módulo único. No hay rutas ni scroll de página: todo ocurre en esta
  * pantalla mediante capas y transiciones.
  *
- *   AuthFlow          primer contacto: wallet generada al instante. Sin chrome.
+ *   AuthFlow          primer contacto: conexión real de wallet (wagmi). Sin chrome.
  *   Onboarding         explicación en pasos, UNA sola vez por navegador.
  *   Deck                catálogo paginado.
  *   DetailOverlay      ficha de la operación, en pasos.
@@ -27,7 +27,7 @@ import type { Opportunity } from "@/lib/types";
  *   ProfilePanel        módulo dedicado a la cuenta y su verificación.
  */
 export default function App() {
-  const { session, signIn, signOut, verify } = useSession();
+  const { session, signOut, verify } = useSession();
   const { seen, markSeen, reset } = useOnce("founding.intro");
   const { getOpportunity } = usePlatform();
 
@@ -35,11 +35,16 @@ export default function App() {
   const [portfolio, setPortfolio] = useState(false);
   const [profile, setProfile] = useState(false);
   const [funds, setFunds] = useState(false);
+  // La wallet ya puede estar conectada (reconexión automática) sin que el
+  // usuario haya pasado por la pantalla "Entrar al mercado" de AuthFlow.
+  const [entered, setEntered] = useState(false);
 
   // Leyendo almacenamiento: nada, para no parpadear.
   if (session === undefined) return <div className="h-screen" />;
 
-  if (session === null) return <AuthFlow onDone={signIn} />;
+  if (session === null || !entered) {
+    return <AuthFlow onDone={() => setEntered(true)} />;
+  }
 
   // Desde el portafolio: cierra el panel y abre la ficha. Sin esto, dos
   // capas al mismo z-index se pisarían entre sí.
@@ -92,6 +97,7 @@ export default function App() {
             onClose={() => setProfile(false)}
             onSignOut={() => {
               setProfile(false);
+              setEntered(false);
               signOut();
             }}
             onVerify={verify}

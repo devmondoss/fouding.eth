@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { PlatformProvider } from "@/lib/data/store";
 import { SessionProvider } from "@/lib/useSession";
+import { Web3Provider } from "@/components/providers/Web3Provider";
 import "./globals.css";
 
 // Única familia tipográfica del producto. Ver design-system.md §3.
@@ -25,9 +26,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${monaSans.variable} h-full antialiased`}
     >
       <body className="h-full">
-        <SessionProvider>
-          <PlatformProvider>{children}</PlatformProvider>
-        </SessionProvider>
+        <Web3Provider>
+          <SessionProvider>
+            <PlatformProvider>{children}</PlatformProvider>
+          </SessionProvider>
+        </Web3Provider>
       </body>
     </html>
   );
