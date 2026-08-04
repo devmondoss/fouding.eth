@@ -38,6 +38,9 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     <PrivyProvider
       appId={appId || "not-configured"}
       config={{
+        // Solo correo — nada de "Continue with a wallet" ni el resto de
+        // opciones que trae Privy por defecto. Un paso, rápido.
+        loginMethods: ["email"],
         appearance: {
           theme: "light",
           accentColor: "#e0ff4f", // --brand, ver design-system.md

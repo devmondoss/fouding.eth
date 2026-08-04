@@ -1,44 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { AlertTriangle, ArrowRight, Check, Copy, Loader2, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ArrowRight, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useSession } from "@/lib/useSession";
 import { T } from "@/lib/motion";
 
 /**
- * Entrada al producto: Coinbase Smart Wallet vía passkey (huella/Face
- * ID) — no una wallet generada por nosotros, y tampoco requiere ninguna
- * extensión instalada de antemano. La verificación de identidad no está
- * acá — se mueve al momento de invertir, que es donde la regulación la
- * exige de verdad.
+ * Entrada al producto: Privy crea/conecta la wallet embebida al
+ * instante — modal en la misma página, sin extensión ni registro. En
+ * cuanto `session` deja de ser null, page.tsx deja de renderizar este
+ * componente y entra directo a la app: no hay una pantalla de "confirmar
+ * entrada" que agregar acá, sería fricción sin motivo (ver conversación
+ * de arquitectura, agosto 2026).
  */
 
-type Step = "intro" | "connecting" | "ready";
-
-export function AuthFlow({ onDone }: { onDone: () => void }) {
-  const { session, connectWallet, connecting, connectError, cancelConnect } =
-    useSession();
-  const [step, setStep] = useState<Step>("intro");
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    if (connecting) setStep("connecting");
-  }, [connecting]);
-
-  useEffect(() => {
-    if (session) setStep("ready");
-  }, [session]);
-
-  // Si dejamos de "conectar" sin sesión ni error (el usuario cerró el
-  // modal tocando afuera, o el timeout de seguridad cortó por las
-  // dudas), volvemos al inicio en vez de quedarnos pegados.
-  useEffect(() => {
-    if (!connecting && !connectError && !session && step === "connecting") {
-      setStep("intro");
-    }
-  }, [connecting, connectError, session, step]);
+export function AuthFlow() {
+  const { connectWallet, connecting, connectError, cancelConnect } = useSession();
+  // Derivado, no estado propio: "connecting" cubre tanto el spinner como
+  // el error (se queda ahí hasta reintentar o cancelar); cualquier otra
+  // combinación es "intro". Cancelar limpia ambos flags y por eso vuelve
+  // solo al inicio, sin necesitar un efecto que lo empuje.
+  const step = connecting || connectError ? "connecting" : "intro";
 
   return (
     <div
@@ -79,8 +62,8 @@ export function AuthFlow({ onDone }: { onDone: () => void }) {
 
               <p className="mt-3 text-[14px] leading-relaxed text-mid">
                 Crédito privado respaldado por garantía real, en USDC sobre
-                Arbitrum. Te creamos una wallet al instante con tu huella o
-                Face ID: sin registro, sin contraseñas, sin frase semilla.
+                Arbitrum. Te creamos una wallet al instante con tu correo:
+                sin contraseñas, sin frase semilla.
               </p>
 
               <Button
@@ -128,7 +111,7 @@ export function AuthFlow({ onDone }: { onDone: () => void }) {
               <p className="mt-2 text-[14px] text-mid">
                 {connectError
                   ? connectError
-                  : "Confirma con tu huella o Face ID cuando el navegador lo pida."}
+                  : "Ingresa tu correo en la ventana que aparece."}
               </p>
 
               <div className="mt-8 flex items-center gap-3">
@@ -168,101 +151,6 @@ export function AuthFlow({ onDone }: { onDone: () => void }) {
                   Cancelar
                 </button>
               )}
-            </motion.div>
-          )}
-
-          {/* --------------------------------------------------- LISTO */}
-          {step === "ready" && session && (
-            <motion.div
-              key="ready"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={T.base}
-            >
-              <motion.span
-                initial={{ scale: 0.5, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ ...T.spring, delay: 0.05 }}
-                className="flex h-12 w-12 items-center justify-center rounded-full border"
-                style={{
-                  backgroundColor: "var(--surface)",
-                  borderColor: "var(--positive)",
-                }}
-              >
-                <Check
-                  className="h-6 w-6"
-                  style={{ color: "var(--positive)" }}
-                  strokeWidth={2.5}
-                />
-              </motion.span>
-
-              <h1 className="h1 mt-6 text-[30px]">Wallet conectada</h1>
-              <p className="mt-2 text-[14px] leading-relaxed text-mid">
-                Operas sobre Arbitrum con tu propia wallet. No custodiamos
-                nada de tu lado.
-              </p>
-
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ ...T.base, delay: 0.12 }}
-                className="mt-6 rounded-[var(--r-panel)] border border-border px-4 py-3.5"
-                style={{ backgroundColor: "var(--surface-soft)" }}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="label">Tu dirección</span>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard?.writeText(session.address);
-                      setCopied(true);
-                      setTimeout(() => setCopied(false), 1600);
-                    }}
-                    className="flex items-center gap-1 text-[11.5px] text-mid transition-colors hover:text-hi"
-                  >
-                    {copied ? (
-                      <>
-                        <Check className="h-3 w-3" /> Copiada
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-3 w-3" /> Copiar
-                      </>
-                    )}
-                  </button>
-                </div>
-                <div className="num mt-1.5 break-all text-[13px] text-hi">
-                  {session.address}
-                </div>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ ...T.base, delay: 0.2 }}
-                className="mt-4 flex items-start gap-2 rounded-[var(--r-panel)] border px-3.5 py-3"
-                style={{
-                  backgroundColor: "var(--surface)",
-                  borderColor: "var(--brand-ink)",
-                }}
-              >
-                <ShieldCheck
-                  className="mt-0.5 h-3.5 w-3.5 shrink-0"
-                  style={{ color: "var(--brand-ink)" }}
-                />
-                <p className="text-[12px] leading-relaxed" style={{ color: "var(--brand-ink)" }}>
-                  Puedes explorar el mercado libremente. La verificación de
-                  identidad se solicita al momento de invertir.
-                </p>
-              </motion.div>
-
-              <Button
-                size="lg"
-                className="mt-5 w-full"
-                onClick={onDone}
-                iconRight={<ArrowRight className="h-4 w-4" />}
-              >
-                Entrar al mercado
-              </Button>
             </motion.div>
           )}
         </AnimatePresence>
