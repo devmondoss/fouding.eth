@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { AnimatePresence } from "motion/react";
+import { Loader2 } from "lucide-react";
 import { AddFundsFlow } from "@/components/flow/AddFundsFlow";
 import { AuthFlow } from "@/components/flow/AuthFlow";
 import { Deck } from "@/components/flow/Deck";
@@ -36,8 +37,24 @@ export default function App() {
   const [profile, setProfile] = useState(false);
   const [funds, setFunds] = useState(false);
 
-  // Leyendo almacenamiento: nada, para no parpadear.
-  if (session === undefined) return <div className="h-screen" />;
+  // Resolviendo si ya había una wallet conectada (Privy). Antes esto era
+  // un div en blanco — ahora al menos se ve que algo está pasando.
+  if (session === undefined) {
+    return (
+      <div
+        className="flex h-screen flex-col items-center justify-center gap-3"
+        style={{ backgroundColor: "var(--surface)" }}
+      >
+        <span
+          className="flex h-9 w-9 items-center justify-center rounded-[8px] text-[17px] font-bold"
+          style={{ backgroundColor: "var(--brand)", color: "var(--brand-ink)" }}
+        >
+          ✳
+        </span>
+        <Loader2 className="h-4 w-4 animate-spin" style={{ color: "var(--brand-ink)" }} />
+      </div>
+    );
+  }
 
   // Sin pantalla de confirmación extra: si Privy ya reconectó la wallet
   // (recarga de página, nueva pestaña), se entra directo — la fricción
