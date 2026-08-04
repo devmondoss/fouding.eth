@@ -1,13 +1,13 @@
 "use client";
 
 import { motion } from "motion/react";
-import { Clock, Sparkles } from "lucide-react";
+import { Clock, ShieldCheck } from "lucide-react";
 import { CoverArt } from "./CoverArt";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { StatusPill } from "@/components/ui/Pill";
 import { ScoreBadge } from "./ScoreBadge";
 import { coverageBps, fundingBps } from "@/lib/opportunity";
-import { daysUntil, formatBps, formatRatio, formatUsdc } from "@/lib/format";
+import { daysUntil, formatBps, formatRatio } from "@/lib/format";
 import { computeScore } from "@/lib/underwriting";
 import { T } from "@/lib/motion";
 import type { Opportunity } from "@/lib/types";
@@ -33,8 +33,8 @@ export function OpportunityCard({
   index?: number;
 }) {
   const score = computeScore(o);
-  const cov = coverageBps(o);
   const funding = fundingBps(o);
+  const cov = coverageBps(o);
   const days = daysUntil(o.fundingDeadline);
   const open = o.status === "funding";
 
@@ -77,23 +77,23 @@ export function OpportunityCard({
         </div>
       </div>
 
-      {/* Cuerpo */}
+      {/* Cuerpo — solo lo que se necesita para decidir de un vistazo.
+          El resto (hitos, garantía, cobertura, inversionistas) vive en
+          la ficha completa, no en la tarjeta. */}
       <div className="flex flex-1 flex-col p-4 pt-6">
-        <div className="text-[11.5px] text-mid">
-          {o.company.name} · {o.company.city}
+        <div className="flex items-center justify-between gap-2">
+          <div className="truncate text-[11.5px] text-mid">
+            {o.company.name} · {o.company.city}
+          </div>
+          <span
+            className="flex shrink-0 items-center gap-1 text-[11px] font-medium"
+            style={{ color: cov >= 10000 ? "var(--positive)" : "var(--negative)" }}
+          >
+            <ShieldCheck className="h-3 w-3" />
+            <span className="num">{formatRatio(cov)}</span> garantía
+          </span>
         </div>
         <h3 className="h3 mt-0.5 line-clamp-2 leading-snug">{o.projectTitle}</h3>
-
-        {/* Un hecho del proyecto, no una cifra: es lo que da contexto */}
-        {o.highlights[0] && (
-          <div className="mt-2 flex items-start gap-1.5 text-[12px] leading-snug text-mid">
-            <Sparkles
-              className="mt-0.5 h-3 w-3 shrink-0"
-              style={{ color: "var(--brand-ink)" }}
-            />
-            <span className="line-clamp-2">{o.highlights[0]}</span>
-          </div>
-        )}
 
         <div className="mt-3.5 flex items-end justify-between">
           <div>
@@ -116,20 +116,15 @@ export function OpportunityCard({
         <div className="flex-1" />
 
         <div className="mt-4">
-          <div className="mb-1.5 flex items-baseline justify-between text-[12px]">
-            <span className="num font-semibold text-hi">
-              {formatUsdc(o.raisedAmount)}
-              <span className="ml-1 font-sans font-normal text-low">
-                de {formatUsdc(o.targetAmount)}
-              </span>
-            </span>
+          <div className="mb-1.5 flex items-center justify-between text-[11.5px] text-low">
+            <span>Recaudado</span>
             <span className="num text-mid">{formatBps(funding, 0)}</span>
           </div>
           <ProgressBar
             bps={funding}
             color={open ? "var(--brand)" : "var(--positive)"}
           />
-          <div className="mt-2 flex items-center justify-between text-[11.5px] text-low">
+          <div className="mt-1.5 flex items-center justify-between text-[11px] text-low">
             <span>{o.investorCount} inversionistas</span>
             {open && days > 0 && (
               <span className="flex items-center gap-1">
@@ -140,17 +135,8 @@ export function OpportunityCard({
           </div>
         </div>
 
-        <div className="mt-3.5 flex items-center justify-between border-t border-border pt-3">
+        <div className="mt-3.5 border-t border-border pt-3">
           <ScoreBadge score={score.score} grade={score.grade} size="sm" />
-          <span
-            className="flex items-center gap-1.5 text-[12px]"
-            style={{
-              color: cov >= 10000 ? "var(--positive)" : "var(--negative)",
-            }}
-          >
-            <span className="num font-semibold">{formatRatio(cov)}</span>
-            <span className="text-low">cobertura</span>
-          </span>
         </div>
       </div>
     </motion.button>

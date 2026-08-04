@@ -13,8 +13,19 @@ import { initials } from "@/components/domain/OpportunityCard";
 import { StatusPill, Tag } from "@/components/ui/Pill";
 import { Metric } from "@/components/ui/Stat";
 import { formatBps, formatUsdc } from "@/lib/format";
-import { expectedInterest } from "@/lib/opportunity";
+import {
+  expectedInterest,
+  issuerTrackRecord,
+  STATUS_HELP,
+} from "@/lib/opportunity";
 import type { Opportunity } from "@/lib/types";
+
+const TRACK_TONE_COLOR = {
+  neutral: "var(--text-mid)",
+  positive: "var(--positive)",
+  warning: "var(--warning)",
+  negative: "var(--negative)",
+} as const;
 
 const STEPS = [
   { key: "resumen", label: "Resumen" },
@@ -98,6 +109,9 @@ export function DetailOverlay({
                 </span>
                 <Tag label={o.company.sector} />
               </div>
+              <p className="mt-1 text-[11.5px] text-low">
+                {STATUS_HELP[o.status]}
+              </p>
             </div>
           </div>
 
@@ -172,8 +186,33 @@ export function DetailOverlay({
 }
 
 function Resumen({ o }: { o: Opportunity }) {
+  const track = issuerTrackRecord(o.company.passport);
   return (
     <div className="flex flex-col gap-4">
+      <div
+        className="flex items-center justify-between gap-3 rounded-[var(--r-panel)] border px-4 py-3"
+        style={{
+          backgroundColor: "var(--surface)",
+          borderColor: TRACK_TONE_COLOR[track.tone],
+        }}
+      >
+        <span
+          className="text-[12.5px] font-medium"
+          style={{ color: TRACK_TONE_COLOR[track.tone] }}
+        >
+          {track.label}
+        </span>
+        {!track.firstTime && (
+          <span className="num text-[11.5px] text-low">
+            {o.company.passport.onTimeRepayments}/
+            {o.company.passport.onTimeRepayments +
+              o.company.passport.lateRepayments +
+              o.company.passport.defaults}{" "}
+            pagos a tiempo
+          </span>
+        )}
+      </div>
+
       <section className="card p-5">
         <h3 className="h3">Destino del financiamiento</h3>
         <p className="mt-2 text-[13.5px] leading-relaxed text-mid">

@@ -198,9 +198,17 @@ export function InvestPanel({
           accent="var(--positive)"
           strong
         />
-        <p className="mt-4 text-[11.5px] text-low">
-          Token transferible solo entre wallets verificadas.
-        </p>
+        <div className="mt-4 rounded-[var(--r-panel)] border border-border px-3 py-2.5">
+          <p className="text-[12px] font-medium text-hi">
+            Mercado secundario restringido, no garantizado
+          </p>
+          <p className="mt-1 text-[11.5px] leading-relaxed text-low">
+            Puedes publicar tu posición en el libro de órdenes antes del
+            vencimiento, pero solo otras wallets verificadas pueden comprarla
+            y no hay garantía de encontrar comprador. Sin eso, el capital
+            queda inmovilizado hasta que la operación pague.
+          </p>
+        </div>
       </Modal>
 
       <Modal

@@ -15,7 +15,12 @@ export function ScorePanel({ o }: { o: Opportunity }) {
   return (
     <section className="card p-5">
       <div className="flex items-center justify-between gap-4">
-        <h3 className="h3">Evaluación de riesgo</h3>
+        <div>
+          <h3 className="h3">Score crediticio</h3>
+          <p className="mt-0.5 text-[11.5px] text-low">
+            0 a 1000 · más alto significa menor riesgo, no más riesgo
+          </p>
+        </div>
         <ScoreBadge score={s.score} grade={s.grade} />
       </div>
 

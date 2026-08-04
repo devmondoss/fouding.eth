@@ -1,7 +1,15 @@
-import { BadgeCheck, Lock } from "lucide-react";
+import { BadgeCheck, History, Lock } from "lucide-react";
 import { Row } from "@/components/ui/Stat";
 import { formatDate, formatUsdc } from "@/lib/format";
+import { issuerTrackRecord } from "@/lib/opportunity";
 import type { Company } from "@/lib/types";
+
+const TONE_COLOR = {
+  neutral: "var(--text-mid)",
+  positive: "var(--positive)",
+  warning: "var(--warning)",
+  negative: "var(--negative)",
+} as const;
 
 /**
  * Pasaporte de negocio: soulbound (ERC-5192), nunca transferible. Convierte
@@ -9,6 +17,7 @@ import type { Company } from "@/lib/types";
  */
 export function PassportPanel({ company }: { company: Company }) {
   const p = company.passport;
+  const track = issuerTrackRecord(p);
 
   return (
     <section className="card p-5">
@@ -21,6 +30,19 @@ export function PassportPanel({ company }: { company: Company }) {
           <Lock className="h-3 w-3" />
           Perfil intransferible
         </span>
+      </div>
+
+      {/* Lo primero que se responde: ¿ya pidió capital antes y cómo le fue? */}
+      <div
+        className="mt-3 flex items-center gap-2 rounded-[var(--r-panel)] border px-3 py-2 text-[12.5px] font-medium"
+        style={{
+          backgroundColor: "var(--surface)",
+          borderColor: TONE_COLOR[track.tone],
+          color: TONE_COLOR[track.tone],
+        }}
+      >
+        <History className="h-4 w-4 shrink-0" />
+        {track.label}
       </div>
 
       <div

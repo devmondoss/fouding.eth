@@ -22,12 +22,12 @@ export function ScoreBadge({
         {grade}
       </span>
       {size === "sm" ? (
-        <span className="text-[12px] text-low">
-          Riesgo <span className="num text-mid">{score}</span>
+        <span className="num text-[12px] text-low">
+          Score {score}<span className="text-low">/1000</span>
         </span>
       ) : (
         <div>
-          <div className="label">Calificación</div>
+          <div className="label">Score crediticio — más alto es mejor</div>
           <div className="num text-[13.5px] font-semibold text-hi">
             {score}
             <span className="font-normal text-low"> / 1000</span>

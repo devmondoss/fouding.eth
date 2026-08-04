@@ -1,6 +1,6 @@
 /** Selectores derivados. Nunca se guarda lo que se puede calcular. */
 
-import type { Milestone, Opportunity, OpportunityStatus } from "./types";
+import type { Milestone, Opportunity, OpportunityStatus, Passport } from "./types";
 
 /** Cobertura sobre valor NETO recuperable, jamás sobre la tasación. */
 export function coverageBps(o: Opportunity): number {
@@ -57,6 +57,44 @@ export function isOpenForFunding(o: Opportunity): boolean {
   return o.status === "funding" && remainingToFund(o) > 0n;
 }
 
+/** Resumen legible del historial del emisor: lo primero que un
+ * inversionista quiere saber y lo que menos visible estaba. */
+export type IssuerTrackRecord = {
+  firstTime: boolean;
+  label: string;
+  tone: "neutral" | "positive" | "warning" | "negative";
+};
+
+export function issuerTrackRecord(p: Passport): IssuerTrackRecord {
+  if (p.completedDeals === 0) {
+    return {
+      firstTime: true,
+      label: "Primera vez en la plataforma",
+      tone: "neutral",
+    };
+  }
+  const deals = `${p.completedDeals} crédito${p.completedDeals === 1 ? "" : "s"} previo${p.completedDeals === 1 ? "" : "s"}`;
+  if (p.defaults > 0) {
+    return {
+      firstTime: false,
+      label: `Recurrente · ${deals} · ${p.defaults} en default`,
+      tone: "negative",
+    };
+  }
+  if (p.lateRepayments > 0) {
+    return {
+      firstTime: false,
+      label: `Recurrente · ${deals} · ${p.lateRepayments} pago(s) tardío(s)`,
+      tone: "warning",
+    };
+  }
+  return {
+    firstTime: false,
+    label: `Recurrente · ${deals} · todos pagados a tiempo`,
+    tone: "positive",
+  };
+}
+
 // ------------------------------------------------------------ etiquetas
 
 export const STATUS_LABEL: Record<OpportunityStatus, string> = {
@@ -65,6 +103,17 @@ export const STATUS_LABEL: Record<OpportunityStatus, string> = {
   active: "Activa",
   repaid: "Pagada",
   defaulted: "En default",
+};
+
+/** Una línea que explica qué implica cada estado para el dinero del
+ * inversionista — no debería haber que adivinarlo. */
+export const STATUS_HELP: Record<OpportunityStatus, string> = {
+  review: "Expediente en verificación. Todavía no recibe capital.",
+  funding: "Levantando capital de inversionistas. Aún puedes invertir.",
+  active:
+    "Ya fondeada: el capital se libera por hitos verificados y genera repago.",
+  repaid: "Pagada por completo. El ciclo de esta operación terminó.",
+  defaulted: "Incumplimiento. La garantía está en proceso de ejecución.",
 };
 
 // El color de cada estado lo resuelve el componente Pill (STATUS_TONE).
