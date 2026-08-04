@@ -18,7 +18,8 @@ import { T } from "@/lib/motion";
 type Step = "intro" | "connecting" | "ready";
 
 export function AuthFlow({ onDone }: { onDone: () => void }) {
-  const { session, connectWallet, connecting, connectError } = useSession();
+  const { session, connectWallet, connecting, connectError, cancelConnect } =
+    useSession();
   const [step, setStep] = useState<Step>("intro");
   const [copied, setCopied] = useState(false);
 
@@ -29,6 +30,15 @@ export function AuthFlow({ onDone }: { onDone: () => void }) {
   useEffect(() => {
     if (session) setStep("ready");
   }, [session]);
+
+  // Si dejamos de "conectar" sin sesión ni error (el usuario cerró el
+  // modal tocando afuera, o el timeout de seguridad cortó por las
+  // dudas), volvemos al inicio en vez de quedarnos pegados.
+  useEffect(() => {
+    if (!connecting && !connectError && !session && step === "connecting") {
+      setStep("intro");
+    }
+  }, [connecting, connectError, session, step]);
 
   return (
     <div
@@ -142,7 +152,7 @@ export function AuthFlow({ onDone }: { onDone: () => void }) {
                 </span>
               </div>
 
-              {connectError && (
+              {connectError ? (
                 <Button
                   variant="outline"
                   className="mt-6 w-full"
@@ -150,6 +160,13 @@ export function AuthFlow({ onDone }: { onDone: () => void }) {
                 >
                   Reintentar
                 </Button>
+              ) : (
+                <button
+                  onClick={cancelConnect}
+                  className="mt-6 text-[12.5px] text-mid transition-colors hover:text-hi"
+                >
+                  Cancelar
+                </button>
               )}
             </motion.div>
           )}

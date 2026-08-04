@@ -58,6 +58,10 @@ type Ctx = {
   connectWallet: () => void;
   connecting: boolean;
   connectError: string | null;
+  /** Corta manualmente el estado "conectando" — necesario porque Privy
+   * no siempre dispara onError cuando el usuario cierra el modal
+   * tocando afuera (queda pegado en "esperando confirmación" si no). */
+  cancelConnect: () => void;
   signOut: () => void;
   verify: () => void;
 };
@@ -119,6 +123,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     login();
   }, [login]);
 
+  // Red de seguridad: si Privy nunca avisa (usuario cierra el modal
+  // tocando afuera, o se cuelga por lo que sea), no dejamos a nadie
+  // mirando un spinner para siempre.
+  useEffect(() => {
+    if (!connecting) return;
+    const timeout = setTimeout(() => setConnecting(false), 45_000);
+    return () => clearTimeout(timeout);
+  }, [connecting]);
+
+  const cancelConnect = useCallback(() => {
+    setConnecting(false);
+    setConnectError(null);
+  }, []);
+
   const signOut = useCallback(() => {
     logout();
   }, [logout]);
@@ -139,10 +157,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       connectWallet,
       connecting,
       connectError,
+      cancelConnect,
       signOut,
       verify,
     }),
-    [session, connectWallet, connecting, connectError, signOut, verify],
+    [session, connectWallet, connecting, connectError, cancelConnect, signOut, verify],
   );
 
   return (
