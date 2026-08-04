@@ -13,7 +13,7 @@
 Los **tipos de dominio y la capa de acceso a datos** se definieron una sola vez, con la forma que van a tener los contratos.
 
 ```
-Pantallas  →  lib/data/store.tsx (interfaz)  →  seed.ts   ← hoy
+Pantallas  →  packages/nextjs/lib/data/store.tsx (interfaz)  →  seed.ts   ← hoy
                                              →  onchain/  ← después
 ```
 
@@ -39,7 +39,7 @@ Next.js 16 (App Router) + TypeScript
 Tailwind v4  +  tokens de design-system.md
 Inter + IBM Plex Mono (next/font)
 lucide-react
-npm
+Yarn workspaces + Scaffold-Stylus
 ```
 
 Nada de wagmi, viem, Prisma ni Supabase todavía.
@@ -49,19 +49,19 @@ Nada de wagmi, viem, Prisma ni Supabase todavía.
 ## Estructura de archivos
 
 ```
-app/
+packages/nextjs/app/
   layout.tsx                 fuentes + PlatformProvider + AppShell
   page.tsx                   CATÁLOGO — la aplicación entera como módulos
   oportunidades/[slug]/      ficha de producto
   portafolio/                posiciones y movimientos
   acceso/                    verificación, a pantalla completa
-components/
+packages/nextjs/components/
   chrome/    AppShell (marco + Container + SectionHead), TopNav
   ui/        Button, Pill, ProgressBar, Stat, Table, Field, Modal
   domain/    OpportunityCard, CollateralPanel, MilestoneTimeline,
              WaterfallPanel, ScorePanel, PassportPanel, InvestPanel,
              ActivityRow, ScoreBadge
-lib/
+packages/nextjs/lib/
   types.ts                   modelo de dominio
   format.ts                  formateo de montos, tasas y fechas
   opportunity.ts             selectores derivados
@@ -69,7 +69,7 @@ lib/
   data/
     seed.ts                  6 operaciones + posiciones + actividad
     store.tsx                adaptador mock con estado en memoria
-app/globals.css              tokens + utilidades
+packages/nextjs/app/globals.css  tokens + utilidades
 ```
 
 ---
