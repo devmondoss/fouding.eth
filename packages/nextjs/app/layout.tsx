@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import type { ReactNode } from "react";
+import { Web3Providers } from "@/components/Web3Providers";
 import { PlatformProvider } from "@/lib/data/store";
 import { SessionProvider } from "@/lib/useSession";
 import "./globals.css";
@@ -18,16 +20,18 @@ export const metadata: Metadata = {
     "Crédito privado con garantía real. Capital retenido en contrato y liberado contra hitos verificados, liquidado en USDC sobre Arbitrum.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html
       lang="es"
       className={`${monaSans.variable} h-full antialiased`}
     >
       <body className="h-full">
-        <SessionProvider>
-          <PlatformProvider>{children}</PlatformProvider>
-        </SessionProvider>
+        <Web3Providers>
+          <SessionProvider>
+            <PlatformProvider>{children}</PlatformProvider>
+          </SessionProvider>
+        </Web3Providers>
       </body>
     </html>
   );
