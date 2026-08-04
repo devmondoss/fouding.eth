@@ -19,6 +19,12 @@ export const metadata: Metadata = {
     "Crédito privado con garantía real. Capital retenido en contrato y liberado contra hitos verificados, liquidado en USDC sobre Arbitrum.",
 };
 
+// PrivyProvider valida el App ID al montarse — sin uno real, no se puede
+// prerenderizar "/" en build time. La app igual es un SPA de una sola
+// pantalla (design-system.md §6), así que no hay nada que perder
+// renderizando en request time en vez de estático.
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html

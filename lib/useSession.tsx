@@ -9,7 +9,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useAccount, useConnect, useDisconnect } from "wagmi";
+import { useAccount } from "wagmi";
+import { useLogin, useLogout, usePrivy } from "@privy-io/react-auth";
 
 export type Session = {
   address: string;
@@ -51,8 +52,9 @@ function writeJSON(key: string, value: unknown) {
  */
 type Ctx = {
   session: Session | null | undefined; // undefined = resolviendo conexión
-  /** Crea/conecta una Coinbase Smart Wallet vía passkey — no requiere
-   * ninguna extensión instalada de antemano (ver lib/web3/config.ts). */
+  /** Abre el login de Privy y crea la wallet embebida al instante —
+   * cero pantallas de un tercero, cero extensión (ver
+   * components/providers/Web3Provider.tsx). */
   connectWallet: () => void;
   connecting: boolean;
   connectError: string | null;
@@ -63,19 +65,35 @@ type Ctx = {
 const SessionContext = createContext<Ctx | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
+  const { ready, authenticated, logout } = usePrivy();
   const { address, status: accountStatus } = useAccount();
-  const { connect, connectors, status: connectStatus, error, reset } = useConnect();
-  const { disconnect } = useDisconnect();
+
+  const [connecting, setConnecting] = useState(false);
+  const [connectError, setConnectError] = useState<string | null>(null);
+
+  const { login } = useLogin({
+    onComplete: () => setConnecting(false),
+    onError: (err) => {
+      setConnecting(false);
+      setConnectError(
+        err === "exited_auth_flow" ? null : "No se pudo conectar. Intenta de nuevo.",
+      );
+    },
+  });
+  useLogout({
+    onSuccess: () => {
+      try {
+        window.localStorage.removeItem("founding.intro");
+      } catch {}
+    },
+  });
 
   const [session, setSession] = useState<Session | null | undefined>(undefined);
 
   useEffect(() => {
-    // "reconnecting" = wagmi está revisando si ya había una wallet
-    // conectada antes (recarga de página) — no es "desconectado" todavía.
-    if (accountStatus === "connecting" || accountStatus === "reconnecting") {
-      return;
-    }
-    if (accountStatus !== "connected" || !address) {
+    if (!ready) return; // el SDK de Privy todavía está resolviendo la sesión previa
+
+    if (!authenticated || accountStatus !== "connected" || !address) {
       setSession(null);
       return;
     }
@@ -93,20 +111,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       createdAt: firstSeen[addr],
       verified: verifiedList.includes(addr),
     });
-  }, [accountStatus, address]);
+  }, [ready, authenticated, accountStatus, address]);
 
   const connectWallet = useCallback(() => {
-    reset();
-    const connector = connectors[0]; // único conector configurado: Coinbase Smart Wallet
-    if (connector) connect({ connector });
-  }, [connect, connectors, reset]);
+    setConnectError(null);
+    setConnecting(true);
+    login();
+  }, [login]);
 
   const signOut = useCallback(() => {
-    disconnect();
-    try {
-      window.localStorage.removeItem("founding.intro");
-    } catch {}
-  }, [disconnect]);
+    logout();
+  }, [logout]);
 
   const verify = useCallback(() => {
     if (!address) return;
@@ -122,12 +137,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     () => ({
       session,
       connectWallet,
-      connecting: connectStatus === "pending",
-      connectError: error?.message ?? null,
+      connecting,
+      connectError,
       signOut,
       verify,
     }),
-    [session, connectWallet, connectStatus, error, signOut, verify],
+    [session, connectWallet, connecting, connectError, signOut, verify],
   );
 
   return (
