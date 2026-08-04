@@ -16,7 +16,7 @@ import { Field } from "@/components/ui/Field";
 import { Metric } from "@/components/ui/Stat";
 import { Modal } from "@/components/ui/Modal";
 import { usePlatform } from "@/lib/data/store";
-import { formatUsdc, usdc } from "@/lib/format";
+import { formatRelativeTime, formatUsdc, usdc } from "@/lib/format";
 import { UNVERIFIED_TICKET_CAP, type Session } from "@/lib/useSession";
 
 /**
@@ -50,11 +50,6 @@ export function ProfilePanel({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
-
-  const memberDays = Math.max(
-    0,
-    Math.floor((Date.parse("2026-08-04") - Date.parse(session.createdAt)) / 86_400_000),
-  );
 
   const totalInvested = positions.reduce((s, p) => s + p.principal, 0n);
 
@@ -124,7 +119,7 @@ export function ProfilePanel({
                 </button>
               </div>
               <div className="text-[11.5px] text-low">
-                Cuenta creada hace {memberDays} {memberDays === 1 ? "día" : "días"}
+                Cuenta creada {formatRelativeTime(session.createdAt)}
               </div>
             </div>
           </div>

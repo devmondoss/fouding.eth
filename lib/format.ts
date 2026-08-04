@@ -50,6 +50,23 @@ export function daysUntil(iso: string, from = "2026-08-03"): number {
   return Math.ceil(ms / 86_400_000);
 }
 
+/** "hace 3 minutos" / "hace 2 horas" / "hace 5 días" — a diferencia de
+ * daysUntil() (fecha fija, para el mock del deck) esto usa la hora
+ * real: es para timestamps reales como la wallet recién conectada. */
+export function formatRelativeTime(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  const minutes = Math.max(0, Math.floor(ms / 60_000));
+
+  if (minutes < 1) return "hace un momento";
+  if (minutes < 60) return `hace ${minutes} ${minutes === 1 ? "minuto" : "minutos"}`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `hace ${hours} ${hours === 1 ? "hora" : "horas"}`;
+
+  const days = Math.floor(hours / 24);
+  return `hace ${days} ${days === 1 ? "día" : "días"}`;
+}
+
 export function shortHash(hash: string, size = 6): string {
   if (hash.length <= size * 2 + 2) return hash;
   return `${hash.slice(0, size + 2)}…${hash.slice(-size)}`;
