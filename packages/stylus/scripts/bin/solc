@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+exec docker run --rm -i ethereum/solc:0.8.30 "$@"
