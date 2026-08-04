@@ -51,13 +51,11 @@ function writeJSON(key: string, value: unknown) {
  */
 type Ctx = {
   session: Session | null | undefined; // undefined = resolviendo conexión
-  /** Abre el selector de wallet (hoy: conector injected — MetaMask, Rabby,
-   * etc. WalletConnect se agrega en lib/web3/config.ts cuando haya un
-   * project id). */
+  /** Crea/conecta una Coinbase Smart Wallet vía passkey — no requiere
+   * ninguna extensión instalada de antemano (ver lib/web3/config.ts). */
   connectWallet: () => void;
   connecting: boolean;
   connectError: string | null;
-  hasInjectedWallet: boolean;
   signOut: () => void;
   verify: () => void;
 };
@@ -99,8 +97,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const connectWallet = useCallback(() => {
     reset();
-    const injectedConnector = connectors[0];
-    if (injectedConnector) connect({ connector: injectedConnector });
+    const connector = connectors[0]; // único conector configurado: Coinbase Smart Wallet
+    if (connector) connect({ connector });
   }, [connect, connectors, reset]);
 
   const signOut = useCallback(() => {
@@ -126,11 +124,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       connectWallet,
       connecting: connectStatus === "pending",
       connectError: error?.message ?? null,
-      hasInjectedWallet: connectors.length > 0,
       signOut,
       verify,
     }),
-    [session, connectWallet, connectStatus, error, connectors, signOut, verify],
+    [session, connectWallet, connectStatus, error, signOut, verify],
   );
 
   return (

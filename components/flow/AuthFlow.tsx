@@ -8,16 +8,17 @@ import { useSession } from "@/lib/useSession";
 import { T } from "@/lib/motion";
 
 /**
- * Entrada al producto: conexión de wallet real (wagmi), no una generada.
- * La verificación de identidad no está acá — se mueve al momento de
- * invertir, que es donde la regulación la exige de verdad.
+ * Entrada al producto: Coinbase Smart Wallet vía passkey (huella/Face
+ * ID) — no una wallet generada por nosotros, y tampoco requiere ninguna
+ * extensión instalada de antemano. La verificación de identidad no está
+ * acá — se mueve al momento de invertir, que es donde la regulación la
+ * exige de verdad.
  */
 
 type Step = "intro" | "connecting" | "ready";
 
 export function AuthFlow({ onDone }: { onDone: () => void }) {
-  const { session, connectWallet, connecting, connectError, hasInjectedWallet } =
-    useSession();
+  const { session, connectWallet, connecting, connectError } = useSession();
   const [step, setStep] = useState<Step>("intro");
   const [copied, setCopied] = useState(false);
 
@@ -68,8 +69,8 @@ export function AuthFlow({ onDone }: { onDone: () => void }) {
 
               <p className="mt-3 text-[14px] leading-relaxed text-mid">
                 Crédito privado respaldado por garantía real, en USDC sobre
-                Arbitrum. Conecta tu wallet para explorar: sin registro, sin
-                contraseñas.
+                Arbitrum. Te creamos una wallet al instante con tu huella o
+                Face ID: sin registro, sin contraseñas, sin frase semilla.
               </p>
 
               <Button
@@ -78,19 +79,8 @@ export function AuthFlow({ onDone }: { onDone: () => void }) {
                 onClick={connectWallet}
                 iconRight={<ArrowRight className="h-4 w-4" />}
               >
-                Conectar wallet
+                Crear mi wallet y entrar
               </Button>
-
-              {!hasInjectedWallet && (
-                <div className="mt-3 flex items-start gap-2 text-[12px] text-mid">
-                  <AlertTriangle
-                    className="mt-0.5 h-3.5 w-3.5 shrink-0"
-                    style={{ color: "var(--warning)" }}
-                  />
-                  No detectamos una wallet instalada en este navegador (ej.
-                  MetaMask). Instálala para poder conectarte.
-                </div>
-              )}
 
               <div className="mt-6 flex flex-col gap-2.5">
                 {[
@@ -123,12 +113,12 @@ export function AuthFlow({ onDone }: { onDone: () => void }) {
               transition={T.fast}
             >
               <h1 className="h1 text-[30px]">
-                {connectError ? "No se pudo conectar" : "Conectando tu wallet"}
+                {connectError ? "No se pudo conectar" : "Creando tu wallet"}
               </h1>
               <p className="mt-2 text-[14px] text-mid">
                 {connectError
                   ? connectError
-                  : "Confirma la conexión en la extensión de tu wallet."}
+                  : "Confirma con tu huella o Face ID cuando el navegador lo pida."}
               </p>
 
               <div className="mt-8 flex items-center gap-3">
