@@ -132,28 +132,23 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
   const { session } = useSession();
   const address = session?.address ?? null;
 
-  // key={address} remonta este subárbol cuando cambia (o aparece/
-  // desaparece) la wallet conectada, así el useState de abajo vuelve a
-  // ejecutar su inicializador y carga el estado de la wallet correcta —
-  // sin un efecto que haga setState solo para sincronizar una prop.
-  return (
-    <PlatformProviderInner key={address ?? "signed-out"} address={address}>
-      {children}
-    </PlatformProviderInner>
-  );
-}
-
-function PlatformProviderInner({
-  address,
-  children,
-}: {
-  address: string | null;
-  children: ReactNode;
-}) {
   const [state, setState] = useState(() => ({
     opportunities: structuredClone(OPPORTUNITIES),
     ...(address ? loadWalletState(address) : emptyWalletState()),
   }));
+
+  // Ajustamos el estado DURANTE el render cuando cambia la wallet — no en
+  // un efecto (evita el setState-en-efecto) y sin remontar `children`
+  // (evita resetear estado no relacionado de la app, como el onboarding
+  // o el "ya entré" de AuthFlow — eso pasaba antes con key={address}).
+  const [loadedFor, setLoadedFor] = useState(address);
+  if (address !== loadedFor) {
+    setLoadedFor(address);
+    setState((s) => ({
+      ...s,
+      ...(address ? loadWalletState(address) : emptyWalletState()),
+    }));
+  }
 
   const { opportunities, positions, activity, balance } = state;
 
