@@ -70,8 +70,9 @@ Todo `Pausable` con el Safe como pauser. Sin upgradeability en fase 1: un proxy 
 | **viem** | Imprescindible | Cliente Ethereum tipado. Base de todo lo demás. |
 | **wagmi** | Imprescindible | Hooks de React sobre viem. Escribirlos a mano no aporta nada. |
 | **RainbowKit** (o ConnectKit) | Recomendado | Conexión de wallet resuelta en una tarde. Elegir uno y no discutirlo. |
-| **Tailwind v4 + shadcn/ui** | Imprescindible | El producto es tablas, formularios, estados y timelines de hitos. shadcn cubre exactamente eso y, al ser código copiado y no una dependencia cerrada, permite reescribir cada componente con el vidrio del sistema. Los tokens van en `@theme inline`. |
-| **Sistema visual: glassmorphism + color sólido** | Imprescindible — **decisión cerrada** | Dirección única del producto, definida en [design-system.md](design-system.md). Dark-only, vidrio esmerilado sobre azul noche, luz cromática detrás del vidrio y color plano en toda la UI. No se evalúan alternativas. |
+| **Tailwind v4** | Imprescindible | Los tokens del sistema viven en `@theme inline` sobre variables CSS. Es lo que permitió cambiar el lenguaje visual entero cuatro veces sin reescribir componentes. |
+| **shadcn/ui** | Descartado por ahora | Se evaluó, pero los componentes del producto (tarjeta de oportunidad, waterfall, cronograma de desembolsos) son de dominio, no genéricos. Los primitivos propios en `components/ui/` son ~200 líneas en total y no arrastran dependencias. |
+| **Sistema visual: marketplace de inversión** | Imprescindible — **decisión cerrada** | Superficies blancas sobre gris claro, azul corporativo como único color de marca, Mona Sans como única tipografía. Definido en [design-system.md](design-system.md). |
 | **TanStack Query** | Recomendado | Ya viene con wagmi; úsalo también para los datos offchain y unificas el manejo de estado async. |
 | **Recharts / visualización** | Recomendado | Coverage ratio, waterfall y avance de hitos se entienden mucho mejor en gráfico. Es el punto donde el inversionista decide. |
 | **Redux / Zustand / state manager global** | Evitar | El estado real vive en la chain y en el servidor. No dupliques. |

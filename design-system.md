@@ -1,16 +1,21 @@
-# Sistema de diseño — glassmorphism + color sólido
+# Sistema de diseño — marketplace de inversión
 
-**Decisión cerrada.** Esta es la única dirección visual del producto. No se evalúan alternativas (neobrutalismo, flat corporativo, skeuomorfismo, light mode por defecto). Cualquier pantalla nueva se construye con las piezas de este documento.
+**Decisión cerrada.** Marketplace de consumo profesional: superficies blancas sobre gris claro, **Chartreuse + Gun Metal** como identidad de marca, y tarjetas de producto con portada, avance de recaudación y calificación de riesgo. Referencia de arquitectura: plataformas de crowdfunding de inversión — pero con el **copy y la profundidad de un producto de crédito privado institucional**, no de una app de consumo.
 
-Referencia: superficie de vidrio esmerilado sobre fondo azul-noche profundo, con una fuente de luz cromática (azul → violeta → magenta) detrás del vidrio, tipografía blanca condensada en mayúsculas y controles de color plano.
+> **Historial de iteraciones.** El sistema pasó por: oscuro con luz cromática → claro con luz cromática → monocromo mono → marketplace en azul → **Chartreuse + Gun Metal**. Cada giro costó horas y no días porque **los componentes nunca leen colores literales: leen tokens**. Esa es la regla que hay que preservar por encima de cualquier estética concreta.
+
+Fuente de verdad ejecutable: [app/globals.css](app/globals.css). Si este documento y el CSS discrepan, gana el CSS.
 
 ---
 
-## 1. Los tres principios
+## 1. Los cinco principios
 
-1. **El color vive en la luz, no en la interfaz.** El degradado cromático es *ambiente detrás del vidrio*. Los elementos de UI (botones, badges, estados, tablas) usan **color plano y sólido**. Nunca un botón con degradado.
-2. **El vidrio es una capa, no una textura.** Máximo dos niveles de vidrio superpuestos. Un tercer nivel se vuelve sopa gris y mata la legibilidad.
-3. **El texto nunca flota sobre el degradado.** Si hay texto encima de la zona cromática, va sobre una placa de vidrio o sobre un velo oscuro. Esto no es negociable: el producto muestra montos, tasas y coverage ratios.
+1. **Un solo módulo, cero scroll de página.** El catálogo es la aplicación; todo lo demás son capas y transiciones sobre él.
+2. **Chartreuse es relleno, nunca texto.** Es un verde-amarillo muy claro: ilegible como tipografía o borde fino sobre blanco. Se usa solo en superficies de relleno (botones, chips, barras); todo texto o ícono "de marca" usa `--brand-ink` (Gun Metal) encima, nunca `--brand` directo. Ver §4.
+3. **El color semántico solo aparece cuando el dato lo exige**: verde para lo que va bien, ámbar para lo que espera decisión, rojo para pérdida e incumplimiento.
+4. **Una sola familia tipográfica.** Mona Sans en todo el producto; la jerarquía la marca el peso, no la fuente.
+5. **El copy es institucional, no de consumo.** Esto mueve capital real de terceros. Nada de "si algo sale mal" ni frases coloquiales como título — ver §8.
+6. **Calibrado para 1366×768.** Una pantalla de trabajo debe entregar lo esencial sin scroll.
 
 ---
 
@@ -18,182 +23,175 @@ Referencia: superficie de vidrio esmerilado sobre fondo azul-noche profundo, con
 
 ```css
 :root {
-  /* --- Base: azul noche --- */
-  --bg-void:        #05060F;  /* fondo de página, el más profundo */
-  --bg-deep:        #0A0B1A;  /* fondo de sección */
-  --bg-raised:      #12142A;  /* superficie sólida cuando el vidrio no aplica */
+  /* Superficies */
+  --bg:           #F6F7F9;   /* fondo de página */
+  --surface:      #FFFFFF;   /* tarjetas y barras */
+  --surface-soft: #FAFBFC;   /* cabeceras de tabla, zonas secundarias */
 
-  /* --- Cromáticos sólidos (la paleta viva) --- */
-  --chroma-blue:    #2E6BFF;  /* azul eléctrico — acción primaria */
-  --chroma-azure:   #4CC2FF;  /* azul claro — acentos, links */
-  --chroma-violet:  #7B3DF5;  /* violeta — puente del degradado */
-  --chroma-magenta: #C838E8;  /* magenta — acento fuerte */
-  --chroma-pink:    #FF4D9A;  /* rosa — remate del degradado */
+  /* Neutros */
+  --border:        #E4E7EC;
+  --border-strong: #D0D5DD;
+  --text-hi:       #00272B;   /* Gun Metal — reemplaza el gris casi negro */
+  --text-mid:      #475467;
+  --text-low:      #98A2B3;
 
-  /* --- Estado (planos, sin degradado) --- */
-  --state-funding:  #4CC2FF;
-  --state-active:   #2ED47A;
-  --state-warning:  #FFB020;
-  --state-default:  #FF3D5A;
-  --state-repaid:   #7B3DF5;
+  /* Marca — Chartreuse para relleno, Gun Metal como tinta legible.
+     Chartreuse pierde contraste como texto/borde fino sobre blanco:
+     se usa solo en superficies de relleno (botones, barras, chips),
+     siempre con --brand-ink encima, nunca como texto directo. */
+  --brand:        #E0FF4F;
+  --brand-hover:  #CBE93A;
+  --brand-ink:    #00272B;
+  --brand-soft:   #F8FFDF;
+  --brand-border: #D8EF85;
 
-  /* --- Vidrio --- */
-  --glass-fill:      rgba(255, 255, 255, 0.05);
-  --glass-fill-hi:   rgba(255, 255, 255, 0.08);  /* hover / capa 2 */
-  --glass-stroke:    rgba(255, 255, 255, 0.12);
-  --glass-stroke-hi: rgba(255, 255, 255, 0.20);  /* borde superior, luz */
-  --glass-blur:      28px;
-  --glass-sat:       160%;
+  /* Semánticos, apagados a propósito */
+  --positive: #147A54;   --positive-soft: #E7F4EE;
+  --warning:  #A4671A;   --warning-soft:  #FDF3E7;
+  --negative: #B3261E;   --negative-soft: #FBECEB;
 
-  /* --- Texto --- */
-  --text-hi:   rgba(255, 255, 255, 0.96);
-  --text-mid:  rgba(255, 255, 255, 0.68);
-  --text-low:  rgba(255, 255, 255, 0.44);
+  /* Geometría */
+  --r-card: 10px;  --r-panel: 8px;  --r-input: 8px;  --r-pill: 999px;
 
-  /* --- Geometría --- */
-  --r-card:  28px;
-  --r-panel: 20px;
-  --r-input: 12px;
-  --r-pill:  999px;
-}
-```
+  /* Shell */
+  --shell-max: 1240px;  --shell-min: 1120px;
 
-**Tailwind v4** — mapear en `globals.css`:
-
-```css
-@theme inline {
-  --color-void: var(--bg-void);
-  --color-deep: var(--bg-deep);
-  --color-blue: var(--chroma-blue);
-  --color-azure: var(--chroma-azure);
-  --color-violet: var(--chroma-violet);
-  --color-magenta: var(--chroma-magenta);
-  --color-pink: var(--chroma-pink);
-  --radius-card: var(--r-card);
+  /* Elevación */
+  --shadow-sm: 0 1px 2px rgba(16,24,40,0.05);
+  --shadow-md: 0 4px 12px -2px rgba(16,24,40,0.10);
+  --shadow-lg: 0 12px 28px -8px rgba(16,24,40,0.16);
 }
 ```
 
 ---
 
-## 3. La receta de vidrio
+## 3. Tipografía
 
-```css
-.glass {
-  background: var(--glass-fill);
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
-  border: 1px solid var(--glass-stroke);
-  border-radius: var(--r-card);
-  box-shadow:
-    inset 0 1px 0 0 var(--glass-stroke-hi),   /* borde de luz superior */
-    0 24px 60px -20px rgba(0, 0, 0, 0.6);      /* sombra de elevación */
-}
-```
+Una sola familia en todo el producto: **Mona Sans** (variable, pesos 200–900). La jerarquía se marca con peso y tamaño, no con familias distintas.
 
-Los cuatro ingredientes son obligatorios juntos. Un `background` translúcido sin `backdrop-filter` es un rectángulo gris; un `backdrop-filter` sin borde de luz interior no se lee como vidrio.
-
-**Fallback**: si `backdrop-filter` no está soportado, cae a `--bg-raised` sólido. Nunca dejes la superficie translúcida sin blur.
-
-```css
-@supports not (backdrop-filter: blur(1px)) {
-  .glass { background: var(--bg-raised); }
-}
-```
+| Uso | Clase | Peso |
+| --- | --- | --- |
+| Títulos | `.h1` (30px), `.h2` (19px), `.h3` (15px) | 600–700 |
+| Etiquetas | `.label` — 11px, mayúsculas, tracking 0.06em | 600 |
+| Cuerpo base | — | 14px / 1.55, 400 |
+| Toda cifra | `.num` — tabular por defecto | hereda el peso del contexto |
 
 ---
 
-## 4. La luz cromática
+## 4. Color semántico
 
-Es lo que se ve *a través* del vidrio. Se compone de tres piezas apiladas.
+| Situación | Token | Dónde aparece |
+| --- | --- | --- |
+| Marca, acción, rentabilidad, "te corresponde" | `--brand` (relleno) / `--brand-ink` (texto e íconos) | Botón primario, APY, tramos del waterfall que son del inversionista |
+| Va bien: activa, pagada, cobertura suficiente, ganancia | `--positive` | Estado, coverage ≥ 1x, ganancia estimada |
+| Espera decisión, castigo aplicado | `--warning` | Hito presentado, haircut |
+| Pérdida o incumplimiento | `--negative` | Estado en default, cobertura < 1x, recupero parcial |
 
-**a) Blobs de color** — tres radial-gradients, sin bordes duros:
+La calificación de riesgo recorre la escala: **A** positivo, **B** marca, **C/D** ámbar, **E** rojo.
 
-```css
-.chroma-light {
-  position: absolute; inset: 0; z-index: 0;
-  background:
-    radial-gradient(60% 55% at 30% 25%, var(--chroma-azure)  0%, transparent 70%),
-    radial-gradient(55% 60% at 55% 45%, var(--chroma-magenta) 0%, transparent 68%),
-    radial-gradient(70% 65% at 80% 70%, var(--chroma-blue)    0%, transparent 72%);
-  filter: blur(40px);
-}
-```
+**Regla no negociable — sin relleno de color.** Ninguna superficie que comunique un estado (pill, tarjeta, banner, badge) lleva fondo teñido del color semántico. El fondo es siempre `--surface` (o `--surface-soft` si es neutro); el color solo aparece en **borde y texto/ícono, en el mismo tono pleno** — nunca tres variaciones del mismo color (fondo tenue + borde medio + texto pleno). Motivo: la combinación de relleno+borde+texto en tonos distintos se ve saturada y amateur; un borde+texto sólido sobre fondo neutro se ve profesional y es lo que ya usa `Pill`/`StatusPill`, `Button` (`soft`), y los paneles de estado (`CollateralPanel`, `PassportPanel`, `ActivityRow`, `MilestoneTimeline`, `WaterfallPanel`).
 
-**b) Estriado vertical** — las líneas finas de la referencia. Encima del color, en `multiply`:
-
-```css
-.chroma-light::after {
-  content: ''; position: absolute; inset: 0;
-  background: repeating-linear-gradient(
-    90deg,
-    rgba(0,0,0,0.22) 0 1px,
-    transparent 1px 10px
-  );
-  mix-blend-mode: multiply;
-}
-```
-
-**c) Grano** — un PNG de ruido al 3–4% de opacidad sobre todo el degradado. Sin esto, cualquier degradado grande hace *banding* visible en pantallas de 8 bits. Es el detalle que separa "hecho a mano" de "plantilla".
+Los tokens `--positive-soft`, `--warning-soft`, `--negative-soft` y `--brand-soft` quedan reservados **solo** para washes puramente decorativos que no comunican un estado (fondo de `CoverArt`, chip de ícono en `Onboarding`) — nunca para tarjetas, pills o banners de información.
 
 ---
 
 ## 5. Componentes
 
-### GlassCard
-Contenedor base. `--r-card`, padding 24–32px. Es la unidad de composición: oportunidad, panel de hitos, formulario.
-
-### Pill / badge
-Borde `--glass-stroke-hi`, fondo transparente, texto `--text-hi` en mayúsculas, tracking amplio, `--r-pill`. Para estados: **fondo plano** del color de estado al 14% + borde del mismo color al 40% + texto en el color puro. Sin degradado.
-
-### Botón primario
-Fondo **sólido** `--chroma-blue`, texto blanco, `--r-pill`. Hover: aclarar 6%, no cambiar de color.
-Botón secundario: vidrio con borde, texto `--text-hi`.
-
-### Tipografía
-- **Display**: sans condensada, mayúsculas, peso 700–800, tracking negativo (`-0.02em`). Ej. Archivo, Anton, o Inter Tight. Reservada para el título de oportunidad y cifras grandes.
-- **Cuerpo / datos**: Inter, 14–16px, `--text-mid`.
-- **Etiquetas**: 11px, mayúsculas, tracking `0.12em`, `--text-low`.
-- **Cifras**: variante tabular (`font-variant-numeric: tabular-nums`) siempre. Montos y porcentajes desalineados en una tabla de crédito se ven amateur.
-
-### Marca de acento
-El asterisco de la referencia funciona como sello. Usarlo con moderación: esquina de la tarjeta hero, estado vacío, footer. No es un icono de UI.
+- **`card`** — superficie blanca, borde 1px, sombra mínima. Unidad de composición. `card-hover` añade elevación y desplazamiento de 2px.
+- **`Button`** — `primary` (`--brand` sólido, texto `--brand-ink`), `outline`, `soft` (fondo `--surface`, borde y texto `--brand-ink`), `ghost`, `danger`. Tres tamaños; 40px de alto en `md`.
+- **`Pill` / `StatusPill`** — fondo `--surface`, borde y texto en el mismo tono pleno, con punto de color. Sin relleno teñido.
+- **`ProgressBar`** — azul sobre `--border`. Verde cuando la ronda ya cerró.
+- **`Row` / `Metric` / `MetricCard`** — etiqueta + cifra en `.num`.
+- **`Table`** — cabecera en `--surface-soft`, filas con separador de 1px.
+- **`Field`** — input blanco, borde neutro, foco en azul.
+- **`OpportunityCard`** — la pieza central. Banda superior con monograma de la empresa, ciudad y sector; título; etiquetas; rentabilidad grande en azul y meta; recaudado con barra de avance; inversionistas y días restantes; pie con calificación y cobertura.
+- **`frosted`** — vidrio esmerilado, único resto del glassmorphism original. Se usa solo donde algo se superpone al contenido: la barra fija superior.
 
 ---
 
-## 6. Aplicación al producto
+## 6. Arquitectura: un módulo, cero scroll
 
-| Pantalla | Cómo se aplica |
+**No hay rutas ni scroll de página.** La aplicación es **una sola pantalla** (`h-screen`, `overflow: hidden` en `body`); todo lo demás son capas y transiciones sobre ella.
+
+| Capa | Rol | Cómo entra |
+| --- | --- | --- |
+| `AuthFlow` | Primer contacto: **wallet generada al instante, sin pedir datos** | Pantalla completa, **sin cabecera ni pie** |
+| `Onboarding` | Explicación en 4 pasos | Pantalla completa, **una sola vez por navegador** |
+| `Deck` | Catálogo paginado de operaciones | Base de la aplicación |
+| `DetailOverlay` | Ficha de la operación, en 6 pasos | Diálogo que crece desde el centro |
+| `PortfolioPanel` | Posiciones y movimientos | Panel lateral desde la derecha |
+
+Reglas de esta arquitectura:
+
+- **El primer contacto no tiene chrome ni formulario.** Un botón crea la wallet y entras. Nadie necesita registrarse para mirar un catálogo.
+- **La verificación se mueve al momento de invertir**, que es donde la regulación la exige. Explorar es libre; comprometer capital no. Esta puerta **todavía no está construida** — ver `build-plan.md`.
+- **Lo que ya se explicó no se repite.** El onboarding se marca como visto en `localStorage` y no vuelve; queda accesible desde el botón de ayuda de la barra.
+- **Se pagina, no se hace scroll.** El catálogo avanza por páginas (flechas, puntos o teclado ←/→) y la ficha avanza por pasos.
+- **Excepción honesta:** dentro de la ficha y del panel lateral el contenido puede desbordar en pantallas bajas; ahí sí hay scroll interno. Es la válvula de seguridad, no el patrón.
+
+**Alcance:** el producto es exclusivamente el lado del **inversionista**. No hay panel de originador ni flujo de empresa; esas operaciones existen en el dominio pero no se exponen.
+
+---
+
+## 7. Movimiento
+
+El movimiento es parte del sistema, no del componente. Todo sale de [lib/motion.ts](lib/motion.ts).
+
+**Criterio: en una plataforma financiera el movimiento debe orientar, no entretener.** Indica de dónde viene y hacia dónde va cada cosa; nunca llama la atención sobre sí mismo.
+
+```
+EASE  [0.22, 0.9, 0.3, 1]     una sola curva en todo el producto
+DUR   fast 0.20  base 0.28  slow 0.40
+```
+
+| Variante | Uso |
 | --- | --- |
-| **Landing / hero** | Máxima expresión: card de vidrio grande sobre luz cromática completa, display en mayúsculas, un pill y un botón sólido. Es la pantalla que se parece 1:1 a la referencia. |
-| **Marketplace de oportunidades** | Grid de GlassCards. La luz cromática pasa a **ambiente de fondo de página**, muy difusa, no dentro de cada card. Si cada tarjeta tuviera su propio degradado, el grid sería ilegible. |
-| **Detalle de oportunidad** | Card principal de vidrio; dentro, paneles de segundo nivel con `--glass-fill-hi`. Ahí se cierra: no hay tercer nivel. |
-| **Tabla de datos / waterfall** | Contenedor de vidrio, **filas sin vidrio** — separadores de 1px en `--glass-stroke`. Fondo de la zona de tabla ligeramente más opaco para asegurar contraste. |
-| **Timeline de hitos** | Línea en `--glass-stroke`; nodo completado en `--state-active` sólido, pendiente en hueco con borde. El color comunica estado, no decora. |
-| **Coverage ratio / gráficos** | Barras y arcos en color plano de la paleta. Un solo degradado permitido: la barra de progreso de fondeo, azul → magenta. |
-| **Formularios del originador** | Vidrio de bajo contraste, casi funcional. Inputs con fondo `rgba(0,0,0,0.25)` para separarlos del vidrio y que se lean como campos editables. |
+| `fadeUp` | Aparición estándar de un bloque |
+| `stagger()` | Entrada escalonada de listas y tarjetas |
+| `slide(dir)` | Pasos y páginas del carrusel — la dirección indica el sentido de avance |
+| `dialog` + `scrim` | Ficha de operación y modales |
+| `sheet` | Panel lateral |
+| `press` | Respuesta táctil de todo lo pulsable (`y: -1` al pasar, `scale: 0.97` al presionar) |
+| `T.indicator` | Subrayado que se desplaza entre pestañas (`layoutId`) |
+| `T.spring` | **Solo** confirmaciones de una acción del usuario |
+
+Dos detalles que hacen la diferencia:
+
+- **`AnimatedNumber`** — las cifras transicionan al cambiar. Cuando inviertes, el saldo no salta: baja. Es lo que más hace sentir que detrás hay una cuenta viva.
+- **`layoutId`** en los subrayados de pestañas: el indicador se desplaza entre secciones en vez de reaparecer.
+
+Reglas: una sola curva; nada rebota salvo confirmaciones; las transiciones de entrada y salida siempre son direccionales y coherentes entre sí.
 
 ---
 
-## 7. Reglas duras
+## 8. Lenguaje
 
-- ✅ Degradado **detrás** del vidrio. ❌ Degradado **en** un botón, badge, borde o texto.
-- ✅ Dos niveles de vidrio como máximo.
-- ✅ Todo texto ≥ 4.5:1 de contraste. Si el degradado sube el fondo, sube la opacidad del vidrio hasta cumplir — la legibilidad gana siempre.
-- ❌ Nada de `backdrop-filter` en elementos que hagan scroll dentro de una lista larga: mata el rendimiento. Vidrio en contenedores, no en filas.
-- ❌ Sin light mode. El producto es dark-only por decisión de marca.
-- ❌ Sin sombras de color (`box-shadow` magenta glow). La elevación es negra; el color es luz de fondo.
-- ✅ Bordes redondeados generosos y consistentes. Nada de esquinas a 4px.
+El copy dejó de ser técnico donde no aportaba. La ficha muestra el dato duro, pero titulado en castellano llano:
 
----
+| Antes | Ahora |
+| --- | --- |
+| Waterfall de pagos | Orden de pago si algo sale mal |
+| Cronograma de hitos | Cronograma de desembolsos |
+| Haircut | Castigo por tipo de activo |
+| Coverage ratio | Cobertura de la garantía |
+| Escrow | Retenido en contrato |
+| APY | Rentabilidad |
 
-## 8. Rendimiento
-
-`backdrop-filter` es caro. Tres precauciones que evitan un producto que se siente lento:
-
-1. Un solo elemento de luz cromática por pantalla, en `position: fixed`, con `will-change: transform`.
-2. Cards con `contain: paint`.
-3. En listas de más de ~20 items, el vidrio va en el contenedor; las filas son translúcidas planas sin blur. Visualmente idéntico, sin el costo.
+Los términos técnicos siguen en el código y en la documentación de producto; en pantalla se traducen.
 
 ---
 
-Cualquier componente nuevo se deriva de acá. Si algo no se puede resolver con estas piezas, se extiende el sistema en este archivo — no se improvisa en el componente.
+## 9. Reglas duras
+
+- ✅ Un solo módulo. Se pagina y se navega por capas, nunca por scroll de página.
+- ✅ Toda cifra en `.num`.
+- ✅ El color semántico se usa por significado, nunca por decoración.
+- ✅ Diseñar para 1366×768.
+- ❌ Sin degradados salvo el sutil de la textura del hero.
+- ❌ Sin sombras de color.
+- ❌ Sin `backdrop-filter` en filas de listas largas — solo en la barra fija.
+- ❌ Sin breakpoints responsive por ahora: desktop only.
+
+---
+
+Cualquier componente nuevo se deriva de acá. Si algo no se resuelve con estas piezas, se extiende el sistema en este archivo — no se improvisa en el componente.

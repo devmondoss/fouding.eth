@@ -1,0 +1,233 @@
+@import "tailwindcss";
+
+/* ============================================================
+   TOKENS — marketplace institucional.
+   Neutros + Chartreuse/Gun Metal como identidad de marca.
+   Semánticos solo donde el dato lo exige (pagado / en default).
+   ============================================================ */
+:root {
+  /* Superficies */
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-soft: #fafbfc;
+
+  /* Neutros */
+  --border: #e4e7ec;
+  --border-strong: #d0d5dd;
+  --text-hi: #00272b; /* Gun Metal — reemplaza el gris casi negro */
+  --text-mid: #475467;
+  --text-low: #98a2b3;
+
+  /* Marca — Chartreuse para relleno, Gun Metal como tinta legible.
+     Chartreuse pierde contraste como texto/borde fino sobre blanco:
+     se usa solo en superficies de relleno (botones, barras, chips),
+     siempre con --brand-ink encima, nunca como texto directo. */
+  --brand: #e0ff4f;
+  --brand-hover: #cbe93a;
+  --brand-ink: #00272b;
+  --brand-soft: #f8ffdf;
+  --brand-border: #d8ef85;
+
+  /* Semánticos, apagados a propósito */
+  --positive: #147a54;
+  --positive-soft: #e7f4ee;
+  --warning: #a4671a;
+  --warning-soft: #fdf3e7;
+  --negative: #b3261e;
+  --negative-soft: #fbeceb;
+
+  /* Gráficos — paleta categórica validada por contraste y daltonismo
+     (ver dataviz skill). No son los tokens de UI: --positive/--warning/
+     --negative están apagados a propósito y no pasan el piso de croma
+     como relleno de gráfico; estos sí. --chart-review es la única
+     excepción gris — bucket neutro para "aún sin estado", no cuenta
+     como identidad categórica. Siempre con leyenda + etiqueta directa. */
+  --chart-review: #898781;
+  --chart-funding: #eb6834;
+  --chart-active: #2a78d6;
+  --chart-repaid: #008300;
+  --chart-defaulted: #e34948;
+
+  /* Geometría */
+  --r-card: 10px;
+  --r-panel: 8px;
+  --r-input: 8px;
+  --r-pill: 999px;
+
+  /* Shell */
+  --shell-max: 1240px;
+  --shell-min: 1120px;
+
+  /* Sombras */
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow-md: 0 4px 12px -2px rgba(16, 24, 40, 0.1);
+  --shadow-lg: 0 12px 28px -8px rgba(16, 24, 40, 0.16);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-soft: var(--surface-soft);
+
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-hi: var(--text-hi);
+  --color-mid: var(--text-mid);
+  --color-low: var(--text-low);
+
+  --color-brand: var(--brand);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-soft: var(--brand-soft);
+  --color-positive: var(--positive);
+  --color-warning: var(--warning);
+  --color-negative: var(--negative);
+
+  --color-chart-review: var(--chart-review);
+  --color-chart-funding: var(--chart-funding);
+  --color-chart-active: var(--chart-active);
+  --color-chart-repaid: var(--chart-repaid);
+  --color-chart-defaulted: var(--chart-defaulted);
+
+  --radius-card: var(--r-card);
+  --radius-panel: var(--r-panel);
+  --radius-input: var(--r-input);
+
+  --font-sans: var(--font-mona-sans), system-ui, sans-serif;
+}
+
+/* ============================================================
+   BASE — desktop only
+   ============================================================ */
+html,
+body {
+  height: 100%;
+  overflow: hidden; /* la aplicacion no hace scroll de pagina */
+}
+
+body {
+  min-width: var(--shell-min);
+  background: var(--bg);
+  color: var(--text-mid);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--brand-soft);
+  color: var(--brand-ink);
+}
+
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-low);
+  background-clip: content-box;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ============================================================
+   TIPOGRAFÍA
+   Una sola familia en todo el producto: Mona Sans (variable,
+   200–900). Los pesos distinguen jerarquía, no la familia.
+   ============================================================ */
+.h1 {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.022em;
+  line-height: 1.2;
+  color: var(--text-hi);
+}
+.h2 {
+  font-size: 19px;
+  font-weight: 650;
+  letter-spacing: -0.017em;
+  line-height: 1.3;
+  color: var(--text-hi);
+}
+.h3 {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.011em;
+  color: var(--text-hi);
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  letter-spacing: -0.01em;
+}
+
+.label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-low);
+}
+
+/* ============================================================
+   SUPERFICIES
+   ============================================================ */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-sm);
+}
+
+.card-hover {
+  transition:
+    box-shadow 0.18s ease,
+    transform 0.18s ease,
+    border-color 0.18s ease;
+}
+.card-hover:hover {
+  box-shadow: var(--shadow-lg);
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
+}
+
+/* Vidrio esmerilado: se conserva donde algo se superpone al
+   contenido — barra fija y paneles pegajosos. */
+.frosted {
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .frosted {
+    background: var(--surface);
+  }
+}
+
+/* Textura sutil para el bloque hero */
+.hero-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(16, 24, 40, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(16, 24, 40, 0.045) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(80% 70% at 50% 40%, #000 20%, transparent 85%);
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
