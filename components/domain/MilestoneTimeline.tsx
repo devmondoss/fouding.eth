@@ -14,7 +14,7 @@ const NODE = {
 
 export function MilestoneTimeline({ o }: { o: Opportunity }) {
   return (
-    <section className="card p-5">
+    <section className="card p-4 sm:p-5">
       <div className="flex items-center justify-between gap-4">
         <h3 className="h3">Cronograma de desembolsos</h3>
         <span className="num text-[13px] text-mid">
@@ -22,7 +22,7 @@ export function MilestoneTimeline({ o }: { o: Opportunity }) {
         </span>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-3">
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div
           className="rounded-[var(--r-panel)] border px-4 py-3"
           style={{

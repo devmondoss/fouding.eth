@@ -74,7 +74,7 @@ export function DetailOverlay({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.22 }}
-      className="fixed inset-0 z-50 flex flex-col"
+      className="fixed inset-0 z-50 flex flex-col lg:p-6"
       style={{ backgroundColor: "rgba(16,24,40,0.35)" }}
       onClick={onClose}
     >
@@ -84,24 +84,24 @@ export function DetailOverlay({
         exit={{ opacity: 0, scale: 0.98, y: 8 }}
         transition={{ duration: 0.28, ease: [0.22, 0.9, 0.3, 1] }}
         onClick={(e) => e.stopPropagation()}
-        className="m-auto flex h-[calc(100vh-48px)] w-[min(1240px,calc(100vw-48px))] flex-col overflow-hidden rounded-[var(--r-card)] border border-border shadow-[var(--shadow-lg)]"
+        className="m-auto flex h-full w-full flex-col overflow-hidden border-border shadow-[var(--shadow-lg)] lg:h-[calc(100vh-48px)] lg:w-[min(1240px,calc(100vw-48px))] lg:rounded-[var(--r-card)] lg:border"
         style={{ backgroundColor: "var(--bg)" }}
       >
         {/* Cabecera */}
-        <div className="flex shrink-0 items-start justify-between border-b border-border bg-surface px-6 py-4">
-          <div className="flex gap-3.5">
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border bg-surface px-4 py-3 sm:px-6 sm:py-4">
+          <div className="flex min-w-0 gap-3 sm:gap-3.5">
             <span
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] text-[14px] font-bold"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] text-[13px] font-bold sm:h-11 sm:w-11 sm:text-[14px]"
               style={{ backgroundColor: "var(--brand)", color: "var(--brand-ink)" }}
             >
               {initials(o.company.name)}
             </span>
-            <div>
-              <div className="flex items-center gap-2.5">
-                <h2 className="h1 text-[21px]">{o.projectTitle}</h2>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+                <h2 className="h1 text-[17px] sm:text-[21px]">{o.projectTitle}</h2>
                 <StatusPill status={o.status} />
               </div>
-              <div className="mt-1 flex items-center gap-2.5 text-[12.5px] text-mid">
+              <div className="mt-1 flex flex-wrap items-center gap-2 sm:gap-2.5 text-[12.5px] text-mid">
                 <span className="font-medium text-hi">{o.company.name}</span>
                 <span className="flex items-center gap-1">
                   <MapPin className="h-3 w-3" />
@@ -117,25 +117,32 @@ export function DetailOverlay({
 
           <button
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-border transition-colors hover:bg-surface-soft"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border transition-colors hover:bg-surface-soft"
             aria-label="Cerrar"
           >
             <X className="h-4 w-4 text-mid" />
           </button>
         </div>
 
-        {/* Cuerpo */}
-        <div className="grid min-h-0 flex-1 grid-cols-[1fr_320px]">
+        {/* Cuerpo — en mobile es una columna que scrollea entera, con la
+            inversión primero (order-1); desde lg vuelve al panel lado a
+            lado sin scroll de página. */}
+        <div className="flex flex-1 flex-col overflow-y-auto lg:grid lg:min-h-0 lg:grid-cols-[1fr_320px] lg:overflow-hidden">
+          {/* Inversión */}
+          <div className="order-1 border-b border-border bg-surface p-4 sm:p-5 lg:order-2 lg:min-h-0 lg:overflow-y-auto lg:border-b-0">
+            <InvestPanel o={o} onOpenFunds={onOpenFunds} />
+          </div>
+
           {/* Pasos */}
-          <div className="flex min-h-0 flex-col border-r border-border">
-            <div className="flex shrink-0 gap-1 border-b border-border bg-surface px-6">
+          <div className="order-2 flex flex-col lg:order-1 lg:min-h-0 lg:border-r lg:border-border">
+            <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-border bg-surface px-4 sm:px-6">
               {STEPS.map((s) => {
                 const on = step === s.key;
                 return (
                   <button
                     key={s.key}
                     onClick={() => go(s.key)}
-                    className="relative px-3 py-3 text-[13px] transition-colors"
+                    className="relative shrink-0 whitespace-nowrap px-3 py-3 text-[13px] transition-colors"
                     style={{
                       color: on ? "var(--brand-ink)" : "var(--text-mid)",
                       fontWeight: on ? 600 : 400,
@@ -154,7 +161,7 @@ export function DetailOverlay({
               })}
             </div>
 
-            <div className="relative min-h-0 flex-1 overflow-hidden">
+            <div className="relative lg:min-h-0 lg:flex-1 lg:overflow-hidden">
               <AnimatePresence mode="wait" custom={dir}>
                 <motion.div
                   key={step}
@@ -162,7 +169,7 @@ export function DetailOverlay({
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: dir * -28 }}
                   transition={{ duration: 0.26, ease: [0.22, 0.9, 0.3, 1] }}
-                  className="h-full overflow-y-auto px-6 py-5"
+                  className="px-4 py-4 sm:px-6 sm:py-5 lg:h-full lg:overflow-y-auto"
                 >
                   {step === "resumen" && <Resumen o={o} />}
                   {step === "garantia" && <CollateralPanel o={o} />}
@@ -173,11 +180,6 @@ export function DetailOverlay({
                 </motion.div>
               </AnimatePresence>
             </div>
-          </div>
-
-          {/* Inversión */}
-          <div className="min-h-0 overflow-y-auto bg-surface p-5">
-            <InvestPanel o={o} onOpenFunds={onOpenFunds} />
           </div>
         </div>
       </motion.div>
@@ -240,8 +242,8 @@ function Resumen({ o }: { o: Opportunity }) {
         </section>
       )}
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="card px-5 py-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
+        <div className="card px-4 py-3.5 sm:px-5 sm:py-4">
           <Metric
             label="Rentabilidad"
             value={formatBps(o.apyBps)}
@@ -249,21 +251,21 @@ function Resumen({ o }: { o: Opportunity }) {
             accent="var(--brand-ink)"
           />
         </div>
-        <div className="card px-5 py-4">
+        <div className="card px-4 py-3.5 sm:px-5 sm:py-4">
           <Metric
             label="Meta de recaudación"
             value={formatUsdc(o.targetAmount)}
             unit="USDC"
           />
         </div>
-        <div className="card px-5 py-4">
+        <div className="card px-4 py-3.5 sm:px-5 sm:py-4">
           <Metric
             label="Aporte de la empresa"
             value={formatBps(o.borrowerContributionBps, 0)}
             unit="del costo del proyecto"
           />
         </div>
-        <div className="card px-5 py-4">
+        <div className="card px-4 py-3.5 sm:px-5 sm:py-4">
           <Metric
             label="Interés total del crédito"
             value={formatUsdc(expectedInterest(o))}

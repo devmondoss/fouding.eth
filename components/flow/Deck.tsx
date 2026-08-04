@@ -19,8 +19,11 @@ const FILTROS: { key: OpportunityStatus | "all"; label: string }[] = [
 ];
 
 /**
- * Catálogo paginado. No hay scroll: se avanza por páginas, con teclado o
- * con las flechas.
+ * Catálogo. Desde lg (desktop) es paginado y sin scroll: se avanza por
+ * páginas, con teclado o con las flechas — la pantalla de trabajo
+ * calibrada en design-system.md §6. Debajo de lg, la página del navegador
+ * ya hace scroll normal (ver globals.css), así que en mobile el catálogo
+ * es una lista vertical simple: todo lo visible, sin paginar.
  */
 export function Deck({ onSelect }: { onSelect: (o: Opportunity) => void }) {
   const { opportunities } = usePlatform();
@@ -56,44 +59,62 @@ export function Deck({ onSelect }: { onSelect: (o: Opportunity) => void }) {
   const total = opportunities.reduce((s, o) => s + o.raisedAmount, 0n);
   const abiertas = opportunities.filter((o) => o.status === "funding").length;
 
+  const filtros = (
+    <div className="flex gap-2 overflow-x-auto px-4 pb-1 sm:px-6 lg:flex-wrap lg:overflow-visible lg:px-0 lg:pb-0">
+      {FILTROS.map((f) => {
+        const on = filtro === f.key;
+        return (
+          <button
+            key={f.key}
+            onClick={() => {
+              setFiltro(f.key);
+              setPage(0);
+            }}
+            className="shrink-0 rounded-[var(--r-pill)] border px-3 py-1.5 text-[12.5px] font-medium whitespace-nowrap transition-colors"
+            style={{
+              color: on ? "var(--brand-ink)" : "var(--text-mid)",
+              backgroundColor: on ? "var(--brand)" : "var(--surface)",
+              borderColor: on ? "var(--brand)" : "var(--border)",
+            }}
+          >
+            {f.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   return (
-    <div className="flex h-full flex-col px-8 py-6">
+    <div className="flex flex-col lg:h-full lg:px-8 lg:py-6">
       {/* Encabezado */}
-      <div className="flex shrink-0 items-end justify-between">
+      <div className="flex flex-col gap-3 px-4 pt-5 sm:px-6 lg:flex-row lg:items-end lg:justify-between lg:gap-0 lg:px-0 lg:pt-0">
         <div>
-          <h1 className="h1 text-[26px]">Oportunidades</h1>
+          <h1 className="h1 text-[22px] sm:text-[26px]">Oportunidades</h1>
           <p className="mt-1 text-[13px] text-mid">
             <span className="num">{abiertas}</span> rondas abiertas ·{" "}
             <span className="num">{formatUsdc(total)}</span> USDC colocados
           </p>
         </div>
 
-        <div className="flex gap-2">
-          {FILTROS.map((f) => {
-            const on = filtro === f.key;
-            return (
-              <button
-                key={f.key}
-                onClick={() => {
-                  setFiltro(f.key);
-                  setPage(0);
-                }}
-                className="rounded-[var(--r-pill)] border px-3 py-1.5 text-[12.5px] font-medium transition-colors"
-                style={{
-                  color: on ? "var(--brand-ink)" : "var(--text-mid)",
-                  backgroundColor: on ? "var(--brand)" : "var(--surface)",
-                  borderColor: on ? "var(--brand)" : "var(--border)",
-                }}
-              >
-                {f.label}
-              </button>
-            );
-          })}
-        </div>
+        <div className="hidden lg:block">{filtros}</div>
       </div>
 
-      {/* Carrusel */}
-      <div className="relative mt-5 min-h-0 flex-1">
+      <div className="-mx-4 mt-3 overflow-hidden lg:hidden">{filtros}</div>
+
+      {/* Mobile / tablet: lista vertical, sin paginar — la página ya scrollea */}
+      <div className="mt-4 grid grid-cols-1 gap-4 px-4 pb-8 sm:grid-cols-2 sm:px-6 lg:hidden">
+        {visibles.map((o, i) => (
+          <OpportunityCard
+            key={o.id}
+            o={o}
+            index={i}
+            onSelect={() => onSelect(o)}
+          />
+        ))}
+      </div>
+
+      {/* Desktop: carrusel paginado, cero scroll de página */}
+      <div className="relative mt-5 hidden min-h-0 flex-1 lg:block">
         <AnimatePresence mode="wait" custom={dir}>
           <motion.div
             key={`${filtro}-${current}`}
@@ -119,8 +140,8 @@ export function Deck({ onSelect }: { onSelect: (o: Opportunity) => void }) {
         </AnimatePresence>
       </div>
 
-      {/* Paginación */}
-      <div className="mt-5 flex shrink-0 items-center justify-center gap-5">
+      {/* Paginación — solo desktop */}
+      <div className="mt-5 hidden shrink-0 items-center justify-center gap-5 lg:flex">
         <PagerButton
           onClick={() => go(current - 1)}
           disabled={current === 0}

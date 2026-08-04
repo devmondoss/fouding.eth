@@ -32,7 +32,7 @@ export function Modal({
   return (
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-6">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-6">
           <motion.div
             variants={scrim}
             initial="hidden"
@@ -48,8 +48,8 @@ export function Modal({
             initial="hidden"
             animate="show"
             exit="exit"
-            className="relative max-h-[86vh] overflow-y-auto rounded-[var(--r-card)] border border-border bg-surface p-6 shadow-[var(--shadow-lg)]"
-            style={{ width }}
+            className="relative max-h-[86vh] w-full overflow-y-auto rounded-[var(--r-card)] border border-border bg-surface p-5 shadow-[var(--shadow-lg)] sm:p-6"
+            style={{ maxWidth: width }}
           >
             <motion.button
               whileTap={{ scale: 0.92 }}

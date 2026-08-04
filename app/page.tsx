@@ -50,7 +50,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden">
+    <div className="flex min-h-screen flex-col lg:h-screen lg:overflow-hidden">
       <TopBar
         session={session}
         onOpenPortfolio={() => setPortfolio(true)}
@@ -59,7 +59,7 @@ export default function App() {
         onReplayIntro={reset}
       />
 
-      <main className="min-h-0 flex-1">
+      <main className="flex-1 lg:min-h-0">
         <Deck onSelect={setSelected} />
       </main>
 

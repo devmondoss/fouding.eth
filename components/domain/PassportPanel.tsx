@@ -20,7 +20,7 @@ export function PassportPanel({ company }: { company: Company }) {
   const track = issuerTrackRecord(p);
 
   return (
-    <section className="card p-5">
+    <section className="card p-4 sm:p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 className="h3">La empresa</h3>
@@ -72,7 +72,7 @@ export function PassportPanel({ company }: { company: Company }) {
 
       <div className="mt-4 border-t border-border pt-4">
         <div className="label mb-2.5">Historial de pago en la plataforma</div>
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <Mini label="Créditos" value={p.completedDeals} />
           <Mini
             label="A tiempo"

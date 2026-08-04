@@ -68,7 +68,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
       style={{ backgroundColor: "var(--surface)" }}
     >
       {/* Barra superior */}
-      <div className="flex h-[60px] shrink-0 items-center justify-between px-8">
+      <div className="flex h-14 shrink-0 items-center justify-between px-5 sm:h-[60px] sm:px-8">
         <span className="text-[15px] font-bold tracking-[-0.02em] text-hi">
           Founding
         </span>
@@ -81,7 +81,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
       </div>
 
       {/* Contenido */}
-      <div className="relative flex flex-1 items-center justify-center overflow-hidden px-8">
+      <div className="relative flex flex-1 items-center justify-center overflow-hidden px-5 sm:px-8">
         <AnimatePresence mode="wait" custom={dir}>
           <motion.div
             key={i}
@@ -104,7 +104,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
               {slide.kicker}
             </div>
 
-            <h2 className="h1 mt-2 text-[34px]">{slide.title}</h2>
+            <h2 className="h1 mt-2 text-[24px] sm:text-[34px]">{slide.title}</h2>
 
             <p className="mx-auto mt-4 max-w-[520px] text-[15px] leading-relaxed text-mid">
               {slide.body}
@@ -114,7 +114,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
       </div>
 
       {/* Controles */}
-      <div className="flex h-[92px] shrink-0 items-center justify-between px-8">
+      <div className="flex h-20 shrink-0 items-center justify-between px-5 sm:h-[92px] sm:px-8">
         <Button
           variant="ghost"
           onClick={() => go(i - 1)}

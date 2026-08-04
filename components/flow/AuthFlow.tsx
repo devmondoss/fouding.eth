@@ -56,10 +56,10 @@ export function AuthFlow({
 
   return (
     <div
-      className="flex h-screen items-center justify-center px-8"
+      className="flex min-h-screen items-center justify-center px-5 py-10 sm:px-8"
       style={{ backgroundColor: "var(--surface)" }}
     >
-      <div className="w-[400px]">
+      <div className="w-full max-w-[400px]">
         <AnimatePresence mode="wait">
           {/* --------------------------------------------------- INTRO */}
           {step === "intro" && (
@@ -85,7 +85,7 @@ export function AuthFlow({
                 <span className="h2 text-[22px]">Founding</span>
               </motion.div>
 
-              <h1 className="h1 mt-9 text-[34px] leading-[1.05]">
+              <h1 className="h1 mt-9 text-[28px] leading-[1.1] sm:text-[34px] sm:leading-[1.05]">
                 Invierte en empresas
                 <br />
                 que ya facturan

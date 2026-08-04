@@ -52,7 +52,7 @@ export function AddFundsFlow({ onClose }: { onClose: () => void }) {
       initial="hidden"
       animate="show"
       exit="exit"
-      className="fixed inset-0 z-[60] flex items-center justify-center p-6"
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6"
       style={{ backgroundColor: "rgba(16,24,40,0.4)" }}
       onClick={step === "monto" ? onClose : undefined}
     >
@@ -62,7 +62,7 @@ export function AddFundsFlow({ onClose }: { onClose: () => void }) {
         animate="show"
         exit="exit"
         onClick={(e) => e.stopPropagation()}
-        className="w-[380px] overflow-hidden rounded-[var(--r-card)] border border-border bg-surface shadow-[var(--shadow-lg)]"
+        className="w-full max-w-[380px] overflow-hidden rounded-[var(--r-card)] border border-border bg-surface shadow-[var(--shadow-lg)]"
       >
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <h2 className="h2 text-[16px]">Agregar fondos</h2>

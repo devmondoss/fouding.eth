@@ -13,7 +13,7 @@ export function ScorePanel({ o }: { o: Opportunity }) {
   const color = GRADE_COLOR[s.grade];
 
   return (
-    <section className="card p-5">
+    <section className="card p-4 sm:p-5">
       <div className="flex items-center justify-between gap-4">
         <div>
           <h3 className="h3">Score crediticio</h3>

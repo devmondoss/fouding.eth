@@ -67,7 +67,7 @@ export function InvestPanel({
 
   return (
     <>
-      <aside className="card sticky top-[76px] overflow-hidden">
+      <aside className="card overflow-hidden lg:sticky lg:top-[76px]">
         {/* Recaudación */}
         <div className="border-b border-border p-5">
           <div className="flex items-baseline justify-between">

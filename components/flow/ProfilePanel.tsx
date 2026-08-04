@@ -83,7 +83,7 @@ export function ProfilePanel({
         animate={{ x: 0 }}
         exit={{ x: "100%" }}
         transition={{ duration: 0.32, ease: [0.22, 0.9, 0.3, 1] }}
-        className="fixed right-0 top-0 z-50 flex h-full w-[400px] flex-col border-l border-border"
+        className="fixed right-0 top-0 z-50 flex h-full w-full flex-col border-l border-border sm:w-[400px]"
         style={{ backgroundColor: "var(--surface)" }}
       >
         <div className="flex h-[60px] shrink-0 items-center justify-between border-b border-border px-5">

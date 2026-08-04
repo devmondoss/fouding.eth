@@ -97,22 +97,31 @@
 }
 
 /* ============================================================
-   BASE — desktop only
+   BASE — mobile-first.
+   En mobile la página hace scroll normal, como cualquier sitio.
+   Desde lg (1024px) se activa el shell fijo sin scroll de página:
+   una sola pantalla de trabajo, todo por capas — ver design-system.md §6.
    ============================================================ */
 html,
 body {
   height: 100%;
-  overflow: hidden; /* la aplicacion no hace scroll de pagina */
 }
 
 body {
-  min-width: var(--shell-min);
   background: var(--bg);
   color: var(--text-mid);
   font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden; /* nunca scroll horizontal, ni en mobile */
+}
+
+@media (min-width: 1024px) {
+  body {
+    min-width: var(--shell-min);
+    overflow: hidden;
+  }
 }
 
 ::selection {

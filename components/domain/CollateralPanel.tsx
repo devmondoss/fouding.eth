@@ -15,7 +15,7 @@ export function CollateralPanel({ o }: { o: Opportunity }) {
   const ok = cov >= 10000;
 
   return (
-    <section className="card p-5">
+    <section className="card p-4 sm:p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 className="h3">Garantía</h3>

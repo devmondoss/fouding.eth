@@ -18,7 +18,7 @@ export function WaterfallPanel({ o }: { o: Opportunity }) {
   const totalDue = legal + servicing + principal + expectedInterest(o);
 
   return (
-    <section className="card p-5">
+    <section className="card p-4 sm:p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 className="h3">Prelación de pagos ante incumplimiento</h3>

@@ -114,7 +114,7 @@ export function PortfolioOverlay({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.22 }}
-      className="fixed inset-0 z-50 flex flex-col"
+      className="fixed inset-0 z-50 flex flex-col lg:p-6"
       style={{ backgroundColor: "rgba(16,24,40,0.35)" }}
       onClick={onClose}
     >
@@ -124,20 +124,20 @@ export function PortfolioOverlay({
         exit={{ opacity: 0, scale: 0.98, y: 8 }}
         transition={{ duration: 0.28, ease: [0.22, 0.9, 0.3, 1] }}
         onClick={(e) => e.stopPropagation()}
-        className="m-auto flex h-[calc(100vh-48px)] w-[min(980px,calc(100vw-48px))] flex-col overflow-hidden rounded-[var(--r-card)] border border-border shadow-[var(--shadow-lg)]"
+        className="m-auto flex h-full w-full flex-col overflow-hidden border-border shadow-[var(--shadow-lg)] lg:h-[calc(100vh-48px)] lg:w-[min(980px,calc(100vw-48px))] lg:rounded-[var(--r-card)] lg:border"
         style={{ backgroundColor: "var(--bg)" }}
       >
         {/* Cabecera */}
-        <div className="flex shrink-0 items-center justify-between border-b border-border bg-surface px-6 py-4">
+        <div className="flex shrink-0 items-center justify-between border-b border-border bg-surface px-4 py-3 sm:px-6 sm:py-4">
           <div>
-            <h2 className="h1 text-[21px]">Mi portafolio</h2>
+            <h2 className="h1 text-[18px] sm:text-[21px]">Mi portafolio</h2>
             <p className="mt-0.5 text-[12.5px] text-mid">
               {rows.length} {rows.length === 1 ? "posición" : "posiciones"} en tu cuenta
             </p>
           </div>
           <button
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-border transition-colors hover:bg-surface-soft"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border transition-colors hover:bg-surface-soft"
             aria-label="Cerrar"
           >
             <X className="h-4 w-4 text-mid" />
@@ -145,14 +145,14 @@ export function PortfolioOverlay({
         </div>
 
         {/* Pasos */}
-        <div className="flex shrink-0 gap-1 border-b border-border bg-surface px-6">
+        <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-border bg-surface px-4 sm:px-6">
           {STEPS.map((s) => {
             const on = step === s.key;
             return (
               <button
                 key={s.key}
                 onClick={() => go(s.key)}
-                className="relative px-3 py-3 text-[13px] transition-colors"
+                className="relative shrink-0 whitespace-nowrap px-3 py-3 text-[13px] transition-colors"
                 style={{
                   color: on ? "var(--brand-ink)" : "var(--text-mid)",
                   fontWeight: on ? 600 : 400,
@@ -180,11 +180,11 @@ export function PortfolioOverlay({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: dir * -28 }}
               transition={{ duration: 0.26, ease: [0.22, 0.9, 0.3, 1] }}
-              className="h-full overflow-y-auto px-6 py-5"
+              className="h-full overflow-y-auto px-4 py-4 sm:px-6 sm:py-5"
             >
               {step === "resumen" && (
                 <div className="flex flex-col gap-4">
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <div className="card px-4 py-3.5">
                       <Metric label="Capital invertido" value={formatUsdc(invertido)} unit="USDC" size="sm" />
                     </div>
@@ -208,7 +208,7 @@ export function PortfolioOverlay({
                   </div>
 
                   {rows.length > 0 && (
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <section className="card p-5">
                         <h3 className="h3">Distribución por estado</h3>
                         <div className="mt-2">
@@ -272,7 +272,10 @@ export function PortfolioOverlay({
                       const vendible = o.status === "active" || o.status === "funding";
 
                       return (
-                        <div key={p.id} className="card flex items-center gap-4 p-4">
+                        <div
+                          key={p.id}
+                          className="card flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-4"
+                        >
                           <button
                             type="button"
                             onClick={() => onOpenOpportunity(o.slug)}
@@ -295,26 +298,26 @@ export function PortfolioOverlay({
                             </div>
                           </button>
 
-                          <div className="shrink-0 text-right">
-                            <div className="num text-[13px] font-semibold text-hi">
-                              {formatUsdc(p.principal)}
+                          <div className="flex items-center justify-between gap-3 sm:shrink-0 sm:justify-end">
+                            <div className="text-right">
+                              <div className="num text-[13px] font-semibold text-hi">
+                                {formatUsdc(p.principal)}
+                              </div>
+                              {fallido ? (
+                                <div className="num text-[11px]" style={{ color: "var(--negative)" }}>
+                                  {formatUsdc(recuperado)} recuperado
+                                </div>
+                              ) : (
+                                <div className="num text-[11px]" style={{ color: "var(--positive)" }}>
+                                  +{formatUsdc(ganancia)}
+                                </div>
+                              )}
                             </div>
-                            {fallido ? (
-                              <div className="num text-[11px]" style={{ color: "var(--negative)" }}>
-                                {formatUsdc(recuperado)} recuperado
-                              </div>
-                            ) : (
-                              <div className="num text-[11px]" style={{ color: "var(--positive)" }}>
-                                +{formatUsdc(ganancia)}
-                              </div>
-                            )}
-                          </div>
 
-                          <div className="shrink-0">
                             <StatusPill status={o.status} />
                           </div>
 
-                          <div className="w-[140px] shrink-0 text-right">
+                          <div className="sm:w-[140px] sm:shrink-0 sm:text-right">
                             {vendible ? (
                               p.listedPrice != null ? (
                                 <span className="num text-[11.5px] text-hi">
@@ -324,6 +327,7 @@ export function PortfolioOverlay({
                                 <Button
                                   variant="outline"
                                   size="sm"
+                                  className="w-full sm:w-auto"
                                   icon={<TagIcon className="h-3 w-3" />}
                                   onClick={() => {
                                     setListing(p);
@@ -333,9 +337,7 @@ export function PortfolioOverlay({
                                   Vender
                                 </Button>
                               )
-                            ) : (
-                              <span className="text-[11.5px] text-low">—</span>
-                            )}
+                            ) : null}
                           </div>
                         </div>
                       );
