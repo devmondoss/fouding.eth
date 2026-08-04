@@ -22,7 +22,7 @@ export const wagmiConfig = createConfig({
   connectors: [
     coinbaseWallet({
       appName: "Founding",
-      preference: "smartWalletOnly",
+      preference: { options: "smartWalletOnly" },
     }),
   ],
   transports: {
