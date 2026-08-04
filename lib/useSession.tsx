@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { useAccount } from "wagmi";
-import { useLogin, useLogout, usePrivy } from "@privy-io/react-auth";
+import { useLogin, usePrivy } from "@privy-io/react-auth";
 
 export type Session = {
   address: string;
@@ -84,38 +84,36 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       );
     },
   });
-  useLogout({
-    onSuccess: () => {
-      try {
-        window.localStorage.removeItem("founding.intro");
-      } catch {}
-    },
-  });
-
   const [session, setSession] = useState<Session | null | undefined>(undefined);
 
-  useEffect(() => {
-    if (!ready) return; // el SDK de Privy todavía está resolviendo la sesión previa
-
-    if (!authenticated || accountStatus !== "connected" || !address) {
-      setSession(null);
-      return;
+  // Ajustamos `session` DURANTE el render cuando cambian los valores de
+  // Privy/wagmi que la determinan — no en un efecto (evita el
+  // setState-en-efecto, ver commit del bug de store.tsx con el mismo
+  // patrón). `resolvedKey` es la "huella" de esos valores; solo se
+  // recalcula session cuando esa huella cambia de verdad.
+  const resolvedKey = `${ready}|${authenticated}|${accountStatus}|${address ?? ""}`;
+  const [lastResolvedKey, setLastResolvedKey] = useState(resolvedKey);
+  if (resolvedKey !== lastResolvedKey) {
+    setLastResolvedKey(resolvedKey);
+    if (ready) {
+      if (!authenticated || accountStatus !== "connected" || !address) {
+        setSession(null);
+      } else {
+        const addr = address.toLowerCase();
+        const firstSeen = readJSON<Record<string, string>>(FIRST_SEEN_KEY, {});
+        if (!firstSeen[addr]) {
+          firstSeen[addr] = new Date().toISOString();
+          writeJSON(FIRST_SEEN_KEY, firstSeen);
+        }
+        const verifiedList = readJSON<string[]>(VERIFIED_KEY, []);
+        setSession({
+          address,
+          createdAt: firstSeen[addr],
+          verified: verifiedList.includes(addr),
+        });
+      }
     }
-
-    const addr = address.toLowerCase();
-    const firstSeen = readJSON<Record<string, string>>(FIRST_SEEN_KEY, {});
-    if (!firstSeen[addr]) {
-      firstSeen[addr] = new Date().toISOString();
-      writeJSON(FIRST_SEEN_KEY, firstSeen);
-    }
-    const verifiedList = readJSON<string[]>(VERIFIED_KEY, []);
-
-    setSession({
-      address,
-      createdAt: firstSeen[addr],
-      verified: verifiedList.includes(addr),
-    });
-  }, [ready, authenticated, accountStatus, address]);
+  }
 
   const connectWallet = useCallback(() => {
     setConnectError(null);
@@ -137,7 +135,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setConnectError(null);
   }, []);
 
+  // OJO: esto vive acá, no en un callback de Privy — un `logout()`
+  // disparado por Privy internamente (expiración de sesión, un glitch de
+  // HMR en dev, etc.) NO debe borrar "ya viste el onboarding". Solo la
+  // acción explícita de "Cerrar sesión" del usuario lo hace.
   const signOut = useCallback(() => {
+    try {
+      window.localStorage.removeItem("founding.intro");
+    } catch {}
     logout();
   }, [logout]);
 

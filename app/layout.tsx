@@ -19,10 +19,11 @@ export const metadata: Metadata = {
     "Crédito privado con garantía real. Capital retenido en contrato y liberado contra hitos verificados, liquidado en USDC sobre Arbitrum.",
 };
 
-// PrivyProvider valida el App ID al montarse — sin uno real, no se puede
-// prerenderizar "/" en build time. La app igual es un SPA de una sola
-// pantalla (design-system.md §6), así que no hay nada que perder
-// renderizando en request time en vez de estático.
+// PrivyProvider valida el App ID al montarse. Localmente compila estático
+// porque .env.local tiene el App ID real, pero NO sabemos si Vercel tiene
+// NEXT_PUBLIC_PRIVY_APP_ID configurado en sus env vars — si no lo tiene,
+// sacar esto rompe el build ahí igual que antes. Se puede quitar cuando
+// se confirme que esa env var está en el proyecto de Vercel.
 export const dynamic = "force-dynamic";
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
