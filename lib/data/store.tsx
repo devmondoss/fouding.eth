@@ -16,13 +16,87 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
 import type { ActivityEvent, Opportunity, Position } from "../types";
 import { remainingToFund } from "../opportunity";
-import { ACTIVITY, INITIAL_BALANCE, OPPORTUNITIES, POSITIONS } from "./seed";
+import { useSession } from "../useSession";
+import { OPPORTUNITIES } from "./seed";
+
+/**
+ * El catálogo (OPPORTUNITIES) es compartido — es el "mercado", no algo
+ * de un usuario. Pero POSITIONS/ACTIVITY/INITIAL_BALANCE de seed.ts son
+ * LA DEMO, no pertenecen a nadie en particular. Ahora que hay wallets
+ * reales, mostrárselos a cualquiera que conecte confunde: parece que
+ * ya tenías 15,000 USDC invertidos en una cuenta que acabás de crear.
+ *
+ * Por eso el balance/posiciones/actividad se guardan por dirección de
+ * wallet (localStorage) y una wallet nunca antes vista arranca en
+ * cero — la demo pre-sembrada queda solo como fallback para cuando no
+ * hay wallet conectada (session === null/undefined).
+ */
+type WalletState = {
+  positions: Position[];
+  activity: ActivityEvent[];
+  balance: bigint;
+};
+
+const WALLET_KEY_PREFIX = "founding.wallet.";
+
+function loadWalletState(address: string): WalletState {
+  try {
+    const raw = window.localStorage.getItem(
+      WALLET_KEY_PREFIX + address.toLowerCase(),
+    );
+    if (!raw) return { positions: [], activity: [], balance: 0n };
+    const parsed = JSON.parse(raw) as {
+      positions: (Omit<Position, "principal" | "listedPrice"> & {
+        principal: string;
+        listedPrice: string | null;
+      })[];
+      activity: (Omit<ActivityEvent, "amount"> & { amount: string | null })[];
+      balance: string;
+    };
+    return {
+      positions: parsed.positions.map((p) => ({
+        ...p,
+        principal: BigInt(p.principal),
+        listedPrice: p.listedPrice != null ? BigInt(p.listedPrice) : null,
+      })),
+      activity: parsed.activity.map((e) => ({
+        ...e,
+        amount: e.amount != null ? BigInt(e.amount) : null,
+      })),
+      balance: BigInt(parsed.balance),
+    };
+  } catch {
+    return { positions: [], activity: [], balance: 0n };
+  }
+}
+
+function saveWalletState(address: string, state: WalletState) {
+  try {
+    const serializable = {
+      positions: state.positions.map((p) => ({
+        ...p,
+        principal: p.principal.toString(),
+        listedPrice: p.listedPrice != null ? p.listedPrice.toString() : null,
+      })),
+      activity: state.activity.map((e) => ({
+        ...e,
+        amount: e.amount != null ? e.amount.toString() : null,
+      })),
+      balance: state.balance.toString(),
+    };
+    window.localStorage.setItem(
+      WALLET_KEY_PREFIX + address.toLowerCase(),
+      JSON.stringify(serializable),
+    );
+  } catch {}
+}
 
 /** Fecha de referencia del prototipo. */
 export const TODAY = "2026-08-04";
@@ -48,16 +122,46 @@ type PlatformValue = {
 
 const PlatformContext = createContext<PlatformValue | null>(null);
 
-const cloneSeed = () => ({
-  opportunities: structuredClone(OPPORTUNITIES),
-  positions: structuredClone(POSITIONS),
-  activity: structuredClone(ACTIVITY),
-  balance: INITIAL_BALANCE,
+const emptyWalletState = (): WalletState => ({
+  positions: [],
+  activity: [],
+  balance: 0n,
 });
 
 export function PlatformProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState(cloneSeed);
+  const { session } = useSession();
+  const address = session?.address ?? null;
+
+  // key={address} remonta este subárbol cuando cambia (o aparece/
+  // desaparece) la wallet conectada, así el useState de abajo vuelve a
+  // ejecutar su inicializador y carga el estado de la wallet correcta —
+  // sin un efecto que haga setState solo para sincronizar una prop.
+  return (
+    <PlatformProviderInner key={address ?? "signed-out"} address={address}>
+      {children}
+    </PlatformProviderInner>
+  );
+}
+
+function PlatformProviderInner({
+  address,
+  children,
+}: {
+  address: string | null;
+  children: ReactNode;
+}) {
+  const [state, setState] = useState(() => ({
+    opportunities: structuredClone(OPPORTUNITIES),
+    ...(address ? loadWalletState(address) : emptyWalletState()),
+  }));
+
   const { opportunities, positions, activity, balance } = state;
+
+  // Y lo persistimos cada vez que cambia, mientras haya wallet conectada.
+  useEffect(() => {
+    if (!address) return;
+    saveWalletState(address, { positions, activity, balance });
+  }, [address, positions, activity, balance]);
 
   const getOpportunity = useCallback(
     (slug: string) => opportunities.find((o) => o.slug === slug),
@@ -186,7 +290,13 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const resetDemo = useCallback(() => setState(cloneSeed()), []);
+  const resetDemo = useCallback(() => {
+    setState({
+      opportunities: structuredClone(OPPORTUNITIES),
+      ...emptyWalletState(),
+    });
+    if (address) saveWalletState(address, emptyWalletState());
+  }, [address]);
 
   const value = useMemo<PlatformValue>(
     () => ({
