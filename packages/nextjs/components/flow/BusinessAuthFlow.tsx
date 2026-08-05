@@ -17,7 +17,14 @@ import { T } from "@/lib/motion";
  */
 
 export function BusinessAuthFlow() {
-  const { connectWallet, connecting, connectError, cancelConnect } = useSession();
+  const {
+    connectWallet,
+    connecting,
+    connectError,
+    cancelConnect,
+    pendingAccount,
+    resumeSession,
+  } = useSession();
   const [showTerms, setShowTerms] = useState(false);
   const step = connecting || connectError ? "connecting" : "intro";
 
@@ -49,25 +56,52 @@ export function BusinessAuthFlow() {
                   capital si tu expediente es aprobado.
                 </p>
 
-                <Button
-                  size="lg"
-                  className="mt-7 w-full"
-                  onClick={() => connectWallet()}
-                  iconRight={<ArrowRight className="h-4 w-4" />}
-                >
-                  Iniciar sesión
-                </Button>
+                {/* Ver AuthFlow: reanudar sin código y entrar con otra
+                    cuenta son dos salidas distintas y ambas deben verse. */}
+                {pendingAccount ? (
+                  <>
+                    <Button
+                      size="lg"
+                      className="mt-7 w-full"
+                      onClick={resumeSession}
+                      iconRight={<ArrowRight className="h-4 w-4" />}
+                    >
+                      Continuar como {pendingAccount}
+                    </Button>
 
-                <p className="mt-3 text-center text-[12.5px] text-mid">
-                  ¿No tienes cuenta?{" "}
-                  <button
-                    onClick={() => connectWallet()}
-                    className="font-medium underline decoration-dotted transition-colors hover:text-hi"
-                    style={{ color: "var(--brand-ink)" }}
-                  >
-                    Regístrate
-                  </button>
-                </p>
+                    <p className="mt-3 text-center text-[12.5px] text-mid">
+                      <button
+                        onClick={() => connectWallet()}
+                        className="font-medium underline decoration-dotted transition-colors hover:text-hi"
+                        style={{ color: "var(--brand-ink)" }}
+                      >
+                        Entrar con otro correo
+                      </button>
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      size="lg"
+                      className="mt-7 w-full"
+                      onClick={() => connectWallet()}
+                      iconRight={<ArrowRight className="h-4 w-4" />}
+                    >
+                      Iniciar sesión
+                    </Button>
+
+                    <p className="mt-3 text-center text-[12.5px] text-mid">
+                      ¿No tienes cuenta?{" "}
+                      <button
+                        onClick={() => connectWallet()}
+                        className="font-medium underline decoration-dotted transition-colors hover:text-hi"
+                        style={{ color: "var(--brand-ink)" }}
+                      >
+                        Regístrate
+                      </button>
+                    </p>
+                  </>
+                )}
 
                 <p className="mt-3 text-center text-[11.5px] text-low">
                   Al continuar aceptas los{" "}

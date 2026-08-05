@@ -18,7 +18,14 @@ import { T } from "@/lib/motion";
  */
 
 export function AuthFlow() {
-  const { connectWallet, connecting, connectError, cancelConnect } = useSession();
+  const {
+    connectWallet,
+    connecting,
+    connectError,
+    cancelConnect,
+    pendingAccount,
+    resumeSession,
+  } = useSession();
   const [showTerms, setShowTerms] = useState(false);
   // Derivado, no estado propio: "connecting" cubre tanto el spinner como
   // el error (se queda ahí hasta reintentar o cancelar); cualquier otra
@@ -56,25 +63,55 @@ export function AuthFlow() {
                   sin contraseñas, sin frase semilla.
                 </p>
 
-                <Button
-                  size="lg"
-                  className="mt-7 w-full"
-                  onClick={() => connectWallet()}
-                  iconRight={<ArrowRight className="h-4 w-4" />}
-                >
-                  Iniciar sesión
-                </Button>
+                {/* Con una sesión viva detrás de un "cerrar sesión" reciente
+                    se puede reanudar sin correo ni código; con otra cuenta,
+                    en cambio, hay que matar el token. Las dos salidas tienen
+                    que estar visibles: ofrecer solo la primera fue el bug de
+                    no poder cambiar de cuenta nunca. */}
+                {pendingAccount ? (
+                  <>
+                    <Button
+                      size="lg"
+                      className="mt-7 w-full"
+                      onClick={resumeSession}
+                      iconRight={<ArrowRight className="h-4 w-4" />}
+                    >
+                      Continuar como {pendingAccount}
+                    </Button>
 
-                <p className="mt-3 text-center text-[12.5px] text-mid">
-                  ¿No tienes cuenta?{" "}
-                  <button
-                    onClick={() => connectWallet()}
-                    className="font-medium underline decoration-dotted transition-colors hover:text-hi"
-                    style={{ color: "var(--brand-ink)" }}
-                  >
-                    Regístrate
-                  </button>
-                </p>
+                    <p className="mt-3 text-center text-[12.5px] text-mid">
+                      <button
+                        onClick={() => connectWallet()}
+                        className="font-medium underline decoration-dotted transition-colors hover:text-hi"
+                        style={{ color: "var(--brand-ink)" }}
+                      >
+                        Entrar con otro correo
+                      </button>
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      size="lg"
+                      className="mt-7 w-full"
+                      onClick={() => connectWallet()}
+                      iconRight={<ArrowRight className="h-4 w-4" />}
+                    >
+                      Iniciar sesión
+                    </Button>
+
+                    <p className="mt-3 text-center text-[12.5px] text-mid">
+                      ¿No tienes cuenta?{" "}
+                      <button
+                        onClick={() => connectWallet()}
+                        className="font-medium underline decoration-dotted transition-colors hover:text-hi"
+                        style={{ color: "var(--brand-ink)" }}
+                      >
+                        Regístrate
+                      </button>
+                    </p>
+                  </>
+                )}
 
                 <p className="mt-3 text-center text-[11.5px] text-low">
                   Al continuar aceptas los{" "}
