@@ -138,14 +138,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setConnectError(null);
   }, []);
 
-  // OJO: esto vive acá, no en un callback de Privy — un `logout()`
-  // disparado por Privy internamente (expiración de sesión, un glitch de
-  // HMR en dev, etc.) NO debe borrar "ya viste el onboarding". Solo la
-  // acción explícita de "Cerrar sesión" del usuario lo hace.
+  // Cerrar sesión NO reinicia "ya viste el onboarding" — quien vuelve a
+  // entrar (mismo navegador, otra wallet o la misma) ya sabe cómo
+  // funciona la plataforma. Volver a explicárselo cada vez que
+  // cierra sesión y vuelve a entrar es el bug que se reportó: repetir
+  // el onboarding en un loop en vez de ir directo al login → catálogo.
+  // Para volver a verlo a propósito existe el botón "Ver cómo
+  // funciona" (TopBar/ProfilePanel), que sí llama a reset() explícito.
   const signOut = useCallback(() => {
-    try {
-      window.localStorage.removeItem("founding.intro");
-    } catch {}
     logout();
   }, [logout]);
 
