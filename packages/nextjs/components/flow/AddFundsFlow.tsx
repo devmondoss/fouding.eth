@@ -192,8 +192,8 @@ export function AddFundsFlow({ onClose }: { onClose: () => void }) {
                   initial={{ scale: 0.5, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ ...T.spring, delay: 0.05 }}
-                  className="flex h-11 w-11 items-center justify-center rounded-full"
-                  style={{ backgroundColor: "var(--positive-soft)" }}
+                  className="flex h-11 w-11 items-center justify-center rounded-full border"
+                  style={{ backgroundColor: "var(--surface)", borderColor: "var(--positive)" }}
                 >
                   <Wallet className="h-5 w-5" style={{ color: "var(--positive)" }} />
                 </motion.span>

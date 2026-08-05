@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PrivyProvider } from "@privy-io/react-auth";
 import { WagmiProvider } from "@privy-io/wagmi";
 import { wagmiConfig, arbitrumSepolia } from "@/lib/web3/config";
+import { BRAND } from "@/lib/brandColors";
 
 /**
  * PrivyProvider VA AFUERA de WagmiProvider — el conector de
@@ -43,7 +44,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
         loginMethods: ["email"],
         appearance: {
           theme: "light",
-          accentColor: "#e0ff4f", // --brand, ver design-system.md
+          accentColor: BRAND,
         },
         embeddedWallets: {
           ethereum: { createOnLogin: "all-users" },
