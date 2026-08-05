@@ -4,7 +4,7 @@
 
 > **Historial de iteraciones.** El sistema pasó por: oscuro con luz cromática → claro con luz cromática → monocromo mono → marketplace en azul → **Chartreuse + Gun Metal**. Cada giro costó horas y no días porque **los componentes nunca leen colores literales: leen tokens**. Esa es la regla que hay que preservar por encima de cualquier estética concreta.
 
-Fuente de verdad ejecutable: [app/globals.css](app/globals.css). Si este documento y el CSS discrepan, gana el CSS.
+Fuente de verdad ejecutable: [packages/nextjs/app/globals.css](packages/nextjs/app/globals.css). Si este documento y el CSS discrepan, gana el CSS.
 
 ---
 
@@ -135,7 +135,7 @@ Reglas de esta arquitectura:
 
 ## 7. Movimiento
 
-El movimiento es parte del sistema, no del componente. Todo sale de [lib/motion.ts](lib/motion.ts).
+El movimiento es parte del sistema, no del componente. Todo sale de [packages/nextjs/lib/motion.ts](packages/nextjs/lib/motion.ts).
 
 **Criterio: en una plataforma financiera el movimiento debe orientar, no entretener.** Indica de dónde viene y hacia dónde va cada cosa; nunca llama la atención sobre sí mismo.
 

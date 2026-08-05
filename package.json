@@ -2,38 +2,29 @@
   "name": "founding-eth",
   "version": "0.1.0",
   "private": true,
+  "workspaces": {
+    "packages": [
+      "packages/nextjs",
+      "packages/stylus"
+    ]
+  },
+  "resolutions": {
+    "@coinbase/cdp-sdk": "1.51.0"
+  },
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint",
-    "indexer": "tsx scripts/indexer.ts"
+    "chain": "./nitro-devnode/start-chain-with-cors.sh",
+    "deploy": "yarn workspace @founding/stylus deploy",
+    "export-abi": "yarn workspace @founding/stylus export-abi",
+    "info:networks": "yarn workspace @founding/stylus info:networks",
+    "start": "yarn workspace @founding/nextjs dev",
+    "next:lint": "yarn workspace @founding/nextjs lint",
+    "next:check-types": "yarn workspace @founding/nextjs check-types",
+    "next:build": "yarn workspace @founding/nextjs build",
+    "next:indexer": "yarn workspace @founding/nextjs indexer",
+    "stylus:lint": "yarn workspace @founding/stylus lint",
+    "stylus:test": "yarn workspace @founding/stylus test",
+    "verify-contracts": "yarn workspace @founding/stylus verify-contracts",
+    "test": "yarn stylus:test"
   },
-  "dependencies": {
-    "@coinbase/wallet-sdk": "^4.3.7",
-    "@privy-io/react-auth": "^3.36.1",
-    "@privy-io/wagmi": "^4.0.15",
-    "@stripe/stripe-js": "^9.13.0",
-    "@tanstack/react-query": "^5.101.4",
-    "lucide-react": "^1.28.0",
-    "mona-sans": "^1.0.0",
-    "motion": "^12.43.0",
-    "next": "16.3.0",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
-    "recharts": "^3.10.1",
-    "viem": "2.55.5",
-    "wagmi": "^3.7.6"
-  },
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.3.0",
-    "tailwindcss": "^4",
-    "tsx": "^4.23.5",
-    "typescript": "^5"
-  }
+  "packageManager": "yarn@3.2.3+sha512.f26f951f67de0c6a33ee381e5ff364709c87e70eb5e65c694e4facde3512f1fa80b8679e6ba31ce7d340fbb46f08dd683af9457e240f25a204be7427940d767e"
 }

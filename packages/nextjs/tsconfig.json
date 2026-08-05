@@ -18,8 +18,10 @@
         "name": "next"
       }
     ],
+    "forceConsistentCasingInFileNames": true,
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "~~/*": ["./*"]
     }
   },
   "include": [

@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+/packages/*/node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -15,6 +16,7 @@
 
 # next.js
 /.next/
+/packages/*/.next/
 /out/
 
 # production
@@ -46,3 +48,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Rust Stylus and local development state
+/packages/stylus/contracts/target
+/packages/stylus/deployments
+/nitro-devnode/*.log
