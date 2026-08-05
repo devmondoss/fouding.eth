@@ -1,83 +1,77 @@
-import { randomUUID } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
+import { sql } from "../db/client";
 import type {
   CreateSubmissionInput,
   DecisionInput,
+  SubmissionStatus,
   VerifierSubmission,
 } from "./types";
 
-/**
- * Storage TEMPORAL — archivo JSON local, mientras Supabase no está
- * conectado (ver conversación de arquitectura, agosto 2026). Las cuatro
- * funciones de abajo son el contrato completo que usan las rutas API;
- * cuando Supabase esté listo, este archivo se reemplaza entero por
- * queries a una tabla `verifier_submissions` con la misma forma —
- * ninguna ruta debería cambiar.
- *
- * NO usar en producción: escritura no atómica, sin locking, se pierde
- * si el proceso corre en un entorno serverless sin filesystem persistente.
- */
-const DATA_DIR = path.join(process.cwd(), ".data");
-const FILE = path.join(DATA_DIR, "verifier-submissions.json");
+type SubmissionRow = {
+  id: string;
+  company_name: string;
+  company_ruc: string;
+  company_wallet: string;
+  project_title: string;
+  requested_amount: string;
+  legal_pack_hash: string;
+  status: SubmissionStatus;
+  submitted_at: string;
+  decided_at: string | null;
+  decided_by: string | null;
+  note: string | null;
+};
 
-async function readAll(): Promise<VerifierSubmission[]> {
-  try {
-    const raw = await readFile(FILE, "utf-8");
-    return JSON.parse(raw) as VerifierSubmission[];
-  } catch {
-    return [];
-  }
-}
-
-async function writeAll(submissions: VerifierSubmission[]): Promise<void> {
-  await mkdir(DATA_DIR, { recursive: true });
-  await writeFile(FILE, JSON.stringify(submissions, null, 2), "utf-8");
+function toSubmission(row: SubmissionRow): VerifierSubmission {
+  return {
+    id: row.id,
+    companyName: row.company_name,
+    companyRuc: row.company_ruc,
+    companyWallet: row.company_wallet,
+    projectTitle: row.project_title,
+    requestedAmount: row.requested_amount,
+    legalPackHash: row.legal_pack_hash,
+    status: row.status,
+    submittedAt: row.submitted_at,
+    decidedAt: row.decided_at,
+    decidedBy: row.decided_by,
+    note: row.note,
+  };
 }
 
 export async function listSubmissions(): Promise<VerifierSubmission[]> {
-  const all = await readAll();
-  return all.sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+  const rows = (await sql`
+    SELECT * FROM verifier_submissions ORDER BY submitted_at DESC
+  `) as SubmissionRow[];
+  return rows.map(toSubmission);
 }
 
 export async function createSubmission(
   input: CreateSubmissionInput,
 ): Promise<VerifierSubmission> {
-  const all = await readAll();
-  const submission: VerifierSubmission = {
-    ...input,
-    id: randomUUID(),
-    status: "pending",
-    submittedAt: new Date().toISOString(),
-    decidedAt: null,
-    decidedBy: null,
-    note: null,
-  };
-  all.push(submission);
-  await writeAll(all);
-  return submission;
+  const rows = (await sql`
+    INSERT INTO verifier_submissions
+      (company_name, company_ruc, company_wallet, project_title, requested_amount, legal_pack_hash)
+    VALUES
+      (${input.companyName}, ${input.companyRuc}, ${input.companyWallet}, ${input.projectTitle}, ${input.requestedAmount}, ${input.legalPackHash})
+    RETURNING *
+  `) as SubmissionRow[];
+  return toSubmission(rows[0]);
 }
 
 export async function decideSubmission(
   id: string,
   decision: DecisionInput,
 ): Promise<VerifierSubmission | null> {
-  const all = await readAll();
-  const idx = all.findIndex((s) => s.id === id);
-  if (idx === -1) return null;
-
-  const updated: VerifierSubmission = {
-    ...all[idx],
-    status: decision.approve ? "approved" : "rejected",
-    decidedAt: new Date().toISOString(),
-    decidedBy: decision.decidedBy,
-    note: decision.note ?? null,
-  };
-  all[idx] = updated;
-  await writeAll(all);
+  const status: SubmissionStatus = decision.approve ? "approved" : "rejected";
+  const rows = (await sql`
+    UPDATE verifier_submissions
+    SET status = ${status}, decided_at = now(), decided_by = ${decision.decidedBy}, note = ${decision.note ?? null}
+    WHERE id = ${id}
+    RETURNING *
+  `) as SubmissionRow[];
 
   // TODO cuando exista IdentityRegistry: si approve, llamar
   // setEligible(updated.companyWallet, true) acá — el expediente ya
   // trae la wallet, solo falta el contrato.
-  return updated;
+  return rows[0] ? toSubmission(rows[0]) : null;
 }

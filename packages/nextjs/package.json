@@ -8,10 +8,12 @@
     "dev": "next dev",
     "lint": "eslint .",
     "start": "next start",
-    "indexer": "tsx scripts/indexer.ts"
+    "indexer": "tsx scripts/indexer.ts",
+    "migrate": "tsx scripts/migrate.ts"
   },
   "dependencies": {
     "@coinbase/wallet-sdk": "^4.3.7",
+    "@neondatabase/serverless": "^1.1.0",
     "@privy-io/react-auth": "^3.36.1",
     "@privy-io/wagmi": "^4.0.15",
     "@stripe/stripe-js": "^9.13.0",
