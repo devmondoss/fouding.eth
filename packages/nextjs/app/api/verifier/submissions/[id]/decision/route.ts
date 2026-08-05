@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireVerifierAuth } from "@/lib/verifier/auth";
+import { withDbErrors } from "@/lib/verifier/apiError";
 import { decideSubmission } from "@/lib/verifier/store";
 import type { DecisionInput } from "@/lib/verifier/types";
 
@@ -20,15 +21,17 @@ export async function POST(
     );
   }
 
-  const updated = await decideSubmission(id, {
-    approve: body.approve,
-    decidedBy: body.decidedBy,
-    note: body.note,
+  return withDbErrors(async () => {
+    const updated = await decideSubmission(id, {
+      approve: body.approve as boolean,
+      decidedBy: body.decidedBy!,
+      note: body.note,
+    });
+
+    if (!updated) {
+      return NextResponse.json({ error: "Expediente no encontrado" }, { status: 404 });
+    }
+
+    return NextResponse.json(updated);
   });
-
-  if (!updated) {
-    return NextResponse.json({ error: "Expediente no encontrado" }, { status: 404 });
-  }
-
-  return NextResponse.json(updated);
 }

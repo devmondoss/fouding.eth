@@ -33,10 +33,18 @@ export async function requireVerifierAuth(
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
-  if (await isRateLimited(clientIp(req))) {
+  try {
+    if (await isRateLimited(clientIp(req))) {
+      return NextResponse.json(
+        { error: "Demasiadas solicitudes, intenta de nuevo en un minuto" },
+        { status: 429 },
+      );
+    }
+  } catch (err) {
+    console.error("[verifier] error de base de datos (rate limit):", err);
     return NextResponse.json(
-      { error: "Demasiadas solicitudes, intenta de nuevo en un minuto" },
-      { status: 429 },
+      { error: "El servicio no está disponible en este momento, intenta de nuevo" },
+      { status: 503 },
     );
   }
 

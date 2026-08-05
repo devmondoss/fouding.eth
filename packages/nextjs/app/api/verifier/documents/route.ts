@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireVerifierAuth } from "@/lib/verifier/auth";
+import { withDbErrors } from "@/lib/verifier/apiError";
 import { saveDocument } from "@/lib/verifier/documents";
 
 const MAX_SIZE = 10 * 1024 * 1024; // 10MB — de sobra para un legal pack en PDF
@@ -31,8 +32,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Máximo 10MB" }, { status: 413 });
   }
 
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  const doc = await saveDocument(bytes, file.name, file.type || "application/octet-stream");
+  return withDbErrors(async () => {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const doc = await saveDocument(bytes, file.name, file.type || "application/octet-stream");
 
-  return NextResponse.json(doc, { status: 201 });
+    return NextResponse.json(doc, { status: 201 });
+  });
 }

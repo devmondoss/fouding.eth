@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireVerifierAuth } from "@/lib/verifier/auth";
+import { withDbErrors } from "@/lib/verifier/apiError";
 import { readDocument } from "@/lib/verifier/documents";
 
 /** Sirve el documento — protegido, porque tiene datos sensibles de la
@@ -12,15 +13,18 @@ export async function GET(
   if (denied) return denied;
 
   const { hash } = await params;
-  const doc = await readDocument(hash);
-  if (!doc) {
-    return NextResponse.json({ error: "Documento no encontrado" }, { status: 404 });
-  }
 
-  return new NextResponse(new Uint8Array(doc.bytes), {
-    headers: {
-      "Content-Type": doc.meta.mimeType,
-      "Content-Disposition": `inline; filename="${doc.meta.fileName}"`,
-    },
+  return withDbErrors(async () => {
+    const doc = await readDocument(hash);
+    if (!doc) {
+      return NextResponse.json({ error: "Documento no encontrado" }, { status: 404 });
+    }
+
+    return new NextResponse(new Uint8Array(doc.bytes), {
+      headers: {
+        "Content-Type": doc.meta.mimeType,
+        "Content-Disposition": `inline; filename="${doc.meta.fileName}"`,
+      },
+    });
   });
 }
