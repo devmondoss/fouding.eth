@@ -1,73 +1,95 @@
 /**
- * ABI de eventos del CreditVault — PLACEHOLDER.
- *
- * El contrato todavía lo está construyendo el equipo de Rust/Stylus
- * (branch feat/pr-01-scaffold-stylus-foundation). Esta forma se derivó
- * de lo que el frontend YA necesita mostrar (ver ActivityKind en
- * lib/types.ts) para que el indexer se pueda escribir y probar en
- * paralelo sin esperar el contrato final.
- *
- * Cuando el contrato real exista: reemplazar esto por el ABI generado
- * (`cargo stylus export-abi` o el .json que produzca su build), y
- * ajustar `scripts/indexer.ts` si cambian nombres o tipos de campos.
+ * cargo-stylus 0.10.8 omits `sol!` events from `export-abi --json`.
+ * This declaration mirrors credit-vault/abi-events.json and is also merged
+ * into the generated deployment ABI by scripts/export_abi.ts.
  */
 export const CREDIT_VAULT_EVENTS_ABI = [
   {
     type: "event",
-    name: "Invested",
+    name: "VaultInitialized",
+    inputs: [
+      { name: "dealId", type: "bytes32", indexed: true },
+      { name: "borrower", type: "address", indexed: true },
+      { name: "originator", type: "address", indexed: true },
+      { name: "paymentToken", type: "address", indexed: false },
+      { name: "accessRegistry", type: "address", indexed: false },
+      { name: "fundingTarget", type: "uint256", indexed: false },
+    ],
+  },
+  {
+    type: "event",
+    name: "FundingOpened",
+    inputs: [{ name: "fundingDeadline", type: "uint64", indexed: false }],
+  },
+  {
+    type: "event",
+    name: "Funded",
     inputs: [
       { name: "investor", type: "address", indexed: true },
-      { name: "opportunityId", type: "uint256", indexed: true },
       { name: "amount", type: "uint256", indexed: false },
+      { name: "totalFunded", type: "uint256", indexed: false },
     ],
   },
   {
     type: "event",
-    name: "MilestoneReleased",
+    name: "FundingCompleted",
+    inputs: [{ name: "totalFunded", type: "uint256", indexed: false }],
+  },
+  {
+    type: "event",
+    name: "FundingCancelled",
+    inputs: [{ name: "refundableAmount", type: "uint256", indexed: false }],
+  },
+  {
+    type: "event",
+    name: "Activated",
     inputs: [
-      { name: "opportunityId", type: "uint256", indexed: true },
-      { name: "milestoneIndex", type: "uint8", indexed: false },
-      { name: "amount", type: "uint256", indexed: false },
+      { name: "principalOutstanding", type: "uint256", indexed: false },
+      { name: "borrowerProceeds", type: "uint256", indexed: false },
+      { name: "platformFee", type: "uint256", indexed: false },
     ],
   },
   {
     type: "event",
-    name: "Repaid",
+    name: "RepaymentRecorded",
+    inputs: [
+      { name: "payer", type: "address", indexed: true },
+      { name: "amount", type: "uint256", indexed: false },
+      { name: "totalRepaid", type: "uint256", indexed: false },
+    ],
+  },
+  {
+    type: "event",
+    name: "Claimed",
     inputs: [
       { name: "investor", type: "address", indexed: true },
-      { name: "opportunityId", type: "uint256", indexed: true },
       { name: "amount", type: "uint256", indexed: false },
+      { name: "totalClaimed", type: "uint256", indexed: false },
     ],
   },
   {
     type: "event",
-    name: "Defaulted",
-    inputs: [{ name: "opportunityId", type: "uint256", indexed: true }],
-  },
-  {
-    type: "event",
-    name: "RecoveryDistributed",
+    name: "DefaultDeclared",
     inputs: [
-      { name: "investor", type: "address", indexed: true },
-      { name: "opportunityId", type: "uint256", indexed: true },
-      { name: "amount", type: "uint256", indexed: false },
+      { name: "principalOutstanding", type: "uint256", indexed: false },
     ],
   },
-] as const;
-
-/**
- * CreditFactory — también placeholder. Un evento por deal desplegado,
- * necesario para que el indexer sepa qué direcciones de CreditVault
- * empezar a escuchar sin tener que hardcodearlas.
- */
-export const CREDIT_FACTORY_EVENTS_ABI = [
+  { type: "event", name: "RecoveryStarted", inputs: [] },
   {
     type: "event",
-    name: "OpportunityCreated",
+    name: "RecoveryRecorded",
     inputs: [
-      { name: "opportunityId", type: "uint256", indexed: true },
-      { name: "vault", type: "address", indexed: true },
-      { name: "legalPackHash", type: "bytes32", indexed: false },
+      { name: "payer", type: "address", indexed: true },
+      { name: "amount", type: "uint256", indexed: false },
+      { name: "totalRepaid", type: "uint256", indexed: false },
+    ],
+  },
+  {
+    type: "event",
+    name: "Closed",
+    inputs: [
+      { name: "totalRepaid", type: "uint256", indexed: false },
+      { name: "totalClaimed", type: "uint256", indexed: false },
     ],
   },
 ] as const;

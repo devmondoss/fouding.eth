@@ -10,19 +10,18 @@ import {
   type ReactNode,
 } from "react";
 import { useLogin, usePrivy } from "@privy-io/react-auth";
+import { keccak256, toBytes, type Address } from "viem";
+import { useAccessRegistry } from "@/hooks/useAccessRegistry";
 
 export type Session = {
   address: string;
   createdAt: string;
-  /** Elegibilidad de identidad. Mock local hasta que exista el
-   * IdentityRegistry en cadena — ver conceptos-y-cambios.md. Cuando el
-   * contrato esté desplegado, esto se reemplaza por un useReadContract
-   * sobre `isEligible(address)`, no por un flag de localStorage. */
+  /** Elegibilidad de inversión leída del AccessRegistry desplegado. */
   verified: boolean;
+  accessStatus: number;
 };
 
 const FIRST_SEEN_KEY = "founding.firstSeen"; // address -> ISO date
-const VERIFIED_KEY = "founding.verifiedAddresses"; // address[] — mock, ver arriba
 
 function readJSON<T>(key: string, fallback: T): T {
   try {
@@ -44,10 +43,8 @@ function writeJSON(key: string, value: unknown) {
  * Se comparte vía contexto porque más de un componente necesita LEER Y
  * REACCIONAR al mismo estado (TopBar, Profile, InvestPanel).
  *
- * `verified` sigue siendo local por ahora — es la pieza que el
- * IdentityRegistry (Rust/Stylus, en construcción por separado) va a
- * reemplazar. El resto de la app no debería notar el cambio cuando eso
- * pase: sigue leyendo `session.verified` desde acá.
+ * `verified` conserva la interfaz que ya consume la UI, pero su fuente
+ * ahora es AccessRegistry y no localStorage.
  */
 type Ctx = {
   session: Session | null | undefined; // undefined = resolviendo conexión
@@ -62,7 +59,7 @@ type Ctx = {
    * tocando afuera (queda pegado en "esperando confirmación" si no). */
   cancelConnect: () => void;
   signOut: () => void;
-  verify: () => void;
+  verify: () => Promise<void>;
 };
 
 const SessionContext = createContext<Ctx | null>(null);
@@ -74,6 +71,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // el conector en una recarga fría — Privy es la fuente real de la
   // wallet embebida, wagmi es solo para leer/escribir en cadena después.
   const address = user?.wallet?.address ?? null;
+  const access = useAccessRegistry((address ?? undefined) as Address | undefined);
 
   const [connecting, setConnecting] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
@@ -94,7 +92,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // efecto, ver commit del bug de store.tsx con el mismo patrón).
   // `resolvedKey` es la "huella" de esos valores; solo se recalcula
   // session cuando esa huella cambia de verdad.
-  const resolvedKey = `${ready}|${authenticated}|${address ?? ""}`;
+  const resolvedKey = `${ready}|${authenticated}|${address ?? ""}|${access.isAllowed}|${access.status}`;
   const [lastResolvedKey, setLastResolvedKey] = useState(resolvedKey);
   if (resolvedKey !== lastResolvedKey) {
     setLastResolvedKey(resolvedKey);
@@ -108,11 +106,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           firstSeen[addr] = new Date().toISOString();
           writeJSON(FIRST_SEEN_KEY, firstSeen);
         }
-        const verifiedList = readJSON<string[]>(VERIFIED_KEY, []);
         setSession({
           address,
           createdAt: firstSeen[addr],
-          verified: verifiedList.includes(addr),
+          verified: access.isAllowed,
+          accessStatus: access.status,
         });
       }
     }
@@ -149,15 +147,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     logout();
   }, [logout]);
 
-  const verify = useCallback(() => {
-    if (!address) return;
-    const addr = address.toLowerCase();
-    const verifiedList = readJSON<string[]>(VERIFIED_KEY, []);
-    if (!verifiedList.includes(addr)) {
-      writeJSON(VERIFIED_KEY, [...verifiedList, addr]);
-    }
-    setSession((s) => (s ? { ...s, verified: true } : s));
-  }, [address]);
+  const verify = useCallback(async () => {
+    if (!address) throw new Error("Conecta una wallet antes de solicitar acceso");
+    const applicationHash = keccak256(
+      toBytes(`fouding:access-request:v1:${address.toLowerCase()}`),
+    );
+    await access.requestAccess(applicationHash);
+  }, [access, address]);
 
   const value = useMemo<Ctx>(
     () => ({
@@ -182,6 +178,3 @@ export function useSession(): Ctx {
   if (!ctx) throw new Error("useSession debe usarse dentro de <SessionProvider>");
   return ctx;
 }
-
-/** Tope de ticket para wallets sin verificar. Ver InvestPanel. */
-export const UNVERIFIED_TICKET_CAP = 5_000;

@@ -29,11 +29,13 @@ if (!vaultAddress) {
 }
 
 const EVENT_TO_KIND: Record<string, ActivityKind> = {
-  Invested: "invest",
-  MilestoneReleased: "release",
-  Repaid: "repayment",
-  Defaulted: "default",
-  RecoveryDistributed: "recovery",
+  Funded: "invest",
+  Activated: "release",
+  RepaymentRecorded: "repayment",
+  Claimed: "repayment",
+  DefaultDeclared: "default",
+  RecoveryStarted: "recovery",
+  RecoveryRecorded: "recovery",
 };
 
 /** Sella lo que salga del log en la MISMA forma que espera el frontend,
@@ -49,7 +51,7 @@ function toActivityEvent(
     at: new Date(Number(blockTimestamp) * 1000).toISOString(),
     kind: EVENT_TO_KIND[eventName],
     amount: typeof args.amount === "bigint" ? args.amount : null,
-    detail: `${eventName} — opportunityId ${args.opportunityId ?? "?"}`,
+    detail: `${eventName} — deal ${args.dealId ?? vaultAddress}`,
   };
 }
 
@@ -76,7 +78,7 @@ async function main() {
           kind: EVENT_TO_KIND[log.eventName] ?? log.eventName,
           investorAddress: typeof args.investor === "string" ? args.investor : null,
           opportunityOnchainId:
-            args.opportunityId != null ? String(args.opportunityId) : null,
+            args.dealId != null ? String(args.dealId) : (vaultAddress ?? null),
           amount: typeof args.amount === "bigint" ? args.amount : null,
           detail: mapped.detail ?? log.eventName,
           occurredAt: new Date(Number(block.timestamp) * 1000),

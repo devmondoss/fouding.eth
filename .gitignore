@@ -52,4 +52,8 @@ next-env.d.ts
 # Rust Stylus and local development state
 /packages/stylus/contracts/target
 /packages/stylus/deployments
+/packages/foundry/out
+/packages/foundry/cache
+/packages/foundry/broadcast
+/packages/foundry/deployments
 /nitro-devnode/*.log

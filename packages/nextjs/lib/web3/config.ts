@@ -1,6 +1,7 @@
 import { http } from "wagmi";
 import { arbitrumSepolia } from "wagmi/chains";
 import { createConfig } from "@privy-io/wagmi";
+import { arbitrumNitro } from "@/utils/scaffold-stylus/supportedChains";
 
 /**
  * Arbitrum Sepolia únicamente por ahora — es donde vive el CreditVault
@@ -15,13 +16,25 @@ import { createConfig } from "@privy-io/wagmi";
  * RPC configurable por env porque el endpoint público se satura rápido
  * bajo uso real; NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC_URL es opcional.
  */
+const requestedProtocolChainId = Number(
+  process.env.NEXT_PUBLIC_PROTOCOL_CHAIN_ID ?? arbitrumNitro.id,
+);
+
+export const protocolChain =
+  requestedProtocolChainId === arbitrumSepolia.id
+    ? arbitrumSepolia
+    : arbitrumNitro;
+
 export const wagmiConfig = createConfig({
-  chains: [arbitrumSepolia],
+  chains: [arbitrumNitro, arbitrumSepolia],
   transports: {
+    [arbitrumNitro.id]: http(
+      process.env.NEXT_PUBLIC_NITRO_RPC_URL ?? "http://localhost:8547",
+    ),
     [arbitrumSepolia.id]: http(
       process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC_URL,
     ),
   },
 });
 
-export { arbitrumSepolia };
+export { arbitrumNitro, arbitrumSepolia };
