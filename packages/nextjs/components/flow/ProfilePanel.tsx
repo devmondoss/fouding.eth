@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
+  AlertTriangle,
   Check,
   Copy,
   HelpCircle,
   LogOut,
   ShieldCheck,
   ShieldEllipsis,
+  Trash2,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -30,12 +32,14 @@ export function ProfilePanel({
   onClose,
   onSignOut,
   onVerify,
+  onDeleteAccount,
   onReplayIntro,
 }: {
   session: Session;
   onClose: () => void;
   onSignOut: () => void;
   onVerify: () => void;
+  onDeleteAccount: () => Promise<void>;
   onReplayIntro: () => void;
 }) {
   const { positions, activity } = usePlatform();
@@ -44,6 +48,9 @@ export function ProfilePanel({
   const [name, setName] = useState("");
   const [docId, setDocId] = useState("");
   const [copied, setCopied] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -59,6 +66,19 @@ export function ProfilePanel({
     setBusy(false);
     setVerifying(false);
     onVerify();
+  }
+
+  async function handleDeleteAccount() {
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await onDeleteAccount();
+    } catch (err) {
+      setDeleting(false);
+      setDeleteError(
+        err instanceof Error ? err.message : "No se pudo eliminar la cuenta",
+      );
+    }
   }
 
   return (
@@ -187,6 +207,16 @@ export function ProfilePanel({
             <LogOut className="h-3.5 w-3.5" />
             Cerrar sesión
           </button>
+          <button
+            onClick={() => {
+              setDeleteError(null);
+              setConfirmingDelete(true);
+            }}
+            className="mt-2 flex w-full items-center justify-center gap-2 py-2 text-[12px] text-low transition-colors hover:text-[var(--negative)]"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Eliminar cuenta
+          </button>
         </div>
       </motion.aside>
 
@@ -230,6 +260,46 @@ export function ProfilePanel({
           producción este paso se resolvería con un proveedor de KYC
           certificado.
         </p>
+      </Modal>
+
+      {/* Eliminar cuenta — irreversible: borra el usuario en Privy de
+          verdad, no solo datos locales (ver lib/useSession.tsx). */}
+      <Modal
+        open={confirmingDelete}
+        onClose={() => (deleting ? null : setConfirmingDelete(false))}
+        title="Eliminar cuenta"
+        subtitle="Esta acción no se puede deshacer"
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              disabled={deleting}
+              onClick={() => setConfirmingDelete(false)}
+            >
+              Cancelar
+            </Button>
+            <Button variant="danger" loading={deleting} onClick={handleDeleteAccount}>
+              Eliminar mi cuenta
+            </Button>
+          </>
+        }
+      >
+        <div className="flex items-start gap-2.5">
+          <AlertTriangle
+            className="mt-0.5 h-4 w-4 shrink-0"
+            style={{ color: "var(--negative)" }}
+          />
+          <p className="text-[13px] leading-relaxed text-mid">
+            Se borra tu wallet y tu historial de esta cuenta — no se puede
+            recuperar. Tu correo va a quedar libre para registrarse de
+            nuevo como una cuenta completamente nueva.
+          </p>
+        </div>
+        {deleteError && (
+          <p className="mt-3 text-[12.5px]" style={{ color: "var(--negative)" }}>
+            {deleteError}
+          </p>
+        )}
       </Modal>
     </>
   );

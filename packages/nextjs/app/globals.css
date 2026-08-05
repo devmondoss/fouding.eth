@@ -120,6 +120,11 @@ body {
 @media (min-width: 1024px) {
   body {
     min-width: var(--shell-min);
+  }
+  /* Solo el módulo único del inversionista (app/page.tsx) es una sola
+     pantalla sin scroll de página — otras rutas (ej. /solicitar) son
+     documentos normales y sí necesitan poder scrollear. */
+  body.app-shell {
     overflow: hidden;
   }
 }

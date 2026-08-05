@@ -11,6 +11,8 @@ import {
 } from "react";
 import { useLogin, usePrivy } from "@privy-io/react-auth";
 
+export type Role = "investor" | "business";
+
 export type Session = {
   address: string;
   createdAt: string;
@@ -19,10 +21,19 @@ export type Session = {
    * contrato esté desplegado, esto se reemplaza por un useReadContract
    * sobre `isEligible(address)`, no por un flag de localStorage. */
   verified: boolean;
+  /** null = wallet nueva, todavía no eligió. Se fija una sola vez por
+   * address en RoleGate y ya no cambia — una wallet es inversionista O
+   * empresa, nunca las dos (ver conversación de arquitectura, agosto
+   * 2026). Evita que el mismo `verified` se filtre entre un KYC de
+   * persona y un KYB de empresa. */
+  role: Role | null;
 };
 
 const FIRST_SEEN_KEY = "founding.firstSeen"; // address -> ISO date
 const VERIFIED_KEY = "founding.verifiedAddresses"; // address[] — mock, ver arriba
+const ROLE_KEY = "founding.role"; // address -> Role, fijado una sola vez
+const SOFT_SIGNOUT_KEY = "founding.softSignOutAt"; // timestamp (ms) del último "cerrar sesión"
+const SOFT_SIGNOUT_GRACE_MS = 60 * 60 * 1000; // 60 minutos
 
 function readJSON<T>(key: string, fallback: T): T {
   try {
@@ -39,6 +50,15 @@ function writeJSON(key: string, value: unknown) {
   } catch {}
 }
 
+function readSoftSignOutAt(): number | null {
+  try {
+    const raw = window.localStorage.getItem(SOFT_SIGNOUT_KEY);
+    return raw ? Number(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Sesión = wallet conectada de verdad (wagmi), no una wallet generada.
  * Se comparte vía contexto porque más de un componente necesita LEER Y
@@ -53,7 +73,8 @@ type Ctx = {
   session: Session | null | undefined; // undefined = resolviendo conexión
   /** Abre el login de Privy y crea la wallet embebida al instante —
    * cero pantallas de un tercero, cero extensión (ver
-   * components/providers/Web3Provider.tsx). */
+   * components/providers/Web3Provider.tsx). Siempre pide correo: es lo
+   * que permite entrar con otra cuenta (ver implementación). */
   connectWallet: () => void;
   connecting: boolean;
   connectError: string | null;
@@ -63,12 +84,20 @@ type Ctx = {
   cancelConnect: () => void;
   signOut: () => void;
   verify: () => void;
+  /** Fija el rol la primera vez que se llama para esta wallet. Llamadas
+   * posteriores no hacen nada — el rol no cambia una vez elegido (ver
+   * RoleGate). */
+  chooseRole: (role: Role) => void;
+  /** Borrado real, irreversible: llama al backend, que borra el usuario
+   * en Privy. Libera el correo para que pueda registrarse como cuenta
+   * nueva — no es solo limpiar datos locales. */
+  deleteAccount: () => Promise<void>;
 };
 
 const SessionContext = createContext<Ctx | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const { ready, authenticated, user, logout } = usePrivy();
+  const { ready, authenticated, user, logout, getAccessToken } = usePrivy();
   // Dirección directo de Privy, NO de wagmi's useAccount(). El puente
   // @privy-io/wagmi puede tardar (o no llegar a tiempo) en sincronizar
   // el conector en una recarga fría — Privy es la fuente real de la
@@ -77,6 +106,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const [connecting, setConnecting] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
+
+  // "Cerrar sesión" oculta la sesión de inmediato pero difiere el logout
+  // real de Privy hasta SOFT_SIGNOUT_GRACE_MS (ver efecto más abajo).
+  //
+  // Ya NO sirve para reingresar sin código: `connectWallet` siempre mata
+  // el token antes de abrir el modal, porque si no Privy nunca pide
+  // correo y era imposible entrar con otra cuenta. Lo que sigue
+  // garantizando es que el token muera solo dentro de la hora aunque la
+  // persona no vuelva a tocar nada — eso es una propiedad de seguridad y
+  // por eso el temporizador se queda.
+  const [softSignedOutAt, setSoftSignedOutAt] = useState<number | null>(() =>
+    readSoftSignOutAt(),
+  );
 
   const { login } = useLogin({
     onComplete: () => setConnecting(false),
@@ -94,12 +136,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // efecto, ver commit del bug de store.tsx con el mismo patrón).
   // `resolvedKey` es la "huella" de esos valores; solo se recalcula
   // session cuando esa huella cambia de verdad.
-  const resolvedKey = `${ready}|${authenticated}|${address ?? ""}`;
+  const softHidden =
+    softSignedOutAt !== null && Date.now() - softSignedOutAt < SOFT_SIGNOUT_GRACE_MS;
+
+  const resolvedKey = `${ready}|${authenticated}|${address ?? ""}|${softHidden}`;
   const [lastResolvedKey, setLastResolvedKey] = useState(resolvedKey);
   if (resolvedKey !== lastResolvedKey) {
     setLastResolvedKey(resolvedKey);
     if (ready) {
-      if (!authenticated || !address) {
+      if (!authenticated || !address || softHidden) {
         setSession(null);
       } else {
         const addr = address.toLowerCase();
@@ -109,20 +154,38 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           writeJSON(FIRST_SEEN_KEY, firstSeen);
         }
         const verifiedList = readJSON<string[]>(VERIFIED_KEY, []);
+        const roleMap = readJSON<Record<string, Role>>(ROLE_KEY, {});
         setSession({
           address,
           createdAt: firstSeen[addr],
           verified: verifiedList.includes(addr),
+          role: roleMap[addr] ?? null,
         });
       }
     }
   }
 
+  // Entrar SIEMPRE abre el modal de Privy, que es el único momento en que
+  // se puede escribir un correo. Antes, si quedaba un token vivo de un
+  // "cerrar sesión" reciente, reanudábamos la sesión anterior en silencio
+  // y entrar con otra cuenta era imposible: nunca aparecía el campo de
+  // correo (ver conversación de agosto 2026).
+  //
+  // Por eso el logout previo no es opcional. Con sesión viva, `login()`
+  // no muestra nada: Privy dispara `onComplete` igual "for already- or
+  // newly-authenticated users" (ver useLogin en @privy-io/react-auth), o
+  // sea que resuelve con la cuenta anterior sin preguntar. Matar el token
+  // antes es la única forma de que el modal aparezca.
   const connectWallet = useCallback(() => {
+    try {
+      window.localStorage.removeItem(SOFT_SIGNOUT_KEY);
+    } catch {}
+    setSoftSignedOutAt(null);
     setConnectError(null);
     setConnecting(true);
-    login();
-  }, [login]);
+    if (authenticated) logout().finally(() => login());
+    else login();
+  }, [login, logout, authenticated]);
 
   // Red de seguridad: si Privy nunca avisa (usuario cierra el modal
   // tocando afuera, o se cuelga por lo que sea), no dejamos a nadie
@@ -145,9 +208,71 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // el onboarding en un loop en vez de ir directo al login → catálogo.
   // Para volver a verlo a propósito existe el botón "Ver cómo
   // funciona" (TopBar/ProfilePanel), que sí llama a reset() explícito.
+  //
+  // Tampoco llama a logout() de Privy de inmediato — ver softSignedOutAt
+  // arriba. El cierre real ocurre solo o al expirar la ventana de gracia.
   const signOut = useCallback(() => {
-    logout();
-  }, [logout]);
+    const now = Date.now();
+    try {
+      window.localStorage.setItem(SOFT_SIGNOUT_KEY, String(now));
+    } catch {}
+    setSoftSignedOutAt(now);
+  }, []);
+
+  // Vencida la ventana de gracia, ahí sí se cierra la sesión de verdad
+  // con Privy — este efecto es lo único que agenda ese cierre real,
+  // tanto si el usuario se queda con la pestaña abierta como si vuelve
+  // después de que ya venció.
+  useEffect(() => {
+    if (softSignedOutAt === null) return;
+    const remaining = SOFT_SIGNOUT_GRACE_MS - (Date.now() - softSignedOutAt);
+    const expire = () => {
+      try {
+        window.localStorage.removeItem(SOFT_SIGNOUT_KEY);
+      } catch {}
+      setSoftSignedOutAt(null);
+      logout();
+    };
+    if (remaining <= 0) {
+      expire();
+      return;
+    }
+    const timeout = setTimeout(expire, remaining);
+    return () => clearTimeout(timeout);
+  }, [softSignedOutAt, logout]);
+
+  const deleteAccount = useCallback(async () => {
+    const token = await getAccessToken();
+    if (!token) throw new Error("No se pudo verificar tu sesión");
+
+    const res = await fetch("/api/account/delete", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      throw new Error(body?.error ?? "No se pudo eliminar la cuenta");
+    }
+
+    if (address) {
+      const addr = address.toLowerCase();
+      const firstSeen = readJSON<Record<string, string>>(FIRST_SEEN_KEY, {});
+      delete firstSeen[addr];
+      writeJSON(FIRST_SEEN_KEY, firstSeen);
+      writeJSON(
+        VERIFIED_KEY,
+        readJSON<string[]>(VERIFIED_KEY, []).filter((a) => a !== addr),
+      );
+      const roleMap = readJSON<Record<string, Role>>(ROLE_KEY, {});
+      delete roleMap[addr];
+      writeJSON(ROLE_KEY, roleMap);
+    }
+    try {
+      window.localStorage.removeItem(SOFT_SIGNOUT_KEY);
+    } catch {}
+    setSoftSignedOutAt(null);
+    await logout();
+  }, [getAccessToken, logout, address]);
 
   const verify = useCallback(() => {
     if (!address) return;
@@ -159,6 +284,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setSession((s) => (s ? { ...s, verified: true } : s));
   }, [address]);
 
+  const chooseRole = useCallback(
+    (role: Role) => {
+      if (!address) return;
+      const addr = address.toLowerCase();
+      const roleMap = readJSON<Record<string, Role>>(ROLE_KEY, {});
+      if (roleMap[addr]) return; // ya elegido, no se puede cambiar
+      roleMap[addr] = role;
+      writeJSON(ROLE_KEY, roleMap);
+      setSession((s) => (s ? { ...s, role } : s));
+    },
+    [address],
+  );
+
   const value = useMemo<Ctx>(
     () => ({
       session,
@@ -168,8 +306,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       cancelConnect,
       signOut,
       verify,
+      chooseRole,
+      deleteAccount,
     }),
-    [session, connectWallet, connecting, connectError, cancelConnect, signOut, verify],
+    [
+      session,
+      connectWallet,
+      connecting,
+      connectError,
+      cancelConnect,
+      signOut,
+      verify,
+      chooseRole,
+      deleteAccount,
+    ],
   );
 
   return (

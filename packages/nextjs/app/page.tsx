@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AnimatePresence } from "motion/react";
 import { Loader2 } from "lucide-react";
 import { AddFundsFlow } from "@/components/flow/AddFundsFlow";
@@ -28,18 +29,37 @@ import type { Opportunity } from "@/lib/types";
  *   ProfilePanel        módulo dedicado a la cuenta y su verificación.
  */
 export default function App() {
-  const { session, signOut, verify } = useSession();
+  const { session, signOut, verify, deleteAccount } = useSession();
   const { seen, markSeen, reset } = useOnce("founding.intro");
   const { getOpportunity } = usePlatform();
+  const router = useRouter();
 
   const [selected, setSelected] = useState<Opportunity | null>(null);
   const [portfolio, setPortfolio] = useState(false);
   const [profile, setProfile] = useState(false);
   const [funds, setFunds] = useState(false);
 
+  // Cada pantalla en su URL: elegir rol vive en /rol, y una wallet de
+  // empresa que cayó acá (link viejo, botón "atrás") se va a la suya.
+  useEffect(() => {
+    if (!session) return;
+    if (session.role === null) router.replace("/rol");
+    else if (session.role === "business") router.replace("/solicitar");
+  }, [session, router]);
+
+  // Este es el único módulo sin scroll de página (ver globals.css) — la
+  // clase se agrega/quita con el ciclo de vida de esta pantalla para que
+  // otras rutas (ej. /solicitar) mantengan el scroll normal.
+  useEffect(() => {
+    document.body.classList.add("app-shell");
+    return () => document.body.classList.remove("app-shell");
+  }, []);
+
   // Resolviendo si ya había una wallet conectada (Privy). Antes esto era
   // un div en blanco — ahora al menos se ve que algo está pasando.
-  if (session === undefined) {
+  // `role !== "investor"` cubre también los dos casos que ya se están
+  // redirigiendo arriba (sin rol, o rol de empresa).
+  if (session === undefined || (session && session.role !== "investor")) {
     return (
       <div
         className="flex h-screen flex-col items-center justify-center gap-3"
@@ -115,6 +135,7 @@ export default function App() {
               signOut();
             }}
             onVerify={verify}
+            onDeleteAccount={deleteAccount}
             onReplayIntro={() => {
               setProfile(false);
               reset();

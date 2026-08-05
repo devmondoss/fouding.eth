@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { AlertTriangle, ArrowRight, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -9,21 +10,15 @@ import { useSession } from "@/lib/useSession";
 import { T } from "@/lib/motion";
 
 /**
- * Entrada al producto: Privy crea/conecta la wallet embebida al
- * instante — modal en la misma página, sin extensión ni registro. En
- * cuanto `session` deja de ser null, page.tsx deja de renderizar este
- * componente y entra directo a la app: no hay una pantalla de "confirmar
- * entrada" que agregar acá, sería fricción sin motivo (ver conversación
- * de arquitectura, agosto 2026).
+ * Login del lado empresa — mismo useSession/Privy que AuthFlow (lado
+ * inversionista), copiado en vez de compartido porque lo único que
+ * cambia entre ambos es el copy: extraer un shell compartido para dos
+ * consumidores es abstracción prematura (ver plan de agosto 2026).
  */
 
-export function AuthFlow() {
+export function BusinessAuthFlow() {
   const { connectWallet, connecting, connectError, cancelConnect } = useSession();
   const [showTerms, setShowTerms] = useState(false);
-  // Derivado, no estado propio: "connecting" cubre tanto el spinner como
-  // el error (se queda ahí hasta reintentar o cancelar); cualquier otra
-  // combinación es "intro". Cancelar limpia ambos flags y por eso vuelve
-  // solo al inicio, sin necesitar un efecto que lo empuje.
   const step = connecting || connectError ? "connecting" : "intro";
 
   return (
@@ -45,15 +40,13 @@ export function AuthFlow() {
             >
               <div className="max-w-[400px]">
                 <h1 className="h1 text-[28px] leading-[1.1] sm:text-[34px] sm:leading-[1.05]">
-                  Invierte en empresas
-                  <br />
-                  que ya facturan
+                  Conecta tu empresa
                 </h1>
 
                 <p className="mt-3 text-[14px] leading-relaxed text-mid">
-                  Crédito privado respaldado por garantía real, en USDC sobre
-                  Arbitrum. Te creamos una wallet al instante con tu correo:
-                  sin contraseñas, sin frase semilla.
+                  Crea tu cuenta con tu correo — te generamos una wallet al
+                  instante. Es la que va a quedar habilitada para recibir el
+                  capital si tu expediente es aprobado.
                 </p>
 
                 <Button
@@ -86,13 +79,24 @@ export function AuthFlow() {
                     Términos y condiciones
                   </button>
                 </p>
+
+                {/* La explicación completa vive en /negocios, con URL propia:
+                    se visita cuando hace falta, no se atraviesa cada vez. */}
+                <p className="mt-5 text-center text-[12.5px] text-mid">
+                  <Link
+                    href="/negocios"
+                    className="underline decoration-dotted transition-colors hover:text-hi"
+                  >
+                    ¿Cómo funciona Founding para empresas?
+                  </Link>
+                </p>
               </div>
 
               <div className="flex flex-col justify-center gap-4 sm:border-l sm:pl-14" style={{ borderColor: "var(--border-strong)" }}>
                 {[
-                  "No pedimos datos personales para explorar",
-                  "Ticket mínimo de 1,000 USDC por operación",
-                  "Cada operación muestra su garantía y su cobertura",
+                  "Sin contraseñas ni frase semilla que perder",
+                  "Tu expediente lo revisa una persona, no un bot",
+                  "La wallet que conectas es la que recibe el desembolso",
                 ].map((t) => (
                   <div
                     key={t}
@@ -188,13 +192,6 @@ export function AuthFlow() {
             Tu wallet es non-custodial: la creamos con Privy usando tu
             correo, pero las claves no están en nuestro poder ni podemos
             revertir ninguna operación en tu nombre.
-          </p>
-          <p>
-            Las oportunidades de crédito privado que se muestran conllevan
-            riesgo de pérdida total o parcial del capital invertido —
-            incluido en escenarios de default, donde el recupero depende
-            de la ejecución de la garantía y puede ser parcial. Nada acá
-            constituye una recomendación ni garantía de rentabilidad.
           </p>
           <p>
             La verificación de identidad, la evaluación crediticia y la
