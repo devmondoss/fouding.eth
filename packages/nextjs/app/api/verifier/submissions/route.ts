@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireVerifierAuth } from "@/lib/verifier/auth";
+import { requireVerifierAuth, requirePublicRateLimit } from "@/lib/verifier/auth";
 import { withDbErrors } from "@/lib/verifier/apiError";
 import { createSubmission, listSubmissions } from "@/lib/verifier/store";
 import type { CreateSubmissionInput } from "@/lib/verifier/types";
@@ -14,8 +14,13 @@ export async function GET(req: Request) {
   });
 }
 
+/**
+ * Sin API key a propósito — la llama app/solicitar, público, desde el
+ * lado de la empresa. Lo único que protege esta ruta de abuso es el
+ * rate limit más estricto de requirePublicRateLimit (ver auth.ts).
+ */
 export async function POST(req: Request) {
-  const denied = await requireVerifierAuth(req);
+  const denied = await requirePublicRateLimit(req);
   if (denied) return denied;
 
   const body = (await req.json()) as Partial<CreateSubmissionInput>;

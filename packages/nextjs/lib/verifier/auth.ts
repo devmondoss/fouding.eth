@@ -50,3 +50,31 @@ export async function requireVerifierAuth(
 
   return null;
 }
+
+/**
+ * Para las dos rutas que una empresa (sin API key) llama directamente
+ * desde app/solicitar: crear su expediente y subir su legal pack. Sin
+ * key que validar, así que lo único que las protege de abuso es un
+ * límite más estricto por IP — separado del balde de las rutas del
+ * verificador para que un panel activo no le coma el cupo al público.
+ */
+export async function requirePublicRateLimit(
+  req: Request,
+): Promise<NextResponse | null> {
+  try {
+    if (await isRateLimited(clientIp(req), { scope: "public", limit: 10 })) {
+      return NextResponse.json(
+        { error: "Demasiadas solicitudes, intenta de nuevo en un minuto" },
+        { status: 429 },
+      );
+    }
+  } catch (err) {
+    console.error("[verifier] error de base de datos (rate limit público):", err);
+    return NextResponse.json(
+      { error: "El servicio no está disponible en este momento, intenta de nuevo" },
+      { status: 503 },
+    );
+  }
+
+  return null;
+}

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireVerifierAuth } from "@/lib/verifier/auth";
+import { requirePublicRateLimit } from "@/lib/verifier/auth";
 import { withDbErrors } from "@/lib/verifier/apiError";
 import { saveDocument } from "@/lib/verifier/documents";
 
@@ -9,14 +9,11 @@ const MAX_SIZE = 10 * 1024 * 1024; // 10MB — de sobra para un legal pack en PD
  * Sube el documento y devuelve su hash — ese hash es lo único que
  * después va en `legalPackHash` del expediente y, más adelante, onchain.
  *
- * Protegido con la misma API key que el resto de rutas del verificador:
- * hoy no existe un login separado para la empresa que sube el
- * documento, así que esto evita que cualquiera suba archivos arbitrarios
- * al storage. Cuando haya un flujo real del lado de la empresa, esto
- * necesita su propia auth.
+ * Sin API key a propósito — la llama app/solicitar, público, desde el
+ * lado de la empresa. Rate limit estricto en su lugar (ver auth.ts).
  */
 export async function POST(req: Request) {
-  const denied = await requireVerifierAuth(req);
+  const denied = await requirePublicRateLimit(req);
   if (denied) return denied;
 
   const form = await req.formData();
