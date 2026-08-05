@@ -3,19 +3,20 @@
  * traduce a la forma de ActivityEvent (lib/types.ts) que el frontend ya
  * consume hoy desde datos mockeados (lib/data/store.tsx).
  *
- * ESTADO: sin destino real todavía — Supabase se conecta después. Por
- * ahora cada evento decodificado se imprime tal cual quedaría la fila,
- * para validar el mapeo antes de escribir el schema definitivo.
+ * Escribe a la tabla `onchain_activity` en Neon (ver scripts/migrate.ts)
+ * además de imprimir cada evento en consola.
  *
  * Requiere:
  *   - CREDIT_VAULT_ADDRESS   dirección del contrato (env, sin NEXT_PUBLIC_
  *                            porque esto corre server-side, no en el browser)
+ *   - DATABASE_URL           misma variable que usa el resto del backend
  *   - ARBITRUM_SEPOLIA_RPC_URL  opcional, usa el RPC público si falta
  *
  * Correr con: npm run indexer
  */
 import { publicClient } from "@/lib/web3/publicClient";
 import { CREDIT_VAULT_EVENTS_ABI } from "@/lib/web3/events";
+import { insertOnchainActivity } from "@/lib/db/onchainActivity";
 import type { ActivityEvent, ActivityKind } from "@/lib/types";
 
 const vaultAddress = process.env.CREDIT_VAULT_ADDRESS as `0x${string}` | undefined;
@@ -61,14 +62,25 @@ async function main() {
     onLogs: async (logs) => {
       for (const log of logs) {
         const block = await publicClient.getBlock({ blockHash: log.blockHash! });
+        const args = log.args as Record<string, unknown>;
         const mapped = toActivityEvent(
           log.eventName,
-          log.args as Record<string, unknown>,
+          args,
           log.transactionHash!,
           block.timestamp,
         );
-        // TODO: reemplazar por un insert a Supabase cuando el schema esté listo.
         console.log("[indexer]", mapped);
+
+        await insertOnchainActivity({
+          id: log.transactionHash!,
+          kind: EVENT_TO_KIND[log.eventName] ?? log.eventName,
+          investorAddress: typeof args.investor === "string" ? args.investor : null,
+          opportunityOnchainId:
+            args.opportunityId != null ? String(args.opportunityId) : null,
+          amount: typeof args.amount === "bigint" ? args.amount : null,
+          detail: mapped.detail ?? log.eventName,
+          occurredAt: new Date(Number(block.timestamp) * 1000),
+        });
       }
     },
   });

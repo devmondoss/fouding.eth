@@ -29,7 +29,26 @@ async function main() {
     )
   `;
 
-  console.log("Migración completa: verifier_submissions, verifier_documents");
+  // Destino real del indexer (scripts/indexer.ts) — hoy no recibe filas
+  // porque no hay CreditVault desplegado a quién escuchar, pero la tabla
+  // ya existe para que conectar el contrato real sea solo pegar la
+  // dirección, no escribir un schema nuevo.
+  await sql`
+    CREATE TABLE IF NOT EXISTS onchain_activity (
+      id TEXT PRIMARY KEY,
+      kind TEXT NOT NULL,
+      investor_address TEXT,
+      opportunity_onchain_id TEXT,
+      amount NUMERIC,
+      detail TEXT,
+      occurred_at TIMESTAMPTZ NOT NULL,
+      inserted_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+
+  console.log(
+    "Migración completa: verifier_submissions, verifier_documents, onchain_activity",
+  );
 }
 
 main().catch((err) => {
