@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { Address } from "viem";
 import { ArrowRight, Clock, Lock } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
@@ -15,7 +16,10 @@ import {
   projectedReturn,
   remainingToFund,
 } from "@/lib/opportunity";
-import { UNVERIFIED_TICKET_CAP, useSession } from "@/lib/useSession";
+import { useSession } from "@/lib/useSession";
+import { useCreditRegistry } from "@/hooks/useCreditRegistry";
+import { useCreditVault } from "@/hooks/useCreditVault";
+import { useMockUsdc } from "@/hooks/useMockUsdc";
 import type { Opportunity } from "@/lib/types";
 
 const RAPIDOS = [1_000, 2_500, 5_000];
@@ -30,11 +34,16 @@ export function InvestPanel({
 }) {
   const { balance, invest } = usePlatform();
   const { session } = useSession();
+  const investor = session?.address as Address | undefined;
+  const vault = useCreditVault(investor);
+  const registry = useCreditRegistry(vault.address);
+  const token = useMockUsdc(investor, vault.address);
   const verified = session?.verified ?? false;
   const [amount, setAmount] = useState("2500");
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
+  const [transactionError, setTransactionError] = useState<string | null>(null);
 
   const open = isOpenForFunding(o);
   const parsed = Number(amount.replace(/[^0-9.]/g, "")) || 0;
@@ -42,27 +51,52 @@ export function InvestPanel({
   const left = remainingToFund(o);
   const days = daysUntil(o.fundingDeadline);
 
+  const availableBalance = token.balance ?? balance;
+  const protocolLoading = vault.isLoading || registry.isLoading || token.isLoading;
   const error =
     parsed <= 0
       ? null
-      : value > balance
+      : transactionError
+        ? transactionError
+        : !vault.address || !token.address
+          ? "El protocolo local todavía no está desplegado"
+          : protocolLoading
+            ? "Consultando el estado onchain"
+            : !registry.isVaultRegistered
+              ? "La bóveda no está registrada oficialmente"
+              : vault.status !== 1
+                ? "La bóveda no está abierta para fondeo"
+      : value > availableBalance
         ? "Saldo insuficiente"
         : value > left
           ? `Máximo disponible: ${formatUsdc(left)} USDC`
           : parsed < 1000
             ? "El ticket mínimo es 1,000 USDC"
-            : !verified && parsed > UNVERIFIED_TICKET_CAP
-              ? `Verifica tu identidad para invertir más de ${formatUsdc(usdc(UNVERIFIED_TICKET_CAP))} USDC`
+            : !verified
+              ? "Tu acceso de inversionista todavía no está aprobado"
               : null;
 
   const canInvest = open && parsed > 0 && !error;
 
   async function handleInvest() {
     setBusy(true);
-    await invest(o.slug, value);
-    setBusy(false);
-    setConfirming(false);
-    setDone(true);
+    setTransactionError(null);
+    try {
+      if ((token.allowance ?? 0n) < value) await token.approve(value);
+      await vault.fund(value);
+      // El store conserva únicamente la proyección visual del catálogo.
+      // La operación financiera ya fue confirmada onchain antes de tocarlo.
+      await invest(o.slug, value);
+      setConfirming(false);
+      setDone(true);
+    } catch (cause) {
+      setConfirming(false);
+      setTransactionError(
+        cause instanceof Error ? cause.message : "La transacción no pudo confirmarse",
+      );
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -104,7 +138,7 @@ export function InvestPanel({
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               error={error}
-              hint={`Disponible: ${formatUsdc(balance)} USDC`}
+              hint={`Disponible onchain: ${formatUsdc(availableBalance)} USDC`}
             />
 
             {error === "Saldo insuficiente" && onOpenFunds && (

@@ -19,6 +19,7 @@
     "dev": "tsc --watch",
     "export-abi": "ts-node scripts/export_abi.ts",
     "info:networks": "ts-node scripts/test_network.ts",
+    "protocol:e2e": "ts-node scripts/protocol_e2e.ts",
     "lint": "eslint scripts --ext .ts",
     "lint:fix": "eslint scripts --ext .ts --fix",
     "new-module": "bash scripts/new_module.sh",

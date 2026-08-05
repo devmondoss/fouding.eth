@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
 import {
   AlertTriangle,
   Check,
@@ -18,8 +18,8 @@ import { Field } from "@/components/ui/Field";
 import { Metric } from "@/components/ui/Stat";
 import { Modal } from "@/components/ui/Modal";
 import { usePlatform } from "@/lib/data/store";
-import { formatRelativeTime, formatUsdc, usdc } from "@/lib/format";
-import { UNVERIFIED_TICKET_CAP, type Session } from "@/lib/useSession";
+import { formatRelativeTime, formatUsdc } from "@/lib/format";
+import type { Session } from "@/lib/useSession";
 
 /**
  * Módulo dedicado a la cuenta. No es un dropdown: es el lugar donde vive la
@@ -38,15 +38,16 @@ export function ProfilePanel({
   session: Session;
   onClose: () => void;
   onSignOut: () => void;
-  onVerify: () => void;
+  onVerify: () => Promise<void>;
   onDeleteAccount: () => Promise<void>;
   onReplayIntro: () => void;
 }) {
-  const { positions, activity } = usePlatform();
+  const { positions } = usePlatform();
   const [verifying, setVerifying] = useState(false);
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState("");
   const [docId, setDocId] = useState("");
+  const [verificationError, setVerificationError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -62,10 +63,17 @@ export function ProfilePanel({
 
   async function submitVerification() {
     setBusy(true);
-    await new Promise((r) => setTimeout(r, 900));
-    setBusy(false);
-    setVerifying(false);
-    onVerify();
+    setVerificationError(null);
+    try {
+      await onVerify();
+      setVerifying(false);
+    } catch (cause) {
+      setVerificationError(
+        cause instanceof Error ? cause.message : "No se pudo registrar la solicitud",
+      );
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function handleDeleteAccount() {
@@ -154,12 +162,18 @@ export function ProfilePanel({
               )}
               <div className="min-w-0 flex-1">
                 <div className="text-[13px] font-semibold text-hi">
-                  {session.verified ? "Identidad verificada" : "Identidad sin verificar"}
+                  {session.verified
+                    ? "Acceso de inversionista aprobado"
+                    : session.accessStatus === 1
+                      ? "Solicitud en revisión"
+                      : "Acceso de inversionista pendiente"}
                 </div>
                 <p className="mt-1 text-[12px] leading-relaxed text-mid">
                   {session.verified
-                    ? "Puedes invertir sin límite de ticket por operación."
-                    : `Con tu cuenta puedes invertir hasta ${formatUsdc(usdc(UNVERIFIED_TICKET_CAP))} USDC por operación. Verifica tu identidad para acceder a montos mayores.`}
+                    ? "Tu wallet está habilitada para participar en las rondas disponibles."
+                    : session.accessStatus === 1
+                      ? "La solicitud onchain está pendiente de aprobación por el equipo de cumplimiento."
+                      : "Solicita acceso a la waitlist. Solo las wallets aprobadas pueden invertir."}
                 </p>
                 {!session.verified && (
                   <Button
@@ -168,7 +182,7 @@ export function ProfilePanel({
                     className="mt-3"
                     onClick={() => setVerifying(true)}
                   >
-                    Verificar identidad
+                    {session.accessStatus === 1 ? "Solicitud pendiente" : "Solicitar acceso"}
                   </Button>
                 )}
               </div>
@@ -220,12 +234,12 @@ export function ProfilePanel({
         </div>
       </motion.aside>
 
-      {/* Verificación de identidad — mock: sin KYC real detrás */}
+      {/* La PII no se publica onchain; solo se registra un hash de solicitud. */}
       <Modal
         open={verifying}
         onClose={() => setVerifying(false)}
-        title="Verificación de identidad"
-        subtitle="Requerida para invertir montos mayores por operación"
+        title="Solicitud de acceso"
+        subtitle="Requerida antes de invertir en cualquier operación"
         footer={
           <>
             <Button variant="ghost" onClick={() => setVerifying(false)}>
@@ -233,10 +247,14 @@ export function ProfilePanel({
             </Button>
             <Button
               loading={busy}
-              disabled={name.trim().length < 3 || docId.trim().length < 3}
+              disabled={
+                session.accessStatus === 1 ||
+                name.trim().length < 3 ||
+                docId.trim().length < 3
+              }
               onClick={submitVerification}
             >
-              Enviar
+              Registrar solicitud
             </Button>
           </>
         }
@@ -256,10 +274,15 @@ export function ProfilePanel({
           />
         </div>
         <p className="mt-4 text-[12px] leading-relaxed text-low">
-          Prototipo: no se realiza una verificación de identidad real. En
-          producción este paso se resolvería con un proveedor de KYC
-          certificado.
+          Los datos personales no se publican en la blockchain. Este prototipo
+          registra únicamente una referencia criptográfica de la solicitud;
+          la revisión documental se mantiene fuera de cadena.
         </p>
+        {verificationError && (
+          <p className="mt-3 text-[12px] text-[var(--negative)]">
+            {verificationError}
+          </p>
+        )}
       </Modal>
 
       {/* Eliminar cuenta — irreversible: borra el usuario en Privy de

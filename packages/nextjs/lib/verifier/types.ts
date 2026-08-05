@@ -9,8 +9,7 @@ export type VerifierSubmission = {
   id: string;
   companyName: string;
   companyRuc: string;
-  /** La wallet que el IdentityRegistry va a marcar elegible si se
-   * aprueba — sin esto no hay a quién llamarle setEligible(). */
+  /** Wallet que recibirá o actualizará su CompanyPassportSBT al aprobarse. */
   companyWallet: string;
   projectTitle: string;
   requestedAmount: string; // string: evita perder precisión de bigint en JSON

@@ -5,7 +5,8 @@
   "workspaces": {
     "packages": [
       "packages/nextjs",
-      "packages/stylus"
+      "packages/stylus",
+      "packages/foundry"
     ]
   },
   "resolutions": {
@@ -23,7 +24,11 @@
     "next:indexer": "yarn workspace @founding/nextjs indexer",
     "stylus:lint": "yarn workspace @founding/stylus lint",
     "stylus:test": "yarn workspace @founding/stylus test",
+    "foundry:fmt": "yarn workspace @founding/foundry fmt",
+    "foundry:build": "yarn workspace @founding/foundry build",
+    "foundry:test": "yarn workspace @founding/foundry test",
     "verify-contracts": "yarn workspace @founding/stylus verify-contracts",
+    "protocol:e2e": "yarn workspace @founding/stylus protocol:e2e",
     "test": "yarn stylus:test"
   },
   "packageManager": "yarn@3.2.3+sha512.f26f951f67de0c6a33ee381e5ff364709c87e70eb5e65c694e4facde3512f1fa80b8679e6ba31ce7d340fbb46f08dd683af9457e240f25a204be7427940d767e"

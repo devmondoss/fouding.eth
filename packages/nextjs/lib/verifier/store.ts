@@ -59,6 +59,15 @@ export async function listSubmissionsByWallet(
   return rows.map(toSubmission);
 }
 
+export async function getSubmission(
+  id: string,
+): Promise<VerifierSubmission | null> {
+  const rows = (await sql`
+    SELECT * FROM verifier_submissions WHERE id = ${id} LIMIT 1
+  `) as SubmissionRow[];
+  return rows[0] ? toSubmission(rows[0]) : null;
+}
+
 export async function createSubmission(
   input: CreateSubmissionInput,
 ): Promise<VerifierSubmission> {
@@ -84,8 +93,5 @@ export async function decideSubmission(
     RETURNING *
   `) as SubmissionRow[];
 
-  // TODO cuando exista IdentityRegistry: si approve, llamar
-  // setEligible(updated.companyWallet, true) acá — el expediente ya
-  // trae la wallet, solo falta el contrato.
   return rows[0] ? toSubmission(rows[0]) : null;
 }
