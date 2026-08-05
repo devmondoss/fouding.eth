@@ -4,7 +4,7 @@ import { createSubmission, listSubmissions } from "@/lib/verifier/store";
 import type { CreateSubmissionInput } from "@/lib/verifier/types";
 
 export async function GET(req: Request) {
-  const denied = requireVerifierAuth(req);
+  const denied = await requireVerifierAuth(req);
   if (denied) return denied;
 
   const submissions = await listSubmissions();
@@ -12,7 +12,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const denied = requireVerifierAuth(req);
+  const denied = await requireVerifierAuth(req);
   if (denied) return denied;
 
   const body = (await req.json()) as Partial<CreateSubmissionInput>;

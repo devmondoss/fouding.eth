@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { clientIp, isRateLimited } from "./rateLimit";
 
 /**
  * Auth mínima para las rutas del verificador: una API key compartida
@@ -7,8 +8,14 @@ import { NextResponse } from "next/server";
  * abiertas a cualquiera mientras no hay IdentityRegistry ni Supabase.
  * Reemplazar por auth real (wallet del verificador + su stake, ver
  * conceptos-y-cambios.md §Verificador) cuando el contrato exista.
+ *
+ * Como la key es una sola y la comparten todos los clientes, limitar
+ * por key no serviría de nada — el rate limit va por IP (ver
+ * rateLimit.ts), después de validar la key.
  */
-export function requireVerifierAuth(req: Request): NextResponse | null {
+export async function requireVerifierAuth(
+  req: Request,
+): Promise<NextResponse | null> {
   const expected = process.env.VERIFIER_API_KEY;
   if (!expected) {
     // Sin la env var configurada, no hay forma segura de validar nada —
@@ -24,6 +31,13 @@ export function requireVerifierAuth(req: Request): NextResponse | null {
 
   if (token !== expected) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  if (await isRateLimited(clientIp(req))) {
+    return NextResponse.json(
+      { error: "Demasiadas solicitudes, intenta de nuevo en un minuto" },
+      { status: 429 },
+    );
   }
 
   return null;

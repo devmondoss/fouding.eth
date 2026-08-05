@@ -7,7 +7,7 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const denied = requireVerifierAuth(req);
+  const denied = await requireVerifierAuth(req);
   if (denied) return denied;
 
   const { id } = await params;

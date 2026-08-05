@@ -46,8 +46,20 @@ async function main() {
     )
   `;
 
+  // Ventana fija de rate limiting para las rutas del verificador — ver
+  // lib/verifier/rateLimit.ts. (key, window_start) como PK: cada request
+  // dentro de la misma ventana de 1 minuto suma al mismo contador.
+  await sql`
+    CREATE TABLE IF NOT EXISTS rate_limits (
+      key TEXT NOT NULL,
+      window_start TIMESTAMPTZ NOT NULL,
+      count INTEGER NOT NULL DEFAULT 1,
+      PRIMARY KEY (key, window_start)
+    )
+  `;
+
   console.log(
-    "Migración completa: verifier_submissions, verifier_documents, onchain_activity",
+    "Migración completa: verifier_submissions, verifier_documents, onchain_activity, rate_limits",
   );
 }
 

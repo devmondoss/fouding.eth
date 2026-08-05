@@ -15,7 +15,7 @@ const MAX_SIZE = 10 * 1024 * 1024; // 10MB — de sobra para un legal pack en PD
  * necesita su propia auth.
  */
 export async function POST(req: Request) {
-  const denied = requireVerifierAuth(req);
+  const denied = await requireVerifierAuth(req);
   if (denied) return denied;
 
   const form = await req.formData();

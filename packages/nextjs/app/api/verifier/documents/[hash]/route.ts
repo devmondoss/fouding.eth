@@ -8,7 +8,7 @@ export async function GET(
   req: Request,
   { params }: { params: Promise<{ hash: string }> },
 ) {
-  const denied = requireVerifierAuth(req);
+  const denied = await requireVerifierAuth(req);
   if (denied) return denied;
 
   const { hash } = await params;
