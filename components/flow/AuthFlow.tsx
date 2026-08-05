@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { AlertTriangle, ArrowRight, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
 import { useSession } from "@/lib/useSession";
 import { T } from "@/lib/motion";
 
@@ -17,6 +19,7 @@ import { T } from "@/lib/motion";
 
 export function AuthFlow() {
   const { connectWallet, connecting, connectError, cancelConnect } = useSession();
+  const [showTerms, setShowTerms] = useState(false);
   // Derivado, no estado propio: "connecting" cubre tanto el spinner como
   // el error (se queda ahí hasta reintentar o cancelar); cualquier otra
   // combinación es "intro". Cancelar limpia ambos flags y por eso vuelve
@@ -74,6 +77,17 @@ export function AuthFlow() {
               >
                 Crear mi wallet y entrar
               </Button>
+
+              <p className="mt-3 text-center text-[11.5px] text-low">
+                Al continuar aceptas los{" "}
+                <button
+                  onClick={() => setShowTerms(true)}
+                  className="underline decoration-dotted transition-colors hover:text-hi"
+                  style={{ color: "var(--text-mid)" }}
+                >
+                  Términos y condiciones
+                </button>
+              </p>
 
               <div className="mt-6 flex flex-col gap-2.5">
                 {[
@@ -155,6 +169,45 @@ export function AuthFlow() {
           )}
         </AnimatePresence>
       </div>
+
+      <Modal
+        open={showTerms}
+        onClose={() => setShowTerms(false)}
+        title="Términos y condiciones"
+        subtitle="Prototipo — no constituye asesoría de inversión"
+        width={520}
+        footer={<Button onClick={() => setShowTerms(false)}>Entendido</Button>}
+      >
+        <div className="flex flex-col gap-3.5 text-[12.5px] leading-relaxed text-mid">
+          <p>
+            Founding es un <strong>prototipo</strong>. Opera sobre Arbitrum
+            Sepolia (testnet) con USDC de prueba — nada de lo que veas acá
+            mueve dinero real todavía.
+          </p>
+          <p>
+            Tu wallet es non-custodial: la creamos con Privy usando tu
+            correo, pero las claves no están en nuestro poder ni podemos
+            revertir ninguna operación en tu nombre.
+          </p>
+          <p>
+            Las oportunidades de crédito privado que se muestran conllevan
+            riesgo de pérdida total o parcial del capital invertido —
+            incluido en escenarios de default, donde el recupero depende
+            de la ejecución de la garantía y puede ser parcial. Nada acá
+            constituye una recomendación ni garantía de rentabilidad.
+          </p>
+          <p>
+            La verificación de identidad, la evaluación crediticia y la
+            aprobación de expedientes en esta versión son procesos
+            simulados con fines de demostración, no un proceso de KYC/KYB
+            regulado.
+          </p>
+          <p>
+            Al conectar tu wallet aceptás que este es un entorno de
+            pruebas y que la información mostrada es ilustrativa.
+          </p>
+        </div>
+      </Modal>
     </div>
   );
 }
