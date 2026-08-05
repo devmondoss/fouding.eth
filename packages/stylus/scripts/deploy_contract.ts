@@ -16,7 +16,7 @@ import { buildDeployCommand } from "./utils/command";
 import { Abi, createPublicClient, createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import * as path from "path";
-import { arbitrumNitro } from "../../nextjs/utils/scaffold-stylus/supportedChains";
+import { arbitrumNitro } from "./utils/supportedChains";
 
 /**
  * Deploy a single contract using cargo stylus

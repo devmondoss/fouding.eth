@@ -88,6 +88,26 @@ export async function exportStylusAbi(
       `${config.contractFolder}`,
     );
     const abi = parseAbiOutput(exportOutput);
+    const supplementalEventsPath = path.resolve(fsPath, "abi-events.json");
+    if (fs.existsSync(supplementalEventsPath)) {
+      const supplementalEvents = parseAbiOutput(
+        fs.readFileSync(supplementalEventsPath, "utf8"),
+      );
+      if (
+        !supplementalEvents.every(
+          item =>
+            typeof item === "object" &&
+            item !== null &&
+            (item as { type?: unknown }).type === "event",
+        )
+      ) {
+        throw new Error(`${supplementalEventsPath} may only contain ABI events`);
+      }
+      abi.push(...supplementalEvents);
+      console.log(
+        `🧩 Added ${supplementalEvents.length} events omitted by cargo-stylus`,
+      );
+    }
     writeCleanAbiFile(abiFilePath, abi);
     console.log(`✅ Clean ABI written to: ${abiFilePath}`);
 
