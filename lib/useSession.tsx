@@ -9,7 +9,6 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useAccount } from "wagmi";
 import { useLogin, usePrivy } from "@privy-io/react-auth";
 
 export type Session = {
@@ -69,8 +68,12 @@ type Ctx = {
 const SessionContext = createContext<Ctx | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const { ready, authenticated, logout } = usePrivy();
-  const { address, status: accountStatus } = useAccount();
+  const { ready, authenticated, user, logout } = usePrivy();
+  // Dirección directo de Privy, NO de wagmi's useAccount(). El puente
+  // @privy-io/wagmi puede tardar (o no llegar a tiempo) en sincronizar
+  // el conector en una recarga fría — Privy es la fuente real de la
+  // wallet embebida, wagmi es solo para leer/escribir en cadena después.
+  const address = user?.wallet?.address ?? null;
 
   const [connecting, setConnecting] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
@@ -87,16 +90,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
 
   // Ajustamos `session` DURANTE el render cuando cambian los valores de
-  // Privy/wagmi que la determinan — no en un efecto (evita el
-  // setState-en-efecto, ver commit del bug de store.tsx con el mismo
-  // patrón). `resolvedKey` es la "huella" de esos valores; solo se
-  // recalcula session cuando esa huella cambia de verdad.
-  const resolvedKey = `${ready}|${authenticated}|${accountStatus}|${address ?? ""}`;
+  // Privy que la determinan — no en un efecto (evita el setState-en-
+  // efecto, ver commit del bug de store.tsx con el mismo patrón).
+  // `resolvedKey` es la "huella" de esos valores; solo se recalcula
+  // session cuando esa huella cambia de verdad.
+  const resolvedKey = `${ready}|${authenticated}|${address ?? ""}`;
   const [lastResolvedKey, setLastResolvedKey] = useState(resolvedKey);
   if (resolvedKey !== lastResolvedKey) {
     setLastResolvedKey(resolvedKey);
     if (ready) {
-      if (!authenticated || accountStatus !== "connected" || !address) {
+      if (!authenticated || !address) {
         setSession(null);
       } else {
         const addr = address.toLowerCase();
