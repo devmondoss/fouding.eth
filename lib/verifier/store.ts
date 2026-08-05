@@ -77,7 +77,7 @@ export async function decideSubmission(
   await writeAll(all);
 
   // TODO cuando exista IdentityRegistry: si approve, llamar
-  // setEligible(companyWallet, true) acá — hoy no hay dirección de
-  // wallet en el expediente todavía, falta agregarla al formulario.
+  // setEligible(updated.companyWallet, true) acá — el expediente ya
+  // trae la wallet, solo falta el contrato.
   return updated;
 }

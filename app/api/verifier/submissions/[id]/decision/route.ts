@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireVerifierAuth } from "@/lib/verifier/auth";
 import { decideSubmission } from "@/lib/verifier/store";
 import type { DecisionInput } from "@/lib/verifier/types";
 
@@ -6,6 +7,9 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const denied = requireVerifierAuth(req);
+  if (denied) return denied;
+
   const { id } = await params;
   const body = (await req.json()) as Partial<DecisionInput>;
 
