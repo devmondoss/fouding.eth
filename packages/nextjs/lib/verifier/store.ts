@@ -45,6 +45,20 @@ export async function listSubmissions(): Promise<VerifierSubmission[]> {
   return rows.map(toSubmission);
 }
 
+/** Para app/solicitar: una empresa logueada consulta sus propias
+ * solicitudes por wallet — sin API key, así que no expone nada de
+ * las demás (ver GET /api/verifier/submissions/mine). */
+export async function listSubmissionsByWallet(
+  wallet: string,
+): Promise<VerifierSubmission[]> {
+  const rows = (await sql`
+    SELECT * FROM verifier_submissions
+    WHERE lower(company_wallet) = lower(${wallet})
+    ORDER BY submitted_at DESC
+  `) as SubmissionRow[];
+  return rows.map(toSubmission);
+}
+
 export async function createSubmission(
   input: CreateSubmissionInput,
 ): Promise<VerifierSubmission> {
