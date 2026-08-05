@@ -117,7 +117,6 @@ type PlatformValue = {
   addFunds: (amount: bigint) => Promise<void>;
   listPosition: (id: string, price: bigint) => Promise<void>;
   unlistPosition: (id: string) => Promise<void>;
-  resetDemo: () => void;
 };
 
 const PlatformContext = createContext<PlatformValue | null>(null);
@@ -285,14 +284,6 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const resetDemo = useCallback(() => {
-    setState({
-      opportunities: structuredClone(OPPORTUNITIES),
-      ...emptyWalletState(),
-    });
-    if (address) saveWalletState(address, emptyWalletState());
-  }, [address]);
-
   const value = useMemo<PlatformValue>(
     () => ({
       opportunities,
@@ -305,7 +296,6 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
       addFunds,
       listPosition,
       unlistPosition,
-      resetDemo,
     }),
     [
       opportunities,
@@ -318,7 +308,6 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
       addFunds,
       listPosition,
       unlistPosition,
-      resetDemo,
     ],
   );
 
