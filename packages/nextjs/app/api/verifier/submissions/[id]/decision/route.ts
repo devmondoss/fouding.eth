@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireVerifierAuth } from "@/lib/verifier/auth";
-import { decideSubmission } from "@/lib/verifier/store";
+import { decideSubmission, getSubmission } from "@/lib/verifier/store";
+import { synchronizeApprovedPassport } from "@/lib/verifier/onchain";
 import type { DecisionInput } from "@/lib/verifier/types";
 
 export async function POST(
@@ -20,15 +21,36 @@ export async function POST(
     );
   }
 
+  const current = await getSubmission(id);
+  if (!current) {
+    return NextResponse.json({ error: "Expediente no encontrado" }, { status: 404 });
+  }
+  if (current.status !== "pending") {
+    return NextResponse.json({ error: "El expediente ya fue decidido" }, { status: 409 });
+  }
+
+  let passportTxHash: string | undefined;
+  if (body.approve) {
+    try {
+      passportTxHash = await synchronizeApprovedPassport(current);
+    } catch (cause) {
+      return NextResponse.json(
+        {
+          error:
+            cause instanceof Error
+              ? cause.message
+              : "No se pudo sincronizar el passport onchain",
+        },
+        { status: 502 },
+      );
+    }
+  }
+
   const updated = await decideSubmission(id, {
     approve: body.approve,
     decidedBy: body.decidedBy,
     note: body.note,
   });
 
-  if (!updated) {
-    return NextResponse.json({ error: "Expediente no encontrado" }, { status: 404 });
-  }
-
-  return NextResponse.json(updated);
+  return NextResponse.json({ ...updated, passportTxHash });
 }

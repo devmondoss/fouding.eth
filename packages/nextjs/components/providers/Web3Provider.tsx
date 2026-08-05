@@ -4,7 +4,12 @@ import { useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PrivyProvider } from "@privy-io/react-auth";
 import { WagmiProvider } from "@privy-io/wagmi";
-import { wagmiConfig, arbitrumSepolia } from "@/lib/web3/config";
+import {
+  arbitrumNitro,
+  arbitrumSepolia,
+  protocolChain,
+  wagmiConfig,
+} from "@/lib/web3/config";
 import { BRAND } from "@/lib/brandColors";
 
 /**
@@ -49,8 +54,8 @@ export function Web3Provider({ children }: { children: ReactNode }) {
         embeddedWallets: {
           ethereum: { createOnLogin: "all-users" },
         },
-        defaultChain: arbitrumSepolia,
-        supportedChains: [arbitrumSepolia],
+        defaultChain: protocolChain,
+        supportedChains: [arbitrumNitro, arbitrumSepolia],
       }}
     >
       <QueryClientProvider client={queryClient}>
