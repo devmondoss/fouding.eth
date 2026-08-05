@@ -1,0 +1,13 @@
+{
+  "name": "@founding/foundry",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "forge build",
+    "fmt": "forge fmt --check",
+    "test": "forge test -vvv"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "5.4.0"
+  }
+}
