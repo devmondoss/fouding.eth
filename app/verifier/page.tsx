@@ -1,7 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Check, Clock, Lock, RefreshCw, ShieldCheck, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Check,
+  Clock,
+  Copy,
+  FileText,
+  Lock,
+  RefreshCw,
+  ShieldCheck,
+  Upload,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Field, EmptyState } from "@/components/ui/Field";
 import { shortHash } from "@/lib/format";
@@ -152,6 +162,18 @@ function Panel({
     }
   }
 
+  async function viewDocument(hash: string) {
+    const res = await fetch(`/api/verifier/documents/${hash}`, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+    if (!res.ok) return;
+    const blob = await res.blob();
+    // Blob URL, no la URL de la API directa — así no hace falta mandar
+    // el header de auth en una navegación normal, que el navegador no
+    // permite para links/pestañas nuevas.
+    window.open(URL.createObjectURL(blob), "_blank");
+  }
+
   return (
     <div className="min-h-screen px-6 py-8" style={{ backgroundColor: "var(--bg)" }}>
       <div className="mx-auto max-w-[760px]">
@@ -169,6 +191,8 @@ function Panel({
             </Button>
           </div>
         </div>
+
+        <UploadWidget apiKey={apiKey} />
 
         <div className="mt-6 flex flex-col gap-3">
           {loading && !submissions && (
@@ -211,9 +235,18 @@ function Panel({
                   <p className="mt-0.5 text-[12.5px] text-mid">
                     {s.companyName} {s.companyRuc && `· RUC ${s.companyRuc}`}
                   </p>
-                  <p className="num mt-1.5 text-[11.5px] text-low">
+                  <p className="num mt-1.5 flex items-center gap-1.5 text-[11.5px] text-low">
                     {shortHash(s.companyWallet, 6)} · hash{" "}
                     {s.legalPackHash ? shortHash(s.legalPackHash, 6) : "—"}
+                    {s.legalPackHash && (
+                      <button
+                        onClick={() => viewDocument(s.legalPackHash)}
+                        className="flex items-center gap-1 font-sans text-[11px] font-medium transition-colors hover:text-hi"
+                        style={{ color: "var(--brand-ink)" }}
+                      >
+                        <FileText className="h-3 w-3" /> Ver documento
+                      </button>
+                    )}
                   </p>
                   {s.note && (
                     <p className="mt-1.5 text-[12px] text-mid">Nota: {s.note}</p>
@@ -259,6 +292,95 @@ function Panel({
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Sube un documento y devuelve su hash — el mismo que va en
+ * `legalPackHash` al crear un expediente (hoy esa creación se hace por
+ * API directa; esto es para no depender de curl para sacar el hash).
+ */
+function UploadWidget({ apiKey }: { apiKey: string }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [hash, setHash] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    setUploading(true);
+    setError(null);
+    setHash(null);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/verifier/documents", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}` },
+        body: form,
+      });
+      if (!res.ok) {
+        setError((await res.json()).error ?? "No se pudo subir el archivo.");
+        return;
+      }
+      const doc = (await res.json()) as { hash: string };
+      setHash(doc.hash);
+    } catch {
+      setError("No se pudo subir el archivo.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div className="card mt-6 flex items-center gap-3 p-4">
+      <input
+        ref={inputRef}
+        type="file"
+        className="hidden"
+        onChange={onFileChange}
+        accept="application/pdf,image/*"
+      />
+      <Button
+        variant="outline"
+        size="sm"
+        icon={<Upload className="h-3.5 w-3.5" />}
+        loading={uploading}
+        onClick={() => inputRef.current?.click()}
+      >
+        Subir legal pack
+      </Button>
+
+      {hash && (
+        <span className="num flex items-center gap-1.5 text-[12px] text-mid">
+          hash: {shortHash(hash, 8)}
+          <button
+            onClick={() => {
+              navigator.clipboard?.writeText(hash);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1600);
+            }}
+            className="flex items-center gap-1 font-sans transition-colors hover:text-hi"
+          >
+            {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+          </button>
+        </span>
+      )}
+
+      {error && (
+        <span className="text-[12px]" style={{ color: "var(--negative)" }}>
+          {error}
+        </span>
+      )}
+
+      <span className="ml-auto text-[11px] text-low">
+        PDF o imagen · máx 10MB
+      </span>
     </div>
   );
 }
