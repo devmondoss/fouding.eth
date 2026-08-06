@@ -119,6 +119,20 @@ export const creditVaultAbi = [
     outputs: [{ name: "", type: "uint256" }],
   },
   {
+    // (aportado, ya cobrado, cobrable ahora). El contrato hace acá la
+    // misma cuenta que `claim`, así que la UI de cobro puede mostrar el
+    // monto exacto en vez de arriesgar una transacción que revierta.
+    type: "function",
+    name: "getInvestorPosition",
+    stateMutability: "view",
+    inputs: [{ name: "investor", type: "address" }],
+    outputs: [
+      { name: "contribution", type: "uint256" },
+      { name: "claimed", type: "uint256" },
+      { name: "claimable", type: "uint256" },
+    ],
+  },
+  {
     type: "function",
     name: "paymentToken",
     stateMutability: "view",

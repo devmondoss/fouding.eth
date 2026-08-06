@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { CalendarClock, Tag as TagIcon, X } from "lucide-react";
 import { ActivityRow } from "@/components/domain/ActivityRow";
+import { ClaimPanel } from "@/components/domain/ClaimPanel";
 import { initials } from "@/components/domain/OpportunityCard";
 import {
   CapitalOverTimeChart,
@@ -184,6 +185,9 @@ export function PortfolioOverlay({
             >
               {step === "resumen" && (
                 <div className="flex flex-col gap-4">
+                  {/* Solo aparece si esta wallet aportó al vault desplegado. */}
+                  <ClaimPanel />
+
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <div className="card px-4 py-3.5">
                       <Metric label="Capital invertido" value={formatUsdc(invertido)} unit="USDC" size="sm" />

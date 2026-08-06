@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { ArrowLeft, ArrowRight, CheckCircle2, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
+import { useSession } from "@/lib/useSession";
 import { T, dialog, scrim } from "@/lib/motion";
 
 const STEPS = [
@@ -27,6 +28,7 @@ export function SolicitudWizard({
   onClose: () => void;
   onSubmitted: () => void;
 }) {
+  const { getAccessToken } = useSession();
   const [step, setStep] = useState(0);
   const [companyName, setCompanyName] = useState("");
   const [companyRuc, setCompanyRuc] = useState("");
@@ -64,12 +66,19 @@ export function SolicitudWizard({
     setError(null);
 
     try {
+      // El backend deriva la wallet de este token, no del body — por eso
+      // `companyWallet` ya no se manda (ver POST /api/verifier/submissions).
+      const token = await getAccessToken();
+      if (!token) throw new Error("Tu sesión expiró, vuelve a entrar");
+      const authHeader = { Authorization: `Bearer ${token}` };
+
       let legalPackHash = "";
       if (file) {
         const form = new FormData();
         form.append("file", file);
         const docRes = await fetch("/api/verifier/documents", {
           method: "POST",
+          headers: authHeader,
           body: form,
         });
         if (!docRes.ok) {
@@ -82,11 +91,10 @@ export function SolicitudWizard({
 
       const res = await fetch("/api/verifier/submissions", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeader },
         body: JSON.stringify({
           companyName,
           companyRuc,
-          companyWallet: address,
           projectTitle,
           requestedAmount,
           legalPackHash,

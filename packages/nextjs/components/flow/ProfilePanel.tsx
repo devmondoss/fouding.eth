@@ -38,7 +38,7 @@ export function ProfilePanel({
   session: Session;
   onClose: () => void;
   onSignOut: () => void;
-  onVerify: () => Promise<void>;
+  onVerify: (applicant: { fullName: string; documentId: string }) => Promise<void>;
   onDeleteAccount: () => Promise<void>;
   onReplayIntro: () => void;
 }) {
@@ -65,7 +65,7 @@ export function ProfilePanel({
     setBusy(true);
     setVerificationError(null);
     try {
-      await onVerify();
+      await onVerify({ fullName: name.trim(), documentId: docId.trim() });
       setVerifying(false);
     } catch (cause) {
       setVerificationError(
@@ -274,9 +274,10 @@ export function ProfilePanel({
           />
         </div>
         <p className="mt-4 text-[12px] leading-relaxed text-low">
-          Los datos personales no se publican en la blockchain. Este prototipo
-          registra únicamente una referencia criptográfica de la solicitud;
-          la revisión documental se mantiene fuera de cadena.
+          Tus datos se guardan en la base de la plataforma, no en la
+          blockchain: en cadena queda solo su huella criptográfica, que sirve
+          para probar después que lo declarado no cambió. La revisión la hace
+          una persona, fuera de cadena.
         </p>
         {verificationError && (
           <p className="mt-3 text-[12px] text-[var(--negative)]">

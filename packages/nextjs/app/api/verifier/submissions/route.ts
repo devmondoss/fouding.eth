@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireVerifierAuth, requirePublicRateLimit } from "@/lib/verifier/auth";
+import { getAuthenticatedWallet } from "@/lib/privyServer";
 import { withDbErrors } from "@/lib/verifier/apiError";
 import { createSubmission, listSubmissions } from "@/lib/verifier/store";
 import type { CreateSubmissionInput } from "@/lib/verifier/types";
@@ -15,34 +16,33 @@ export async function GET(req: Request) {
 }
 
 /**
- * Sin API key a propósito — la llama app/solicitar, público, desde el
- * lado de la empresa. Lo único que protege esta ruta de abuso es el
- * rate limit más estricto de requirePublicRateLimit (ver auth.ts).
+ * La llama app/solicitar desde el lado de la empresa, sin API key de
+ * verificador — pero SÍ con la sesión de Privy de quien envía.
+ *
+ * `companyWallet` sale del token verificado y se ignora lo que venga en
+ * el body: esa wallet es la que el IdentityRegistry habilita si el
+ * expediente se aprueba, así que aceptarla como dato suelto permitía
+ * mandar solicitudes a nombre de la empresa de otro.
  */
 export async function POST(req: Request) {
   const denied = await requirePublicRateLimit(req);
   if (denied) return denied;
 
-  const body = (await req.json()) as Partial<CreateSubmissionInput>;
-
-  if (
-    !body.companyName ||
-    !body.companyWallet ||
-    !body.projectTitle ||
-    !body.requestedAmount
-  ) {
+  const companyWallet = await getAuthenticatedWallet(req);
+  if (!companyWallet) {
     return NextResponse.json(
-      {
-        error:
-          "companyName, companyWallet, projectTitle y requestedAmount son obligatorios",
-      },
-      { status: 400 },
+      { error: "Inicia sesión para enviar una solicitud" },
+      { status: 401 },
     );
   }
 
-  if (!/^0x[a-fA-F0-9]{40}$/.test(body.companyWallet)) {
+  const body = (await req.json().catch(() => null)) as Partial<CreateSubmissionInput> | null;
+
+  if (!body?.companyName || !body.projectTitle || !body.requestedAmount) {
     return NextResponse.json(
-      { error: "companyWallet no tiene forma de dirección EVM (0x...)" },
+      {
+        error: "companyName, projectTitle y requestedAmount son obligatorios",
+      },
       { status: 400 },
     );
   }
@@ -51,7 +51,7 @@ export async function POST(req: Request) {
     const submission = await createSubmission({
       companyName: body.companyName!,
       companyRuc: body.companyRuc ?? "",
-      companyWallet: body.companyWallet!,
+      companyWallet,
       projectTitle: body.projectTitle!,
       requestedAmount: body.requestedAmount!,
       legalPackHash: body.legalPackHash ?? "",

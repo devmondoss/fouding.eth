@@ -59,7 +59,20 @@ export default function App() {
   // un div en blanco — ahora al menos se ve que algo está pasando.
   // `role !== "investor"` cubre también los dos casos que ya se están
   // redirigiendo arriba (sin rol, o rol de empresa).
-  if (session === undefined || (session && session.role !== "investor")) {
+  const stillResolving =
+    session === undefined || (session && session.role !== "investor");
+
+  // `seen === null` ("todavía no sabemos si ya vio el onboarding", ver
+  // useOnce) solo importa una vez que YA vamos a mostrar el shell
+  // principal — nunca antes del login. Si no, mientras el navegador
+  // resuelve ese flag, el Deck/TopBar alcanzan a pintarse un frame sin
+  // Onboarding encima (la condición `seen === false` es falsa cuando
+  // `seen` todavía es `null`), y recién después aparece Onboarding
+  // tapándolos: se ve como si "el contenido de atrás" apareciera antes
+  // de terminar. Bloqueamos ese frame acá.
+  const stillResolvingOnboarding = session !== null && !stillResolving && seen === null;
+
+  if (stillResolving || stillResolvingOnboarding) {
     return (
       <div
         className="flex h-screen flex-col items-center justify-center gap-3"

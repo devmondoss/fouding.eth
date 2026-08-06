@@ -10,7 +10,6 @@ import {
   protocolChain,
   wagmiConfig,
 } from "@/lib/web3/config";
-import { BRAND } from "@/lib/brandColors";
 
 /**
  * PrivyProvider VA AFUERA de WagmiProvider — el conector de
@@ -49,7 +48,12 @@ export function Web3Provider({ children }: { children: ReactNode }) {
         loginMethods: ["email"],
         appearance: {
           theme: "light",
-          accentColor: BRAND,
+          // El lima de marca (BRAND) es fill-only por diseño (ver
+          // lib/brandColors.ts) — Privy lo usa como color de TEXTO/borde
+          // en botones como "Submit", donde queda casi invisible sobre
+          // blanco. Negro sólido en vez de un tono de marca: cero
+          // ambigüedad de contraste.
+          accentColor: "#000000",
         },
         embeddedWallets: {
           ethereum: { createOnLogin: "all-users" },

@@ -8,8 +8,8 @@
     "dev": "next dev",
     "lint": "eslint .",
     "start": "next start",
-    "indexer": "tsx scripts/indexer.ts",
-    "migrate": "tsx scripts/migrate.ts",
+    "indexer": "tsx --env-file-if-exists=.env.local scripts/indexer.ts",
+    "migrate": "tsx --env-file-if-exists=.env.local scripts/migrate.ts",
     "check:scroll": "node scripts/check-scroll-lock.mjs",
     "check:routes": "node scripts/check-routes.mjs",
     "check:ux": "node scripts/check-scroll-lock.mjs && node scripts/check-routes.mjs"

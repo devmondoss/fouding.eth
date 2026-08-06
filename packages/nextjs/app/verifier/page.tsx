@@ -8,12 +8,15 @@ import {
   FileText,
   Lock,
   RefreshCw,
+  Send,
   ShieldCheck,
   Upload,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Field, EmptyState } from "@/components/ui/Field";
+import { AccessRequests } from "@/components/verifier/AccessRequests";
+import { PublishOpportunityForm } from "@/components/verifier/PublishOpportunityForm";
 import { shortHash } from "@/lib/format";
 import type { VerifierSubmission } from "@/lib/verifier/types";
 
@@ -119,6 +122,10 @@ function Panel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  // Expediente que se está publicando como oportunidad, y el aviso de que
+  // ya se publicó (slug) — ver PublishOpportunityForm.
+  const [publishing, setPublishing] = useState<VerifierSubmission | null>(null);
+  const [published, setPublished] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -193,6 +200,24 @@ function Panel({
         </div>
 
         <UploadWidget apiKey={apiKey} />
+
+        <AccessRequests apiKey={apiKey} />
+
+        {published && (
+          <div
+            className="mt-4 flex items-center gap-2 rounded-[var(--r-panel)] border px-4 py-3 text-[13px]"
+            style={{ borderColor: "var(--positive)", color: "var(--positive)" }}
+          >
+            <Check className="h-4 w-4 shrink-0" />
+            Publicada en el catálogo como <span className="num">{published}</span>
+            <button
+              onClick={() => setPublished(null)}
+              className="ml-auto text-[12px] text-mid transition-colors hover:text-hi"
+            >
+              Cerrar
+            </button>
+          </div>
+        )}
 
         <div className="mt-6 flex flex-col gap-3">
           {loading && !submissions && (
@@ -280,18 +305,48 @@ function Panel({
                   >
                     Rechazar
                   </Button>
-                  {s.status === "pending" && (
-                    <span className="ml-auto flex items-center gap-1 text-[11px] text-low">
-                      <ShieldCheck className="h-3 w-3" />
-                      Honorario fijo, apruebe o rechace
-                    </span>
-                  )}
+                  <span className="ml-auto flex items-center gap-1 text-[11px] text-low">
+                    <ShieldCheck className="h-3 w-3" />
+                    Honorario fijo, apruebe o rechace
+                  </span>
+                </div>
+              )}
+
+              {/* Aprobar solo acredita a la empresa. Publicar es el segundo
+                  acto —el underwriting— y es lo que hace que un inversionista
+                  llegue a ver esto en el catálogo. */}
+              {s.status === "approved" && (
+                <div className="mt-3.5 flex items-center gap-2 border-t border-border pt-3.5">
+                  <Button
+                    size="sm"
+                    icon={<Send className="h-3.5 w-3.5" />}
+                    onClick={() => setPublishing(s)}
+                  >
+                    Publicar oportunidad
+                  </Button>
+                  <span className="text-[11px] text-low">
+                    Define plazo, tasa, garantía e hitos
+                  </span>
                 </div>
               )}
             </div>
           ))}
         </div>
       </div>
+
+      {publishing && (
+        <PublishOpportunityForm
+          submission={publishing}
+          apiKey={apiKey}
+          verifierName={name}
+          onClose={() => setPublishing(null)}
+          onPublished={(slug) => {
+            setPublishing(null);
+            setPublished(slug);
+            load();
+          }}
+        />
+      )}
     </div>
   );
 }

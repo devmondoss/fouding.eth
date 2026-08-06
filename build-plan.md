@@ -28,7 +28,17 @@ Y una tercera que no estaba en el plan original pero resultó ser la más rentab
 
 ## Alcance del producto
 
-**Solo el lado del inversionista.** No hay panel de originador ni flujo de solicitud de la empresa. Las operaciones del originador (aprobar hitos, declarar incumplimiento) existen en el dominio —el estado sembrado las refleja— pero no se exponen en la interfaz.
+**Tres lados, con URL propia cada uno.** El documento decía "solo el lado del inversionista"; dejó de ser cierto en agosto de 2026.
+
+| Superficie | Ruta | Estado |
+| --- | --- | --- |
+| Inversionista | `/` | Catálogo, ficha, portafolio, cobro |
+| Empresa | `/negocios`, `/negocios/login`, `/solicitar` | Panel de solicitudes y envío de expedientes |
+| Verificador | `/verifier` | Decide expedientes, publica oportunidades y aprueba acceso de inversionistas |
+
+Cada wallet declara su rol UNA vez en `/rol` y ya no cambia: el KYC de la persona y el KYB de la empresa son verificaciones distintas y no pueden compartir el mismo estado.
+
+Lo que sigue sin interfaz: declarar incumplimiento, registrar repagos y ejecutar el recupero. El contrato ya los implementa; solo se alcanzan desde `packages/stylus/scripts/protocol_e2e.ts`.
 
 ---
 
@@ -102,16 +112,28 @@ Adaptador `onchain/` con viem, contratos en Arbitrum Sepolia, Postgres para lo s
 
 ---
 
-## Lo que sigue simulado
+## Qué es real y qué sigue simulado
 
-Conviene tenerlo claro antes de una demo:
+Conviene tenerlo clarísimo antes de una demo, y decirlo en el pitch.
 
-- **El estado vive en memoria.** Al recargar, todo vuelve al seed. Para demostrar es una ventaja; no lo confundas con persistencia.
-- **No hay carga de archivos.** La evidencia de los desembolsos son nombres de archivo sembrados.
-- **El libro de órdenes está a medias.** Puedes publicar una posición en venta, pero no existe el lado comprador.
-- **No hay wallet ni login real.** La wallet se "genera" al entrar, sin pedir datos; el saldo y la dirección son simulados.
-- **La verificación de identidad es parcial, a propósito.** Se resolvió con un **tope por nivel**: sin verificar, el tope es 5,000 USDC por operación (`UNVERIFIED_TICKET_CAP`); verificar (formulario mock en `ProfilePanel`, sin KYC real detrás) lo levanta. Es el patrón real de fintechs con KYC escalonado — no bloquea la exploración ni el ticket típico de demo, y sí cierra la contradicción con el marketplace permissioned de [start.md](start.md). Lo que **no** existe todavía: un proveedor de KYC real y una verificación obligatoria antes de cualquier inversión, sin importar el monto.
-- **No se puede disparar un incumplimiento en vivo** — era una acción de originador, y ese panel se eliminó. El caso en default llega sembrado.
+**Real, de punta a punta:**
+
+- **Login y wallet.** Privy con wallet embebida; el correo crea la cuenta de verdad.
+- **Expediente de la empresa.** Se sube un archivo, se guarda en Postgres (Neon) y su `keccak256` queda como `legalPackHash`.
+- **Decisión del verificador.** Aprobar emite el `CompanyPassportSBT` en cadena, firmado desde el servidor, esperando el receipt antes de marcarlo aprobado.
+- **Publicación de oportunidades.** El verificador convierte un expediente aprobado en una oportunidad del catálogo; el catálogo sale de Postgres, no de `seed.ts`.
+- **Acceso del inversionista.** La solicitud guarda la identidad declarada fuera de cadena y ancla su hash en `AccessRegistry`; compliance aprueba o rechaza desde `/verifier`, y eso habilita la wallet en cadena.
+- **Invertir y cobrar.** `approve` + `fund` contra el `CreditVault`, y `claim` desde el portafolio.
+
+**Todavía simulado:**
+
+- **Saldo, posiciones y actividad del portafolio** viven en `localStorage` por wallet. La actividad sí se reemplaza por la real cuando el indexer tiene filas para esa wallet.
+- **El catálogo cae al seed** si Postgres no responde — y cuando eso pasa la pantalla lo dice (`usingSeedData`), no lo disimula.
+- **Los hitos son de solo lectura.** El contrato todavía desembolsa el 100% en `activate()`, así que no hay tramos que aprobar.
+- **El waterfall** se calcula en `underwriting.ts`, no en el contrato.
+- **El libro de órdenes está a medias:** se publica una posición en venta, pero no hay lado comprador ni contrato que liquide.
+- **Un solo vault para todas las oportunidades.** `useCreditVault` apunta a un deployment fijo; falta el mapeo por oportunidad (columna `vault_address`, ya en el schema).
+- **No hay on/off-ramp.** Nada convierte PEN a USDC ni al revés.
 
 ---
 

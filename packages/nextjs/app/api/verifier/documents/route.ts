@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requirePublicRateLimit } from "@/lib/verifier/auth";
+import { getAuthenticatedWallet } from "@/lib/privyServer";
 import { withDbErrors } from "@/lib/verifier/apiError";
 import { saveDocument } from "@/lib/verifier/documents";
 
@@ -9,12 +10,26 @@ const MAX_SIZE = 10 * 1024 * 1024; // 10MB — de sobra para un legal pack en PD
  * Sube el documento y devuelve su hash — ese hash es lo único que
  * después va en `legalPackHash` del expediente y, más adelante, onchain.
  *
- * Sin API key a propósito — la llama app/solicitar, público, desde el
- * lado de la empresa. Rate limit estricto en su lugar (ver auth.ts).
+ * Dos clientes legítimos, dos credenciales: la empresa desde
+ * app/solicitar con su sesión de Privy, y el verificador desde su panel
+ * con la API key. Antes no pedía ninguna de las dos, así que cualquiera
+ * podía llenar la tabla de documentos.
  */
 export async function POST(req: Request) {
   const denied = await requirePublicRateLimit(req);
   if (denied) return denied;
+
+  const auth = req.headers.get("authorization");
+  const verifierKey = process.env.VERIFIER_API_KEY;
+  const isVerifier =
+    Boolean(verifierKey) && auth === `Bearer ${verifierKey}`;
+
+  if (!isVerifier && !(await getAuthenticatedWallet(req))) {
+    return NextResponse.json(
+      { error: "Inicia sesión para subir documentos" },
+      { status: 401 },
+    );
+  }
 
   const form = await req.formData();
   const file = form.get("file");

@@ -1,15 +1,20 @@
 "use client";
 
 /**
- * Adaptador de datos — implementación MOCK, alcance INVERSIONISTA.
+ * Adaptador de datos del lado INVERSIONISTA. Las pantallas nunca leen
+ * datos directamente: consumen esta interfaz (build-plan.md §regla de oro).
  *
- * Las pantallas nunca leen datos directamente: consumen esta interfaz.
- * Cuando llegue Arbitrum se escribe un adaptador `onchain/` con la MISMA
- * firma y las pantallas no se tocan (build-plan.md §regla de oro).
+ * Qué es real y qué no, hoy:
  *
- * Las operaciones del originador (aprobar hitos, declarar default) existen
- * en el dominio pero NO se exponen acá: este producto es solo el lado del
- * inversionista.
+ *   opportunities  REAL — Postgres, publicadas por el verificador. Si la
+ *                  base no responde cae al seed y lo AVISA (usingSeedData).
+ *   positions      mock — localStorage por wallet
+ *   balance        mock — localStorage por wallet
+ *   activity       mock — localStorage por wallet
+ *
+ * La inversión sí toca la cadena (ver InvestPanel: approve + fund contra
+ * el CreditVault); lo que sigue siendo proyección local es el reflejo de
+ * esa operación en el portafolio.
  */
 
 import {
@@ -24,6 +29,8 @@ import {
 import type { ActivityEvent, Opportunity, Position } from "../types";
 import { remainingToFund } from "../opportunity";
 import { useSession } from "../useSession";
+import { opportunityFromWire, type WireOpportunity } from "../opportunities/wire";
+import type { WireActivityEvent } from "../db/onchainActivity";
 import { OPPORTUNITIES } from "./seed";
 
 /**
@@ -110,6 +117,17 @@ type PlatformValue = {
   activity: ActivityEvent[];
   balance: bigint;
 
+  /** El catálogo todavía no llegó del servidor. */
+  loadingOpportunities: boolean;
+  /**
+   * El catálogo que se está mostrando es el sembrado de demo, no lo que
+   * publicó un verificador. Se expone para poder DECIRLO en pantalla: un
+   * fallback silencioso a datos de mentira es justo lo que no queremos
+   * (checklist.md §Presentación, "cierre honesto: qué es real y qué no").
+   */
+  usingSeedData: boolean;
+  refreshOpportunities: () => Promise<void>;
+
   getOpportunity: (slug: string) => Opportunity | undefined;
   getPositionsFor: (slug: string) => Position[];
 
@@ -136,6 +154,65 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
     ...(address ? loadWalletState(address) : emptyWalletState()),
   }));
 
+  // El catálogo ya no vive en seed.ts: lo publica el verificador y sale de
+  // Postgres (ver POST /api/verifier/submissions/[id]/publish). El seed
+  // queda solo como red de seguridad para que la app no aparezca vacía si
+  // la base no está configurada — y cuando eso pasa se avisa, no se
+  // disimula (ver `usingSeedData`).
+  const [loadingOpportunities, setLoadingOpportunities] = useState(true);
+  const [usingSeedData, setUsingSeedData] = useState(true);
+
+  const refreshOpportunities = useCallback(async () => {
+    setLoadingOpportunities(true);
+    try {
+      const res = await fetch("/api/opportunities");
+      if (!res.ok) throw new Error(String(res.status));
+      const wire = (await res.json()) as WireOpportunity[];
+      if (wire.length === 0) throw new Error("catálogo vacío");
+      setState((s) => ({ ...s, opportunities: wire.map(opportunityFromWire) }));
+      setUsingSeedData(false);
+    } catch {
+      setState((s) => ({ ...s, opportunities: structuredClone(OPPORTUNITIES) }));
+      setUsingSeedData(true);
+    } finally {
+      setLoadingOpportunities(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshOpportunities();
+  }, [refreshOpportunities]);
+
+  // Actividad REAL de la cadena, escrita por scripts/indexer.ts. Convive
+  // con la local en vez de reemplazarla porque cubren cosas distintas: la
+  // cadena sabe de aportes, pagos y recuperos; los depósitos a la cuenta
+  // y las publicaciones en el libro de órdenes solo existen acá.
+  const [chainActivity, setChainActivity] = useState<ActivityEvent[]>([]);
+
+  useEffect(() => {
+    if (!address) {
+      setChainActivity([]);
+      return;
+    }
+    let alive = true;
+    fetch(`/api/activity?wallet=${address}`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((rows: WireActivityEvent[]) => {
+        if (!alive) return;
+        setChainActivity(
+          rows.map((e) => ({
+            ...e,
+            kind: e.kind as ActivityEvent["kind"],
+            amount: e.amount != null ? BigInt(e.amount) : null,
+          })),
+        );
+      })
+      .catch(() => alive && setChainActivity([]));
+    return () => {
+      alive = false;
+    };
+  }, [address]);
+
   // Ajustamos el estado DURANTE el render cuando cambia la wallet — no en
   // un efecto (evita el setState-en-efecto) y sin remontar `children`
   // (evita resetear estado no relacionado de la app, como el onboarding
@@ -156,6 +233,28 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
     if (!address) return;
     saveWalletState(address, { positions, activity, balance });
   }, [address, positions, activity, balance]);
+
+  // Kinds que la cadena conoce de verdad. Cuando el indexer devolvió algo
+  // para esta wallet, esos eventos MANDAN y se descarta el reflejo local,
+  // que era solo optimista. Si no devolvió nada (indexer apagado, o vault
+  // sin desplegar) se muestra el local — pero nunca los dos, porque
+  // duplicaría cada aporte en el historial.
+  const CHAIN_KINDS: ActivityEvent["kind"][] = [
+    "invest",
+    "release",
+    "repayment",
+    "default",
+    "recovery",
+  ];
+
+  const mergedActivity = useMemo<ActivityEvent[]>(() => {
+    if (chainActivity.length === 0) return activity;
+    const local = activity.filter((e) => !CHAIN_KINDS.includes(e.kind));
+    return [...chainActivity, ...local].sort((a, b) =>
+      a.at < b.at ? 1 : a.at > b.at ? -1 : 0,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activity, chainActivity]);
 
   const getOpportunity = useCallback(
     (slug: string) => opportunities.find((o) => o.slug === slug),
@@ -288,8 +387,11 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
     () => ({
       opportunities,
       positions,
-      activity,
+      activity: mergedActivity,
       balance,
+      loadingOpportunities,
+      usingSeedData,
+      refreshOpportunities,
       getOpportunity,
       getPositionsFor,
       invest,
@@ -300,8 +402,11 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
     [
       opportunities,
       positions,
-      activity,
+      mergedActivity,
       balance,
+      loadingOpportunities,
+      usingSeedData,
+      refreshOpportunities,
       getOpportunity,
       getPositionsFor,
       invest,

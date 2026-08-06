@@ -89,7 +89,9 @@ type Ctx = {
    * tocando afuera (queda pegado en "esperando confirmación" si no). */
   cancelConnect: () => void;
   signOut: () => void;
-  verify: () => Promise<void>;
+  /** Registra la solicitud de acceso: guarda la identidad declarada fuera
+   * de cadena y ancla su hash en el AccessRegistry. */
+  verify: (applicant: { fullName: string; documentId: string }) => Promise<void>;
   /** Fija el rol la primera vez que se llama para esta wallet. Llamadas
    * posteriores no hacen nada — el rol no cambia una vez elegido (ver
    * RoleGate). */
@@ -98,6 +100,10 @@ type Ctx = {
    * en Privy. Libera el correo para que pueda registrarse como cuenta
    * nueva — no es solo limpiar datos locales. */
   deleteAccount: () => Promise<void>;
+  /** Token de sesión para llamar rutas del backend que exigen identidad
+   * (crear un expediente, subir un documento). El servidor lo verifica y
+   * deriva la wallet de ahí, en vez de creerle al body. */
+  getAccessToken: () => Promise<string | null>;
 };
 
 const SessionContext = createContext<Ctx | null>(null);
@@ -180,6 +186,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // newly-authenticated users" (ver useLogin en @privy-io/react-auth), o
   // sea que resuelve con la cuenta anterior sin preguntar. Matar el token
   // antes es la única forma de que el modal aparezca.
+  //
+  // `login()` NO se llama encadenado al `.then()` de logout(): esa
+  // promesa resuelve antes de que el estado interno de Privy (Privy
+  // context `authenticated`) realmente se asiente en false, así que
+  // `login()` podía no abrir nada — se quedaba pegado en "Esperando
+  // confirmación" para siempre porque Privy nunca disparaba onComplete
+  // ni onError (bug reportado: bucle infinito al entrar con otra
+  // cuenta). En vez de eso, se pide el logout y un efecto aparte espera
+  // a que `authenticated` pase a false de verdad para recién ahí abrir
+  // el login — con una referencia fresca de `login`, no la capturada
+  // antes del logout.
+  const [awaitingLogoutForLogin, setAwaitingLogoutForLogin] = useState(false);
+
   const connectWallet = useCallback(() => {
     try {
       window.localStorage.removeItem(SOFT_SIGNOUT_KEY);
@@ -187,9 +206,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setSoftSignedOutAt(null);
     setConnectError(null);
     setConnecting(true);
-    if (authenticated) logout().finally(() => login());
-    else login();
+    if (authenticated) {
+      setAwaitingLogoutForLogin(true);
+      logout();
+    } else {
+      login();
+    }
   }, [login, logout, authenticated]);
+
+  useEffect(() => {
+    if (!awaitingLogoutForLogin) return;
+    if (authenticated) return; // todavía no se asentó el logout
+    setAwaitingLogoutForLogin(false);
+    login();
+  }, [awaitingLogoutForLogin, authenticated, login]);
 
   // El correo de la sesión que quedó viva detrás del "cerrar sesión".
   // Solo se ofrece dentro de la ventana de gracia: pasada esa hora el
@@ -212,11 +242,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // mirando un spinner para siempre.
   useEffect(() => {
     if (!connecting) return;
-    const timeout = setTimeout(() => setConnecting(false), 45_000);
+    const timeout = setTimeout(() => {
+      setConnecting(false);
+      setAwaitingLogoutForLogin(false);
+    }, 45_000);
     return () => clearTimeout(timeout);
   }, [connecting]);
 
   const cancelConnect = useCallback(() => {
+    setAwaitingLogoutForLogin(false);
     setConnecting(false);
     setConnectError(null);
   }, []);
@@ -261,13 +295,36 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return () => clearTimeout(timeout);
   }, [softSignedOutAt, logout]);
 
-  const verify = useCallback(async () => {
-    if (!address) throw new Error("Conecta una wallet antes de solicitar acceso");
-    const applicationHash = keccak256(
-      toBytes(`fouding:access-request:v1:${address.toLowerCase()}`),
-    );
-    await access.requestAccess(applicationHash);
-  }, [access, address]);
+  // La identidad declarada se guarda primero en el backend, que devuelve
+  // el hash calculado SOBRE esos datos. Ese es el que va a la cadena.
+  //
+  // Antes el hash se derivaba solo de la dirección y el nombre y el
+  // documento se descartaban en el cliente: el formulario pedía PII que
+  // no llegaba a ninguna parte, y compliance aprobaba sin ver nada.
+  const verify = useCallback(
+    async (applicant: { fullName: string; documentId: string }) => {
+      if (!address) throw new Error("Conecta una wallet antes de solicitar acceso");
+
+      const token = await getAccessToken();
+      if (!token) throw new Error("Tu sesión expiró, vuelve a entrar");
+
+      const res = await fetch("/api/compliance/application", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(applicant),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(body?.error ?? "No se pudo registrar la solicitud");
+      }
+
+      await access.requestAccess(body.applicationHash as `0x${string}`);
+    },
+    [access, address, getAccessToken],
+  );
 
   const chooseRole = useCallback(
     (role: Role) => {
@@ -324,6 +381,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       verify,
       chooseRole,
       deleteAccount,
+      getAccessToken,
     }),
     [
       session,
@@ -337,6 +395,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       verify,
       chooseRole,
       deleteAccount,
+      getAccessToken,
     ],
   );
 

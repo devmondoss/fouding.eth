@@ -108,15 +108,21 @@ Nada de esto aparece en la información que tengo. **Confírmalo en las bases o 
 | Item | Estado |
 | --- | --- |
 | Documentación de producto, stack, diseño y plan | ✅ Hecho |
-| Sistema visual funcionando (Fase 0) | ✅ Corriendo en local |
-| Repositorio git local | ✅ Inicializado |
-| Repositorio remoto público | ❌ **No existe** |
-| Contratos | ❌ Ni una línea |
-| Deploy en Arbitrum Sepolia | ❌ Nada desplegado |
+| Sistema visual funcionando | ✅ Corriendo en local |
+| Repositorio remoto | ✅ `github.com/devmondoss/fouding.eth` |
+| Contratos Solidity (`AccessRegistry`, `CompanyPassportSBT`, `CreditRegistry`) | ✅ Con tests de Foundry |
+| `CreditVault` en Rust/Stylus | ✅ Máquina de estados completa, con tests |
+| Flujo empresa → verificador → catálogo | ✅ Cerrado |
+| Acceso de inversionistas (solicitud → aprobación en cadena) | ✅ Cerrado |
+| Invertir y cobrar contra el vault | ✅ `fund` y `claim` desde la UI |
+| **Hitos y waterfall en el contrato** | ❌ `activate()` desembolsa el 100% de golpe |
+| **Un vault por oportunidad** | ❌ Hoy uno solo, fijo |
+| **Deploy en Arbitrum Sepolia** | ❌ Solo devnet local (`412346`) |
+| Fee de verificación y stake del verificador | ❌ Sin construir |
 | Cifra de impacto con fuente | ❌ Falta |
 | Fecha límite | ❌ **No la sé** |
 
-**Los dos huecos más urgentes son los que no dependen de programar:** la fecha límite y qué exactamente hay que entregar. Todo lo demás se planifica solo una vez que sepas eso.
+**Los tres huecos que más pesan en la evaluación** son el deploy en Sepolia (requisito obligatorio del track), y los hitos y el waterfall en el contrato — que son justo lo que el criterio de innovación pide ver ejecutado en cadena y no descrito en un PDF.
 
 ---
 

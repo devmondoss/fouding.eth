@@ -39,6 +39,17 @@ export function useCreditVault(
     args: investor ? [investor] : undefined,
     query: { enabled: Boolean(deployment && investor) },
   });
+  // (aportado, ya cobrado, cobrable ahora) — el contrato hace la misma
+  // cuenta que `claim`, así que la UI puede decir el monto exacto en vez
+  // de invitar a firmar una transacción que va a revertir.
+  const position = useReadContract({
+    address: deployment?.address,
+    abi: abi as typeof creditVaultAbi,
+    chainId: protocolChain.id,
+    functionName: "getInvestorPosition",
+    args: investor ? [investor] : undefined,
+    query: { enabled: Boolean(deployment && investor) },
+  });
   const { writeAndConfirm, isConfirming } = useProtocolWrite();
 
   const fund = async (amount: bigint) => {
@@ -62,13 +73,27 @@ export function useCreditVault(
     });
   };
 
+  const [contributed, claimed, claimable] =
+    (position.data as readonly [bigint, bigint, bigint] | undefined) ?? [];
+
   return {
     address: deployment?.address,
     status: status.data,
     totalFunded: totalFunded.data,
     investorContribution: contribution.data,
-    isLoading: status.isLoading || totalFunded.isLoading || contribution.isLoading,
-    error: status.error ?? totalFunded.error ?? contribution.error,
+    /** Lo aportado por este inversionista, según el vault. */
+    contributed,
+    /** Lo que ya retiró. */
+    claimed,
+    /** Lo que puede retirar ahora mismo. */
+    claimable,
+    isLoading:
+      status.isLoading ||
+      totalFunded.isLoading ||
+      contribution.isLoading ||
+      position.isLoading,
+    error:
+      status.error ?? totalFunded.error ?? contribution.error ?? position.error,
     isConfirming,
     fund,
     claim,

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Info } from "lucide-react";
 import { OpportunityCard } from "@/components/domain/OpportunityCard";
 import { usePlatform } from "@/lib/data/store";
 import { formatUsdc } from "@/lib/format";
@@ -26,7 +26,7 @@ const FILTROS: { key: OpportunityStatus | "all"; label: string }[] = [
  * es una lista vertical simple: todo lo visible, sin paginar.
  */
 export function Deck({ onSelect }: { onSelect: (o: Opportunity) => void }) {
-  const { opportunities } = usePlatform();
+  const { opportunities, usingSeedData } = usePlatform();
   const [filtro, setFiltro] = useState<OpportunityStatus | "all">("all");
   const [page, setPage] = useState(0);
   const [dir, setDir] = useState(1);
@@ -98,6 +98,20 @@ export function Deck({ onSelect }: { onSelect: (o: Opportunity) => void }) {
 
         <div className="hidden lg:block">{filtros}</div>
       </div>
+
+      {/* Si el catálogo no vino de la base, se dice. Mostrar datos
+          sembrados como si fueran reales es exactamente lo que el pitch
+          promete no hacer. */}
+      {usingSeedData && (
+        <div
+          className="mx-4 mt-3 flex items-center gap-2 rounded-[var(--r-panel)] border px-3 py-2 text-[12px] sm:mx-6 lg:mx-0"
+          style={{ borderColor: "var(--warning)", color: "var(--warning)" }}
+        >
+          <Info className="h-3.5 w-3.5 shrink-0" />
+          Catálogo de demostración — todavía no hay oportunidades publicadas
+          por un verificador.
+        </div>
+      )}
 
       <div className="-mx-4 mt-3 overflow-hidden lg:hidden">{filtros}</div>
 
