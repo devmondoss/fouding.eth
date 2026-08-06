@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/Button";
 import { Field, EmptyState } from "@/components/ui/Field";
 import { AccessRequests } from "@/components/verifier/AccessRequests";
 import { PublishOpportunityForm } from "@/components/verifier/PublishOpportunityForm";
+import { ServicingPanel } from "@/components/verifier/ServicingPanel";
 import { shortHash } from "@/lib/format";
 import type { VerifierSubmission } from "@/lib/verifier/types";
 
@@ -202,6 +203,8 @@ function Panel({
         <UploadWidget apiKey={apiKey} />
 
         <AccessRequests apiKey={apiKey} />
+
+        <ServicingPanel apiKey={apiKey} />
 
         {published && (
           <div
