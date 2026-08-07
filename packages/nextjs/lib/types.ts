@@ -7,6 +7,8 @@
  *   - Tasas y porcentajes en basis points. 14.5% = 1450 bps.
  */
 
+import type { Address, Hex } from "viem";
+
 export type CollateralKind = "machinery" | "vehicle" | "real_estate";
 
 export type OpportunityStatus =
@@ -37,15 +39,33 @@ export type Passport = {
   defaults: number;
 };
 
+export type FoudingHistoryTransaction = {
+  label: string;
+  txHash: Hex;
+  occurredAt: string;
+};
+
+export type FoudingCompanyHistory = {
+  completedCredits: number;
+  onTimePayments: number;
+  latePayments: number;
+  defaults: number;
+  transactions: FoudingHistoryTransaction[];
+};
+
 export type Company = {
   id: string;
   name: string;
+  /** Wallet corporativa a la que pertenece el Company Passport. */
+  walletAddress?: Address;
   ruc: string;
   sector: string;
   city: string;
   yearsOperating: number;
   employees: number;
   passport: Passport;
+  /** Solo se completa desde actividad real indexada; nunca desde el mock. */
+  foudingHistory?: FoudingCompanyHistory;
 };
 
 export type Collateral = {

@@ -1,7 +1,6 @@
 import {
   getDeploymentConfig,
   ensureDeploymentDirectory,
-  executeCommand,
   extractDeploymentInfo,
   saveDeployment,
   getBlockExplorerUrlFromChain,
@@ -12,11 +11,12 @@ import {
 } from "./utils/";
 import { exportStylusAbi } from "./export_abi";
 import { DeployOptions } from "./utils/type";
-import { buildDeployCommand } from "./utils/command";
+import { buildDeployCommand, executeFileCommand } from "./utils/command";
 import { Abi, createPublicClient, createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import * as path from "path";
 import { arbitrumNitro } from "./utils/supportedChains";
+import { verifyStylusSourceOnExplorer } from "./verify_stylus_explorer";
 
 /**
  * Deploy a single contract using cargo stylus
@@ -38,11 +38,16 @@ export default async function deployStylusContract(
     // Step 1: Deploy the contract using cargo stylus with contract address
     // --contract-address='${config.contractAddress}' deactivated for now as it's not working. Issue https://github.com/OffchainLabs/cargo-stylus/issues/171
     const deployCommand = await buildDeployCommand(config, deployOptions);
-    const deployOutput = await executeCommand(
-      deployCommand,
-      path.join("contracts", deployOptions.contract!),
-      "Deploying contract with cargo stylus",
-    );
+    let deployOutput: string;
+    try {
+      deployOutput = await executeFileCommand(
+        deployCommand,
+        path.join("contracts", deployOptions.contract!),
+        "Deploying contract with cargo stylus",
+      );
+    } finally {
+      deployCommand.cleanup();
+    }
 
     if (deployOptions.estimateGas) {
       console.log(deployOutput);
@@ -126,12 +131,30 @@ export default async function deployStylusContract(
     // Step 3: Verify the contract
     if (deployOptions.verify) {
       try {
-        const output = await executeCommand(
-          `cargo stylus verify --endpoint=${getRpcUrlFromChain(config.chain)} --deployment-tx=${deploymentInfo.txHash}`,
+        const output = await executeFileCommand(
+          {
+            executable: "cargo",
+            args: [
+              "stylus",
+              "verify",
+              `--endpoint=${getRpcUrlFromChain(config.chain)}`,
+              `--deployment-tx=${deploymentInfo.txHash}`,
+            ],
+            displayArgs: [
+              "stylus",
+              "verify",
+              "--endpoint=***",
+              `--deployment-tx=${deploymentInfo.txHash}`,
+            ],
+            cleanup: () => undefined,
+          },
           path.join("contracts", deployOptions.contract!),
           "Verifying contract with cargo stylus",
         );
         console.log(output);
+        if (config.chain.id === 421614) {
+          await verifyStylusSourceOnExplorer(deploymentInfo.address);
+        }
       } catch (error) {
         console.error(`❌ Verification failed in: ${deployOptions.contract}`);
         if (error instanceof Error) {
@@ -139,6 +162,7 @@ export default async function deployStylusContract(
         } else {
           console.error(error);
         }
+        throw error;
       }
     }
   } catch (error) {

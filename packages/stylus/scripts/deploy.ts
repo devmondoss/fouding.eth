@@ -14,6 +14,8 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import deployStylusContract from "./deploy_contract";
+import { runTestnetPreflight } from "./preflight_testnet";
+import { verifySoliditySource } from "./verify_solidity_explorer";
 import {
   generateTsAbi,
   getDeploymentConfig,
@@ -86,6 +88,7 @@ async function deploySolidity(
   walletClient: ReturnType<typeof createWalletClient>,
   publicClient: ReturnType<typeof createPublicClient>,
   admin: Address,
+  verify: boolean,
 ): Promise<ContractDeployment> {
   const artifact = loadArtifact(source, contractName);
   console.log(`\n🚀 Deploying Solidity contract: ${contractName}`);
@@ -109,6 +112,16 @@ async function deploySolidity(
     Array.from(artifact.abi),
   );
   console.log(`✅ ${contractName}: ${receipt.contractAddress}`);
+  if (verify) {
+    verifySoliditySource({
+      address: receipt.contractAddress,
+      source,
+      contractName,
+      admin,
+      chainId: baseConfig.chain.id,
+      rpcUrl: getRpcUrlFromChain(baseConfig.chain),
+    });
+  }
   return {
     address: receipt.contractAddress,
     txHash,
@@ -139,6 +152,9 @@ async function writeAndWait(
 /** Deploys and configures the complete local protocol in dependency order. */
 export default async function deployScript(deployOptions: DeployOptions) {
   const options = { network: "devnet", ...deployOptions };
+  if (options.network === "sepolia" || options.network === "arbitrumSepolia") {
+    await runTestnetPreflight();
+  }
   const baseConfig = getDeploymentConfig({
     ...options,
     contract: "credit-vault",
@@ -156,7 +172,6 @@ export default async function deployScript(deployOptions: DeployOptions) {
     transport: http(rpcUrl),
   });
 
-  console.log(`📡 Endpoint: ${rpcUrl}`);
   console.log(`🌐 Network: ${baseConfig.chain.name} (${baseConfig.chain.id})`);
   console.log(`👤 Deployer: ${account.address}`);
   console.log(`📁 Deployment directory: ${baseConfig.deploymentDir}`);
@@ -174,6 +189,7 @@ export default async function deployScript(deployOptions: DeployOptions) {
     walletClient,
     publicClient,
     account.address,
+    Boolean(options.verify),
   );
   const accessRegistry = await deploySolidity(
     "AccessRegistry",
@@ -182,6 +198,7 @@ export default async function deployScript(deployOptions: DeployOptions) {
     walletClient,
     publicClient,
     account.address,
+    Boolean(options.verify),
   );
   const passport = await deploySolidity(
     "CompanyPassportSBT",
@@ -190,6 +207,7 @@ export default async function deployScript(deployOptions: DeployOptions) {
     walletClient,
     publicClient,
     account.address,
+    Boolean(options.verify),
   );
   const registry = await deploySolidity(
     "CreditRegistry",
@@ -198,6 +216,7 @@ export default async function deployScript(deployOptions: DeployOptions) {
     walletClient,
     publicClient,
     account.address,
+    Boolean(options.verify),
   );
 
   await deployStylusContract({
@@ -206,31 +225,25 @@ export default async function deployScript(deployOptions: DeployOptions) {
     name: "CreditVault",
     constructorArgs: [],
   });
-  await deployStylusContract({
-    ...options,
-    contract: "credit-vault",
-    name: "CreditVaultHappy",
-    constructorArgs: [],
-  });
-  await deployStylusContract({
-    ...options,
-    contract: "credit-vault",
-    name: "CreditVaultRecovery",
-    constructorArgs: [],
-  });
+  if (!options.minimal) {
+    await deployStylusContract({
+      ...options,
+      contract: "credit-vault",
+      name: "CreditVaultHappy",
+      constructorArgs: [],
+    });
+    await deployStylusContract({
+      ...options,
+      contract: "credit-vault",
+      name: "CreditVaultRecovery",
+      constructorArgs: [],
+    });
+  }
 
   const deploymentModule = await import("./utils/contract");
   const mainVault = deploymentModule.getContractData(
     baseConfig.chain.id.toString(),
     "CreditVault",
-  ) as ContractDeployment;
-  const happyVault = deploymentModule.getContractData(
-    baseConfig.chain.id.toString(),
-    "CreditVaultHappy",
-  ) as ContractDeployment;
-  const recoveryVault = deploymentModule.getContractData(
-    baseConfig.chain.id.toString(),
-    "CreditVaultRecovery",
   ) as ContractDeployment;
 
   await writeAndWait("Registry.setPassportContract", walletClient, publicClient, {
@@ -272,9 +285,13 @@ export default async function deployScript(deployOptions: DeployOptions) {
     chain: baseConfig.chain,
     transport: http(rpcUrl),
   });
-  const legalPackHash = keccak256(toBytes("fouding-local-legal-pack-v1"));
-  const metadataHash = keccak256(toBytes("fouding-local-public-metadata-v1"));
-  const collateralHash = keccak256(toBytes("fouding-local-collateral-v1"));
+  const deploymentLabel =
+    baseConfig.chain.id === 421614
+      ? "fouding-arbitrum-sepolia-mvp-v1"
+      : "fouding-local-v1";
+  const legalPackHash = keccak256(toBytes(`${deploymentLabel}:legal-pack`));
+  const metadataHash = keccak256(toBytes(`${deploymentLabel}:public-metadata`));
+  const collateralHash = keccak256(toBytes(`${deploymentLabel}:collateral`));
   const latestBlock = await publicClient.getBlock();
   const passportExpiry = latestBlock.timestamp + 365n * DAY;
 
@@ -286,7 +303,7 @@ export default async function deployScript(deployOptions: DeployOptions) {
     functionName: "issuePassport",
     args: [
       borrower,
-      keccak256(toBytes("fouding-local-company")),
+      keccak256(toBytes(`${deploymentLabel}:company`)),
       legalPackHash,
       metadataHash,
       passportExpiry,
@@ -299,7 +316,9 @@ export default async function deployScript(deployOptions: DeployOptions) {
     address: accessRegistry.address,
     abi: accessRegistry.abi,
     functionName: "requestAccess",
-    args: [keccak256(toBytes(`fouding-local-investor:${investorAccount.address}`))],
+    args: [
+      keccak256(toBytes(`${deploymentLabel}:investor:${investorAccount.address}`)),
+    ],
   });
   await writeAndWait("AccessRegistry.approveAccess", walletClient, publicClient, {
     account,
@@ -314,19 +333,29 @@ export default async function deployScript(deployOptions: DeployOptions) {
     {
       name: "CreditVault",
       deployment: mainVault,
-      dealId: keccak256(toBytes("fouding-local-deal-demo-v1")),
-    },
-    {
-      name: "CreditVaultHappy",
-      deployment: happyVault,
-      dealId: keccak256(toBytes("fouding-local-deal-happy-v1")),
-    },
-    {
-      name: "CreditVaultRecovery",
-      deployment: recoveryVault,
-      dealId: keccak256(toBytes("fouding-local-deal-recovery-v1")),
+      dealId: keccak256(toBytes(`${deploymentLabel}:deal-demo`)),
     },
   ];
+  if (!options.minimal) {
+    vaults.push(
+      {
+        name: "CreditVaultHappy",
+        deployment: deploymentModule.getContractData(
+          baseConfig.chain.id.toString(),
+          "CreditVaultHappy",
+        ) as ContractDeployment,
+        dealId: keccak256(toBytes(`${deploymentLabel}:deal-happy`)),
+      },
+      {
+        name: "CreditVaultRecovery",
+        deployment: deploymentModule.getContractData(
+          baseConfig.chain.id.toString(),
+          "CreditVaultRecovery",
+        ) as ContractDeployment,
+        dealId: keccak256(toBytes(`${deploymentLabel}:deal-recovery`)),
+      },
+    );
+  }
   for (const [index, vault] of vaults.entries()) {
     const fundingDeadline = latestBlock.timestamp + BigInt(7 + index) * DAY;
     const maturityDate = latestBlock.timestamp + BigInt(180 + index) * DAY;

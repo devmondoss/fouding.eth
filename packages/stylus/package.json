@@ -19,13 +19,15 @@
     "dev": "tsc --watch",
     "export-abi": "ts-node scripts/export_abi.ts",
     "info:networks": "ts-node scripts/test_network.ts",
+    "preflight:testnet": "ts-node scripts/preflight_testnet.ts",
     "protocol:e2e": "ts-node scripts/protocol_e2e.ts",
     "lint": "eslint scripts --ext .ts",
     "lint:fix": "eslint scripts --ext .ts --fix",
     "new-module": "bash scripts/new_module.sh",
     "start": "node dist/index.js",
     "test": "ts-node scripts/export_abi.test.ts && ts-node scripts/test.ts",
-    "verify-contracts": "ts-node scripts/verify_contract_sync.ts"
+    "verify-contracts": "ts-node scripts/verify_contract_sync.ts",
+    "verify:testnet": "ts-node scripts/verify_testnet.ts"
   },
   "dependencies": {
     "abitype": "^1.0.8",

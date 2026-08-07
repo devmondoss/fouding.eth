@@ -23,15 +23,49 @@ export type VerifierSubmission = {
    * stake, ver conceptos-y-cambios.md §Verificador. */
   decidedBy: string | null;
   note: string | null;
+  passportTxHash: string | null;
+  passportTokenId: string | null;
+  passportChainId: number | null;
+  passportContractAddress: string | null;
+  onchainSyncedAt: string | null;
 };
 
 export type CreateSubmissionInput = Omit<
   VerifierSubmission,
-  "id" | "status" | "submittedAt" | "decidedAt" | "decidedBy" | "note"
+  | "id"
+  | "status"
+  | "submittedAt"
+  | "decidedAt"
+  | "decidedBy"
+  | "note"
+  | "passportTxHash"
+  | "passportTokenId"
+  | "passportChainId"
+  | "passportContractAddress"
+  | "onchainSyncedAt"
 >;
 
 export type DecisionInput = {
   approve: boolean;
   decidedBy: string;
   note?: string;
+  passport?: PassportSynchronization;
+};
+
+export type PassportSynchronization = {
+  txHash: string;
+  tokenId: string;
+  chainId: number;
+  contractAddress: string;
+};
+
+/** Vista pública mínima. Nunca incluye documentos, notas ni datos personales. */
+export type PublicCompanyEvidence = {
+  companyName: string;
+  companyRuc: string;
+  legalPackHash: string;
+  verificationStatus: SubmissionStatus;
+  verifier: string | null;
+  lastReviewedAt: string | null;
+  onchainTxHash: string | null;
 };

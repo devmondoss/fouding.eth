@@ -29,6 +29,16 @@ if (require.main === module) {
       type: "string",
       demandOption: false,
     })
+    .option("verify", {
+      describe: "Verify Solidity source and the reproducible Stylus deployment",
+      type: "boolean",
+      default: false,
+    })
+    .option("minimal", {
+      describe: "Deploy one CreditVault instead of the three local lifecycle fixtures",
+      type: "boolean",
+      default: false,
+    })
     .help()
     .parseSync() as DeployCommandOptions;
 

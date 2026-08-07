@@ -90,10 +90,12 @@ export function getPrivateKey(networkName: string): string {
         throw new Error("PRIVATE_KEY_MAINNET is not set");
       }
     case "arbitrumsepolia":
-      if (process.env["PRIVATE_KEY_SEPOLIA"]) {
+      if (process.env["DEPLOYER_PRIVATE_KEY"]) {
+        return process.env["DEPLOYER_PRIVATE_KEY"];
+      } else if (process.env["PRIVATE_KEY_SEPOLIA"]) {
         return process.env["PRIVATE_KEY_SEPOLIA"];
       } else {
-        throw new Error("PRIVATE_KEY_SEPOLIA is not set");
+        throw new Error("DEPLOYER_PRIVATE_KEY is not set");
       }
     case "arbitrumnova":
       if (process.env["PRIVATE_KEY_NOVA"]) {
@@ -146,7 +148,10 @@ export const getAccountAddress = (networkName: string): Address | undefined => {
     case "arbitrum":
       return process.env["ACCOUNT_ADDRESS_MAINNET"] as Address;
     case "arbitrumsepolia":
-      return process.env["ACCOUNT_ADDRESS_SEPOLIA"] as Address;
+      return (
+        process.env["DEPLOYER_ADDRESS"] ||
+        process.env["ACCOUNT_ADDRESS_SEPOLIA"]
+      ) as Address;
     case "arbitrumnova":
       return process.env["ACCOUNT_ADDRESS_NOVA"] as Address;
     case "educhaintestnet":
@@ -174,7 +179,9 @@ export function getRpcUrlFromChain(chain: Chain): string {
       }
       break;
     case arbitrumSepolia.id:
-      if (process.env["RPC_URL_SEPOLIA"]) {
+      if (process.env["ARBITRUM_SEPOLIA_RPC_URL"]) {
+        return process.env["ARBITRUM_SEPOLIA_RPC_URL"];
+      } else if (process.env["RPC_URL_SEPOLIA"]) {
         return process.env["RPC_URL_SEPOLIA"];
       }
       break;

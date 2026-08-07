@@ -14,8 +14,27 @@ async function main() {
       submitted_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       decided_at TIMESTAMPTZ,
       decided_by TEXT,
-      note TEXT
+      note TEXT,
+      passport_tx_hash TEXT,
+      passport_token_id TEXT,
+      passport_chain_id INTEGER,
+      passport_contract_address TEXT,
+      onchain_synced_at TIMESTAMPTZ
     )
+  `;
+
+  await sql`
+    ALTER TABLE verifier_submissions
+      ADD COLUMN IF NOT EXISTS passport_tx_hash TEXT,
+      ADD COLUMN IF NOT EXISTS passport_token_id TEXT,
+      ADD COLUMN IF NOT EXISTS passport_chain_id INTEGER,
+      ADD COLUMN IF NOT EXISTS passport_contract_address TEXT,
+      ADD COLUMN IF NOT EXISTS onchain_synced_at TIMESTAMPTZ
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS verifier_submissions_company_wallet_idx
+    ON verifier_submissions (lower(company_wallet), submitted_at DESC)
   `;
 
   await sql`
@@ -144,7 +163,7 @@ async function main() {
   `;
 
   console.log(
-    "Migración completa: verifier_submissions, verifier_documents, onchain_activity, rate_limits, companies, opportunities, access_applications",
+    "Migración completa: verifier_submissions + passport receipt, verifier_documents, onchain_activity, rate_limits, companies, opportunities, access_applications",
   );
 }
 

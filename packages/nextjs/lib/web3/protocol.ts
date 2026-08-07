@@ -37,10 +37,45 @@ export const companyPassportAbi = [
   },
   {
     type: "function",
-    name: "passportIdByWallet",
+    name: "passportOf",
     stateMutability: "view",
     inputs: [{ name: "wallet", type: "address" }],
     outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "credentialOf",
+    stateMutability: "view",
+    inputs: [{ name: "tokenId", type: "uint256" }],
+    outputs: [
+      {
+        name: "credential",
+        type: "tuple",
+        components: [
+          { name: "companyId", type: "bytes32" },
+          { name: "legalPackHash", type: "bytes32" },
+          { name: "metadataHash", type: "bytes32" },
+          { name: "status", type: "uint8" },
+          { name: "issuedAt", type: "uint64" },
+          { name: "expiresAt", type: "uint64" },
+          { name: "updatedAt", type: "uint64" },
+          { name: "riskTier", type: "uint8" },
+        ],
+      },
+    ],
+  },
+  {
+    type: "event",
+    name: "PassportIssued",
+    inputs: [
+      { name: "tokenId", type: "uint256", indexed: true },
+      { name: "wallet", type: "address", indexed: true },
+      { name: "companyId", type: "bytes32", indexed: true },
+      { name: "legalPackHash", type: "bytes32", indexed: false },
+      { name: "metadataHash", type: "bytes32", indexed: false },
+      { name: "expiresAt", type: "uint64", indexed: false },
+      { name: "riskTier", type: "uint8", indexed: false },
+    ],
   },
 ] as const;
 
