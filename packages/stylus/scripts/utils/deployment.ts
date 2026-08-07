@@ -228,6 +228,7 @@ export function saveDeployment(
     console.log(`💾 Saved deployed contract to ${networkPath}`);
   } catch (e) {
     console.error(`❌ Failed to save deployed contract: ${e}`);
+    throw e;
   }
 }
 

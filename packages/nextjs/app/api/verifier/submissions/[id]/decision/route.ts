@@ -3,7 +3,7 @@ import { requireVerifierAuth } from "@/lib/verifier/auth";
 import { withDbErrors } from "@/lib/verifier/apiError";
 import { decideSubmission, getSubmission } from "@/lib/verifier/store";
 import { synchronizeApprovedPassport } from "@/lib/verifier/onchain";
-import type { DecisionInput } from "@/lib/verifier/types";
+import type { DecisionInput, PassportSynchronization } from "@/lib/verifier/types";
 
 export async function POST(
   req: Request,
@@ -39,10 +39,10 @@ export async function POST(
     // para poder reintentarlo, no quedar aprobado sin respaldo en cadena.
     // Su error es 502 propio y no pasa por withDbErrors, que traduce
     // fallas de base de datos.
-    let passportTxHash: string | undefined;
+    let passport: PassportSynchronization | undefined;
     if (approve) {
       try {
-        passportTxHash = await synchronizeApprovedPassport(current);
+        passport = await synchronizeApprovedPassport(current);
       } catch (cause) {
         return NextResponse.json(
           {
@@ -60,12 +60,13 @@ export async function POST(
       approve,
       decidedBy,
       note: body.note,
+      passport,
     });
 
     if (!updated) {
       return NextResponse.json({ error: "Expediente no encontrado" }, { status: 404 });
     }
 
-    return NextResponse.json({ ...updated, passportTxHash });
+    return NextResponse.json(updated);
   });
 }

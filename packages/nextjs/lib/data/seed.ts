@@ -18,6 +18,8 @@ export const OPPORTUNITIES: Opportunity[] = [
     company: {
       id: "co-001",
       name: "Envasadora Andina S.A.C.",
+      // Wallet borrower que recibe el passport en el despliegue Nitro local.
+      walletAddress: "0xDD09b55496EaA3cFAe23137ABDeA52a9a979B70e",
       ruc: "20455678901",
       sector: "Bebidas",
       city: "Arequipa",
@@ -61,7 +63,8 @@ export const OPPORTUNITIES: Opportunity[] = [
       {
         index: 0,
         title: "Adelanto a proveedor",
-        description: "30% de la orden de compra del equipo, contra factura proforma.",
+        description:
+          "30% de la orden de compra del equipo, contra factura proforma.",
         releaseBps: 3000,
         status: "pending",
       },
@@ -149,7 +152,8 @@ export const OPPORTUNITIES: Opportunity[] = [
       {
         index: 1,
         title: "Acondicionamiento térmico",
-        description: "Instalación de equipos de frío y certificación sanitaria.",
+        description:
+          "Instalación de equipos de frío y certificación sanitaria.",
         releaseBps: 3500,
         status: "pending",
       },
@@ -227,7 +231,8 @@ export const OPPORTUNITIES: Opportunity[] = [
       {
         index: 1,
         title: "Compra de secadoras",
-        description: "Dos secadoras estáticas de 12 t, facturadas e internadas.",
+        description:
+          "Dos secadoras estáticas de 12 t, facturadas e internadas.",
         releaseBps: 2500,
         status: "released",
         evidenceName: "factura-secadoras.pdf",

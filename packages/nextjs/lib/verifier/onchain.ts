@@ -13,15 +13,17 @@ import { privateKeyToAccount } from "viem/accounts";
 import { arbitrumSepolia } from "viem/chains";
 import deployedContracts from "@/contracts/deployedContracts";
 import { arbitrumNitro } from "@/utils/scaffold-stylus/supportedChains";
-import type { VerifierSubmission } from "./types";
+import type { PassportSynchronization, VerifierSubmission } from "./types";
 
 type PassportDeployment = {
   address: Address;
   abi: readonly unknown[];
+  txHash: Hex;
 };
 
 function getConfiguration() {
-  const privateKey = process.env.PASSPORT_OPERATOR_PRIVATE_KEY as Hex | undefined;
+  const privateKey = process.env.PASSPORT_OPERATOR_PRIVATE_KEY as
+    Hex | undefined;
   if (!privateKey || !/^0x[a-fA-F0-9]{64}$/.test(privateKey)) {
     throw new Error("Falta PASSPORT_OPERATOR_PRIVATE_KEY válida");
   }
@@ -32,7 +34,7 @@ function getConfiguration() {
   const rpcUrl =
     chain.id === arbitrumSepolia.id
       ? process.env.ARBITRUM_SEPOLIA_RPC_URL
-      : process.env.NITRO_RPC_URL ?? "http://localhost:8547";
+      : (process.env.NITRO_RPC_URL ?? "http://localhost:8547");
   if (!rpcUrl) throw new Error("Falta el RPC del protocolo");
 
   const contracts = deployedContracts as unknown as Record<
@@ -41,19 +43,23 @@ function getConfiguration() {
   >;
   const passport = contracts[String(chain.id)]?.CompanyPassportSBT;
   if (!passport) {
-    throw new Error(`CompanyPassportSBT no está desplegado en chain ${chain.id}`);
+    throw new Error(
+      `CompanyPassportSBT no está desplegado en chain ${chain.id}`,
+    );
   }
   return { privateKey, chain, rpcUrl, passport };
 }
 
 export async function synchronizeApprovedPassport(
   submission: VerifierSubmission,
-): Promise<Hex> {
+): Promise<PassportSynchronization> {
   if (!/^0x[a-fA-F0-9]{40}$/.test(submission.companyWallet)) {
     throw new Error("El expediente no contiene una wallet EVM válida");
   }
   if (!/^0x[a-fA-F0-9]{64}$/.test(submission.legalPackHash)) {
-    throw new Error("El expediente no contiene un legalPackHash bytes32 válido");
+    throw new Error(
+      "El expediente no contiene un legalPackHash bytes32 válido",
+    );
   }
   const normalizedRuc = submission.companyRuc.replace(/\s+/g, "").toUpperCase();
   if (!normalizedRuc) {
@@ -63,7 +69,11 @@ export async function synchronizeApprovedPassport(
   const { privateKey, chain, rpcUrl, passport } = getConfiguration();
   const account = privateKeyToAccount(privateKey);
   const publicClient = createPublicClient({ chain, transport: http(rpcUrl) });
-  const walletClient = createWalletClient({ account, chain, transport: http(rpcUrl) });
+  const walletClient = createWalletClient({
+    account,
+    chain,
+    transport: http(rpcUrl),
+  });
   const companyWallet = submission.companyWallet as Address;
   const companyId = keccak256(toBytes(`fouding:company:${normalizedRuc}`));
   const metadataHash = keccak256(
@@ -122,6 +132,21 @@ export async function synchronizeApprovedPassport(
   } as never);
   const hash = await walletClient.writeContract(simulation.request as never);
   const receipt = await publicClient.waitForTransactionReceipt({ hash });
-  if (receipt.status !== "success") throw new Error(`Passport revertido: ${hash}`);
-  return hash;
+  if (receipt.status !== "success")
+    throw new Error(`Passport revertido: ${hash}`);
+  const synchronizedTokenId = (await publicClient.readContract({
+    address: passport.address,
+    abi: passport.abi,
+    functionName: "passportOf",
+    args: [companyWallet],
+  } as never)) as bigint;
+  if (synchronizedTokenId === 0n) {
+    throw new Error("El passport fue confirmado pero no quedó activo");
+  }
+  return {
+    txHash: hash,
+    tokenId: synchronizedTokenId.toString(),
+    chainId: chain.id,
+    contractAddress: passport.address,
+  };
 }

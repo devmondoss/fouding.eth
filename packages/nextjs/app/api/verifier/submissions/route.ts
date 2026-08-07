@@ -38,11 +38,24 @@ export async function POST(req: Request) {
 
   const body = (await req.json().catch(() => null)) as Partial<CreateSubmissionInput> | null;
 
-  if (!body?.companyName || !body.projectTitle || !body.requestedAmount) {
+  if (
+    !body?.companyName ||
+    !body.projectTitle ||
+    !body.requestedAmount ||
+    !body.legalPackHash
+  ) {
     return NextResponse.json(
       {
-        error: "companyName, projectTitle y requestedAmount son obligatorios",
+        error:
+          "companyName, projectTitle, requestedAmount y legalPackHash son obligatorios",
       },
+      { status: 400 },
+    );
+  }
+
+  if (!/^0x[a-fA-F0-9]{64}$/.test(body.legalPackHash!)) {
+    return NextResponse.json(
+      { error: "legalPackHash debe ser un bytes32 (0x + 64 hex)" },
       { status: 400 },
     );
   }
@@ -54,7 +67,7 @@ export async function POST(req: Request) {
       companyWallet,
       projectTitle: body.projectTitle!,
       requestedAmount: body.requestedAmount!,
-      legalPackHash: body.legalPackHash ?? "",
+      legalPackHash: body.legalPackHash!,
     });
 
     return NextResponse.json(submission, { status: 201 });

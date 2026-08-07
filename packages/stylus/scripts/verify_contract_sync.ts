@@ -30,5 +30,32 @@ for (const [chainId, contracts] of Object.entries(expectedContracts)) {
     console.log(
       `✅ ${chainId}/${contractName}: address, txHash, and ABI synchronized`,
     );
+
+    if (contractName === "CompanyPassportSBT") {
+      const passportAbi = expected.abi as Array<{
+        type?: string;
+        name?: string;
+      }>;
+      const functionNames = new Set(
+        passportAbi
+          .filter((entry) => entry.type === "function")
+          .map((entry) => entry.name),
+      );
+      assert.ok(
+        functionNames.has("passportOf"),
+        `${chainId}/CompanyPassportSBT ABI missing passportOf(address)`,
+      );
+      assert.ok(
+        functionNames.has("credentialOf"),
+        `${chainId}/CompanyPassportSBT ABI missing credentialOf(uint256)`,
+      );
+      assert.ok(
+        !functionNames.has("passportIdByWallet"),
+        `${chainId}/CompanyPassportSBT ABI contains non-canonical passportIdByWallet`,
+      );
+      console.log(
+        `✅ ${chainId}/CompanyPassportSBT: canonical passport read interface`,
+      );
+    }
   }
 }

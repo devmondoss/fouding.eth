@@ -1,11 +1,11 @@
 [workspace]
 resolver = "2"
-members = ["*"]
-exclude = ["target"]
+members = ["credit-vault", "repayment-router"]
+exclude = ["target", "your-contract"]
 
 [profile.release]
 codegen-units = 1
 strip = true
 lto = true
 panic = "abort"
-opt-level = 3
+opt-level = "z"

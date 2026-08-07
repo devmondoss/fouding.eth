@@ -6,7 +6,7 @@ import { ArrowRight, Check, Info, Loader2, Wallet, X } from "lucide-react";
 import type { Address } from "viem";
 import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
 import { Button } from "@/components/ui/Button";
-import { useMockUsdc } from "@/hooks/useMockUsdc";
+import { useProtocolToken } from "@/hooks/useProtocolToken";
 import { usePlatform } from "@/lib/data/store";
 import { useSession } from "@/lib/useSession";
 import { formatUsdc, usdc } from "@/lib/format";
@@ -17,20 +17,23 @@ const MONTOS = [500, 1_000, 5_000, 10_000];
 type Step = "monto" | "procesando" | "listo";
 
 /**
- * Módulo dedicado para conseguir saldo. Dos modos, y SIEMPRE dice en cuál
- * está:
+ * Módulo dedicado para conseguir saldo. Siempre dice en cuál de los tres
+ * modos está:
  *
- *   faucet       MockUSDC desplegado en la red configurada: transacción
- *                real, monto fijo del contrato, se espera el receipt.
- *   simulación   sin contrato al que llamar: suma el saldo local. Antes
- *                este camino mostraba "Confirmando en Arbitrum" mientras
- *                corrían dos setTimeout — decía una cosa y hacía otra.
+ *   faucet       MockUSDC desplegado en la red configurada (devnet):
+ *                transacción real, monto fijo del contrato, se espera el
+ *                receipt.
+ *   depósito     token real canónico (Circle USDC en Arbitrum Sepolia):
+ *                no hay faucet, se muestra la dirección para depositar y
+ *                el saldo se lee directo onchain.
+ *   simulación   sin contrato al que llamar: suma el saldo local.
  */
 export function AddFundsFlow({ onClose }: { onClose: () => void }) {
   const { balance, addFunds } = usePlatform();
   const { session } = useSession();
-  const mockUsdc = useMockUsdc(session?.address as Address | undefined);
-  const canFaucet = Boolean(mockUsdc.address && session?.address);
+  const token = useProtocolToken(session?.address as Address | undefined);
+  const canFaucet = Boolean(token.faucetCapable && token.address && session?.address);
+  const canDeposit = Boolean(!token.faucetCapable && token.address && session?.address);
 
   const [step, setStep] = useState<Step>("monto");
   const [amount, setAmount] = useState("1000");
@@ -62,7 +65,7 @@ export function AddFundsFlow({ onClose }: { onClose: () => void }) {
         if (canFaucet) {
           setProgress(1);
           // Monto fijo: lo define el contrato, no esta pantalla.
-          await mockUsdc.faucet();
+          await token.faucet();
         } else {
           await addFunds(value);
         }
@@ -125,9 +128,9 @@ export function AddFundsFlow({ onClose }: { onClose: () => void }) {
               >
                 <div className="label">Saldo actual</div>
                 <div className="num mt-1 text-[22px] font-bold text-hi">
-                  {formatUsdc(canFaucet ? (mockUsdc.balance ?? 0n) : balance)}{" "}
+                  {formatUsdc(canFaucet || canDeposit ? (token.balance ?? 0n) : balance)}{" "}
                   <span className="text-[13px] text-low">
-                    {canFaucet ? "mUSDC" : "USDC"}
+                    {canFaucet || canDeposit ? token.symbol : "USDC"}
                   </span>
                 </div>
 
@@ -143,12 +146,31 @@ export function AddFundsFlow({ onClose }: { onClose: () => void }) {
                 {canFaucet ? (
                   <>
                     <p className="mt-5 text-[13px] leading-relaxed text-mid">
-                      El faucet de prueba entrega un monto fijo de mUSDC a tu
+                      El faucet de prueba entrega un monto fijo de {token.symbol} a tu
                       wallet. Es una transacción real en la red configurada.
                     </p>
                     <p className="mt-2 text-[12px] text-low">
-                      mUSDC es un token de desarrollo, no el USDC de Circle.
+                      {token.symbol} es un token de desarrollo, no el USDC de Circle.
                     </p>
+                  </>
+                ) : canDeposit ? (
+                  <>
+                    <p className="mt-5 text-[13px] leading-relaxed text-mid">
+                      Esta red usa el USDC de Circle, que no tiene faucet. Envía
+                      USDC a tu dirección desde otro wallet o un bridge; el saldo
+                      se lee directo onchain.
+                    </p>
+                    <div className="mt-3 break-all rounded-[var(--r-input)] border border-border bg-surface px-3 py-2.5 num text-[12px] text-mid">
+                      {session?.address}
+                    </div>
+                    <div
+                      className="mt-3 flex items-start gap-2 rounded-[var(--r-panel)] border px-3 py-2 text-[12px]"
+                      style={{ borderColor: "var(--warning)", color: "var(--warning)" }}
+                    >
+                      <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      Sin USDC en la wallet, las transacciones de inversión van a
+                      revertir.
+                    </div>
                   </>
                 ) : (
                   <>
@@ -192,11 +214,15 @@ export function AddFundsFlow({ onClose }: { onClose: () => void }) {
                 <Button
                   className="mt-5 w-full"
                   size="lg"
-                  disabled={!canFaucet && parsed <= 0}
-                  onClick={() => setStep("procesando")}
-                  iconRight={<ArrowRight className="h-4 w-4" />}
+                  disabled={!canFaucet && !canDeposit && parsed <= 0}
+                  onClick={canDeposit ? onClose : () => setStep("procesando")}
+                  iconRight={canDeposit ? undefined : <ArrowRight className="h-4 w-4" />}
                 >
-                  {canFaucet ? "Recibir mUSDC de prueba" : "Confirmar"}
+                  {canFaucet
+                    ? `Recibir ${token.symbol} de prueba`
+                    : canDeposit
+                      ? "Listo"
+                      : "Confirmar"}
                 </Button>
               </motion.div>
             )}
@@ -274,8 +300,8 @@ export function AddFundsFlow({ onClose }: { onClose: () => void }) {
                 </div>
                 {canFaucet ? (
                   <div className="num text-[28px] font-bold text-hi">
-                    {formatUsdc(mockUsdc.balance ?? 0n)}
-                    <span className="text-[14px] text-low"> mUSDC</span>
+                    {formatUsdc(token.balance ?? 0n)}
+                    <span className="text-[14px] text-low"> {token.symbol}</span>
                   </div>
                 ) : (
                   <AnimatedNumber

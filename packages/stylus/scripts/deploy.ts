@@ -13,16 +13,22 @@ import {
   toBytes,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { arbitrumSepolia } from "viem/chains";
 import deployStylusContract from "./deploy_contract";
+import { runTestnetPreflight } from "./preflight_testnet";
+import { verifySoliditySource } from "./verify_solidity_explorer";
 import {
   generateTsAbi,
   getDeploymentConfig,
   getRpcUrlFromChain,
+  parseAbiOutput,
+  parseContractDeployment,
   printDeployedAddresses,
   saveDeployment,
   writeCleanAbiFile,
 } from "./utils/";
 import { DeployOptions, DeploymentConfig } from "./utils/type";
+import { executeFileCommand } from "./utils/command";
 
 type FoundryArtifact = {
   abi: Abi;
@@ -36,8 +42,11 @@ type ContractDeployment = {
 };
 
 const FOUNDRY_ROOT = path.resolve(__dirname, "../../foundry");
+const STYLUS_WORKSPACE = path.resolve(__dirname, "../contracts");
 const USDC = 10n ** 6n;
 const DAY = 24n * 60n * 60n;
+const ARBITRUM_SEPOLIA_USDC_ADDRESS =
+  "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d" as Address;
 
 function archiveLatestDeployment(deploymentDir: string, chainId: number): void {
   const latest = path.resolve(deploymentDir, `${chainId}_latest.json`);
@@ -86,6 +95,7 @@ async function deploySolidity(
   walletClient: ReturnType<typeof createWalletClient>,
   publicClient: ReturnType<typeof createPublicClient>,
   admin: Address,
+  verify: boolean,
 ): Promise<ContractDeployment> {
   const artifact = loadArtifact(source, contractName);
   console.log(`\n🚀 Deploying Solidity contract: ${contractName}`);
@@ -109,11 +119,67 @@ async function deploySolidity(
     Array.from(artifact.abi),
   );
   console.log(`✅ ${contractName}: ${receipt.contractAddress}`);
+  if (verify) {
+    verifySoliditySource({
+      address: receipt.contractAddress,
+      source,
+      contractName,
+      admin,
+      chainId: baseConfig.chain.id,
+      rpcUrl: getRpcUrlFromChain(baseConfig.chain),
+    });
+  }
   return {
     address: receipt.contractAddress,
     txHash,
     abi: artifact.abi,
   };
+}
+
+async function loadExistingDeployment(
+  contractName: string,
+  baseConfig: DeploymentConfig,
+  publicClient: ReturnType<typeof createPublicClient>,
+): Promise<ContractDeployment | null> {
+  const manifestPath = path.resolve(
+    baseConfig.deploymentDir,
+    `${baseConfig.chain.id}_latest.json`,
+  );
+  if (!fs.existsSync(manifestPath)) return null;
+
+  try {
+    const manifest: unknown = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+    const stored = parseContractDeployment(
+      manifest,
+      contractName,
+      String(baseConfig.chain.id),
+    );
+    const code = await publicClient.getBytecode({ address: stored.address });
+    if (!code || code === "0x") {
+      throw new Error(`${contractName} has no bytecode on chain`);
+    }
+    const abiPath = path.resolve(
+      baseConfig.deploymentDir,
+      stored.contractFolder,
+    );
+    if (!fs.existsSync(abiPath)) {
+      throw new Error(`${contractName} ABI is missing from the deployment directory`);
+    }
+    console.log(`♻️ Reusing ${contractName}: ${stored.address}`);
+    return {
+      address: stored.address,
+      txHash: stored.txHash as Hex,
+      abi: parseAbiOutput(fs.readFileSync(abiPath, "utf8")) as Abi,
+    };
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message.includes(`Contract ${contractName} not found`)
+    ) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 async function writeAndWait(
@@ -139,6 +205,9 @@ async function writeAndWait(
 /** Deploys and configures the complete local protocol in dependency order. */
 export default async function deployScript(deployOptions: DeployOptions) {
   const options = { network: "devnet", ...deployOptions };
+  if (options.network === "sepolia" || options.network === "arbitrumSepolia") {
+    await runTestnetPreflight();
+  }
   const baseConfig = getDeploymentConfig({
     ...options,
     contract: "credit-vault",
@@ -156,82 +225,138 @@ export default async function deployScript(deployOptions: DeployOptions) {
     transport: http(rpcUrl),
   });
 
-  console.log(`📡 Endpoint: ${rpcUrl}`);
   console.log(`🌐 Network: ${baseConfig.chain.name} (${baseConfig.chain.id})`);
   console.log(`👤 Deployer: ${account.address}`);
   console.log(`📁 Deployment directory: ${baseConfig.deploymentDir}`);
-
-  archiveLatestDeployment(baseConfig.deploymentDir, baseConfig.chain.id);
 
   execFileSync("forge", ["build", "--root", FOUNDRY_ROOT], {
     stdio: "inherit",
   });
 
-  const mockUsdc = await deploySolidity(
-    "MockUSDC",
-    "MockUSDC",
-    baseConfig,
-    walletClient,
-    publicClient,
-    account.address,
-  );
-  const accessRegistry = await deploySolidity(
-    "AccessRegistry",
-    "AccessRegistry",
-    baseConfig,
-    walletClient,
-    publicClient,
-    account.address,
-  );
-  const passport = await deploySolidity(
-    "CompanyPassportSBT",
-    "CompanyPassportSBT",
-    baseConfig,
-    walletClient,
-    publicClient,
-    account.address,
-  );
-  const registry = await deploySolidity(
-    "CreditRegistry",
-    "CreditRegistry",
-    baseConfig,
-    walletClient,
-    publicClient,
-    account.address,
+  await executeFileCommand(
+    {
+      executable: "cargo",
+      args: [
+        "stylus",
+        "check",
+        "--contract=credit-vault",
+        `--endpoint=${rpcUrl}`,
+      ],
+      displayArgs: [
+        "stylus",
+        "check",
+        "--contract=credit-vault",
+        "--endpoint=***",
+      ],
+      cleanup: () => undefined,
+    },
+    STYLUS_WORKSPACE,
+    "Checking CreditVault against the target Stylus runtime",
   );
 
-  await deployStylusContract({
-    ...options,
-    contract: "credit-vault",
-    name: "CreditVault",
-    constructorArgs: [],
-  });
-  await deployStylusContract({
-    ...options,
-    contract: "credit-vault",
-    name: "CreditVaultHappy",
-    constructorArgs: [],
-  });
-  await deployStylusContract({
-    ...options,
-    contract: "credit-vault",
-    name: "CreditVaultRecovery",
-    constructorArgs: [],
-  });
+  if (options.estimateGas) {
+    await deployStylusContract({
+      ...options,
+      contract: "credit-vault",
+      name: "CreditVault",
+      constructorArgs: [],
+    });
+    return;
+  }
+
+  if (!options.resume) {
+    archiveLatestDeployment(baseConfig.deploymentDir, baseConfig.chain.id);
+  }
+
+  let paymentToken: Address;
+  if (baseConfig.chain.id === arbitrumSepolia.id) {
+    paymentToken = ARBITRUM_SEPOLIA_USDC_ADDRESS;
+    console.log(`💵 Payment token: Circle USDC (canonical) ${paymentToken}`);
+  } else {
+    const mockUsdc =
+      (options.resume &&
+        (await loadExistingDeployment("MockUSDC", baseConfig, publicClient))) ||
+      (await deploySolidity(
+        "MockUSDC",
+        "MockUSDC",
+        baseConfig,
+        walletClient,
+        publicClient,
+        account.address,
+        Boolean(options.verify),
+      ));
+    paymentToken = mockUsdc.address;
+    console.log(`💵 Payment token: MockUSDC ${paymentToken}`);
+  }
+  const accessRegistry =
+    (options.resume &&
+      (await loadExistingDeployment("AccessRegistry", baseConfig, publicClient))) ||
+    (await deploySolidity(
+      "AccessRegistry",
+      "AccessRegistry",
+      baseConfig,
+      walletClient,
+      publicClient,
+      account.address,
+      Boolean(options.verify),
+    ));
+  const passport =
+    (options.resume &&
+      (await loadExistingDeployment("CompanyPassportSBT", baseConfig, publicClient))) ||
+    (await deploySolidity(
+      "CompanyPassportSBT",
+      "CompanyPassportSBT",
+      baseConfig,
+      walletClient,
+      publicClient,
+      account.address,
+      Boolean(options.verify),
+    ));
+  const registry =
+    (options.resume &&
+      (await loadExistingDeployment("CreditRegistry", baseConfig, publicClient))) ||
+    (await deploySolidity(
+      "CreditRegistry",
+      "CreditRegistry",
+      baseConfig,
+      walletClient,
+      publicClient,
+      account.address,
+      Boolean(options.verify),
+    ));
+
+  let mainVault =
+    options.resume &&
+    (await loadExistingDeployment("CreditVault", baseConfig, publicClient));
+  if (!mainVault) {
+    await deployStylusContract({
+      ...options,
+      contract: "credit-vault",
+      name: "CreditVault",
+      constructorArgs: [],
+    });
+    const deploymentModule = await import("./utils/contract");
+    mainVault = deploymentModule.getContractData(
+      baseConfig.chain.id.toString(),
+      "CreditVault",
+    ) as ContractDeployment;
+  }
+  if (!options.minimal) {
+    await deployStylusContract({
+      ...options,
+      contract: "credit-vault",
+      name: "CreditVaultHappy",
+      constructorArgs: [],
+    });
+    await deployStylusContract({
+      ...options,
+      contract: "credit-vault",
+      name: "CreditVaultRecovery",
+      constructorArgs: [],
+    });
+  }
 
   const deploymentModule = await import("./utils/contract");
-  const mainVault = deploymentModule.getContractData(
-    baseConfig.chain.id.toString(),
-    "CreditVault",
-  ) as ContractDeployment;
-  const happyVault = deploymentModule.getContractData(
-    baseConfig.chain.id.toString(),
-    "CreditVaultHappy",
-  ) as ContractDeployment;
-  const recoveryVault = deploymentModule.getContractData(
-    baseConfig.chain.id.toString(),
-    "CreditVaultRecovery",
-  ) as ContractDeployment;
 
   await writeAndWait("Registry.setPassportContract", walletClient, publicClient, {
     account,
@@ -255,7 +380,7 @@ export default async function deployScript(deployOptions: DeployOptions) {
     address: registry.address,
     abi: registry.abi,
     functionName: "setPaymentToken",
-    args: [mockUsdc.address, true],
+    args: [paymentToken, true],
   });
 
   const devAccounts = (
@@ -272,9 +397,13 @@ export default async function deployScript(deployOptions: DeployOptions) {
     chain: baseConfig.chain,
     transport: http(rpcUrl),
   });
-  const legalPackHash = keccak256(toBytes("fouding-local-legal-pack-v1"));
-  const metadataHash = keccak256(toBytes("fouding-local-public-metadata-v1"));
-  const collateralHash = keccak256(toBytes("fouding-local-collateral-v1"));
+  const deploymentLabel =
+    baseConfig.chain.id === 421614
+      ? "fouding-arbitrum-sepolia-mvp-v1"
+      : "fouding-local-v1";
+  const legalPackHash = keccak256(toBytes(`${deploymentLabel}:legal-pack`));
+  const metadataHash = keccak256(toBytes(`${deploymentLabel}:public-metadata`));
+  const collateralHash = keccak256(toBytes(`${deploymentLabel}:collateral`));
   const latestBlock = await publicClient.getBlock();
   const passportExpiry = latestBlock.timestamp + 365n * DAY;
 
@@ -286,7 +415,7 @@ export default async function deployScript(deployOptions: DeployOptions) {
     functionName: "issuePassport",
     args: [
       borrower,
-      keccak256(toBytes("fouding-local-company")),
+      keccak256(toBytes(`${deploymentLabel}:company`)),
       legalPackHash,
       metadataHash,
       passportExpiry,
@@ -299,7 +428,9 @@ export default async function deployScript(deployOptions: DeployOptions) {
     address: accessRegistry.address,
     abi: accessRegistry.abi,
     functionName: "requestAccess",
-    args: [keccak256(toBytes(`fouding-local-investor:${investorAccount.address}`))],
+    args: [
+      keccak256(toBytes(`${deploymentLabel}:investor:${investorAccount.address}`)),
+    ],
   });
   await writeAndWait("AccessRegistry.approveAccess", walletClient, publicClient, {
     account,
@@ -314,19 +445,29 @@ export default async function deployScript(deployOptions: DeployOptions) {
     {
       name: "CreditVault",
       deployment: mainVault,
-      dealId: keccak256(toBytes("fouding-local-deal-demo-v1")),
-    },
-    {
-      name: "CreditVaultHappy",
-      deployment: happyVault,
-      dealId: keccak256(toBytes("fouding-local-deal-happy-v1")),
-    },
-    {
-      name: "CreditVaultRecovery",
-      deployment: recoveryVault,
-      dealId: keccak256(toBytes("fouding-local-deal-recovery-v1")),
+      dealId: keccak256(toBytes(`${deploymentLabel}:deal-demo`)),
     },
   ];
+  if (!options.minimal) {
+    vaults.push(
+      {
+        name: "CreditVaultHappy",
+        deployment: deploymentModule.getContractData(
+          baseConfig.chain.id.toString(),
+          "CreditVaultHappy",
+        ) as ContractDeployment,
+        dealId: keccak256(toBytes(`${deploymentLabel}:deal-happy`)),
+      },
+      {
+        name: "CreditVaultRecovery",
+        deployment: deploymentModule.getContractData(
+          baseConfig.chain.id.toString(),
+          "CreditVaultRecovery",
+        ) as ContractDeployment,
+        dealId: keccak256(toBytes(`${deploymentLabel}:deal-recovery`)),
+      },
+    );
+  }
   for (const [index, vault] of vaults.entries()) {
     const fundingDeadline = latestBlock.timestamp + BigInt(7 + index) * DAY;
     const maturityDate = latestBlock.timestamp + BigInt(180 + index) * DAY;
@@ -341,7 +482,7 @@ export default async function deployScript(deployOptions: DeployOptions) {
         vault.dealId,
         borrower,
         account.address,
-        mockUsdc.address,
+        paymentToken,
         registry.address,
         passport.address,
         accessRegistry.address,
@@ -365,7 +506,7 @@ export default async function deployScript(deployOptions: DeployOptions) {
         vault.deployment.address,
         borrower,
         account.address,
-        mockUsdc.address,
+        paymentToken,
         vault.dealId,
       ],
     });

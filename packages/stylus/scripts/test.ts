@@ -2,13 +2,12 @@
 /**
  * Stylus Cargo Test Runner
  *
- * This script automatically finds and runs tests for all Cargo projects
- * in the stylus directory that have a Cargo.toml file.
+ * This script runs tests for the actual members of the Stylus Cargo workspace.
  *
  * Features:
- * - Automatically discovers Cargo projects by looking for Cargo.toml files
- * - Excludes scripts, deployments, and node_modules directories
- * - Runs `cargo test` for each project
+ * - Uses Cargo metadata as the canonical source of workspace membership
+ * - Ignores templates and other explicitly excluded Cargo projects
+ * - Runs `cargo test --locked` for each workspace member
  * - Shows real-time output during test execution
  * - Provides a comprehensive summary of test results
  * - Exits with appropriate error codes for CI/CD integration
@@ -19,8 +18,21 @@
  *   ts-node scripts/test.ts
  */
 import { spawn } from "child_process";
-import { promises as fs } from "fs";
 import * as path from "path";
+
+interface CargoMetadata {
+  packages: Array<{
+    id: string;
+    manifest_path: string;
+    name: string;
+  }>;
+  workspace_members: string[];
+}
+
+interface CargoProject {
+  name: string;
+  path: string;
+}
 
 interface TestResult {
   project: string;
@@ -34,15 +46,16 @@ interface TestResult {
  */
 function executeCommand(
   command: string,
+  args: string[],
   cwd: string,
 ): Promise<{ success: boolean; output: string; error?: string }> {
   return new Promise((resolve) => {
     console.log(`\n🔄 Running tests in ${path.basename(cwd)}...`);
-    console.log(`Executing: ${command}`);
+    console.log(`Executing: ${command} ${args.join(" ")}`);
 
-    const childProcess = spawn(command, [], {
+    const childProcess = spawn(command, args, {
       cwd,
-      shell: true,
+      shell: false,
       stdio: ["inherit", "pipe", "pipe"],
     });
 
@@ -103,48 +116,46 @@ function executeCommand(
 }
 
 /**
- * Check if a directory contains a Cargo.toml file
+ * Find the projects Cargo considers members of the production workspace.
  */
-async function hasCargoToml(dirPath: string): Promise<boolean> {
-  try {
-    await fs.access(path.join(dirPath, "Cargo.toml"));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Find all Cargo projects in the stylus directory
- */
-async function findCargoProjects(): Promise<string[]> {
+async function findCargoProjects(): Promise<CargoProject[]> {
   const contractsDir = path.resolve(__dirname, "..", "contracts");
-  const cargoProjects: string[] = [];
+  const metadata = await new Promise<CargoMetadata>((resolve, reject) => {
+    const childProcess = spawn(
+      "cargo",
+      ["metadata", "--no-deps", "--format-version", "1", "--locked"],
+      { cwd: contractsDir, shell: false, stdio: ["ignore", "pipe", "pipe"] },
+    );
+    let stdout = "";
+    let stderr = "";
 
-  try {
-    const entries = await fs.readdir(contractsDir, { withFileTypes: true });
-
-    for (const entry of entries) {
-      if (entry.isDirectory()) {
-        const dirName = entry.name;
-
-        // Skip excluded directories
-        if (dirName === "target") {
-          continue;
-        }
-
-        const dirPath = path.join(contractsDir, dirName);
-
-        if (await hasCargoToml(dirPath)) {
-          cargoProjects.push(dirPath);
-        }
+    childProcess.stdout.on("data", (data: Buffer) => {
+      stdout += data.toString();
+    });
+    childProcess.stderr.on("data", (data: Buffer) => {
+      stderr += data.toString();
+    });
+    childProcess.on("error", reject);
+    childProcess.on("close", (code: number | null) => {
+      if (code !== 0) {
+        reject(new Error(`cargo metadata failed: ${stderr.trim()}`));
+        return;
       }
-    }
-  } catch (error) {
-    console.error("Error scanning for Cargo projects:", error);
-  }
+      try {
+        resolve(JSON.parse(stdout) as CargoMetadata);
+      } catch (error) {
+        reject(new Error(`Invalid cargo metadata output: ${String(error)}`));
+      }
+    });
+  });
 
-  return cargoProjects;
+  const workspaceMembers = new Set(metadata.workspace_members);
+  return metadata.packages
+    .filter((cargoPackage) => workspaceMembers.has(cargoPackage.id))
+    .map((cargoPackage) => ({
+      name: cargoPackage.name,
+      path: path.dirname(cargoPackage.manifest_path),
+    }));
 }
 
 /**
@@ -162,20 +173,22 @@ async function runAllTests(): Promise<void> {
 
   console.log(`Found ${cargoProjects.length} Stylus Contract(s):`);
   cargoProjects.forEach((project) => {
-    console.log(`  - ${path.basename(project)}`);
+    console.log(`  - ${project.name}`);
   });
   console.log("");
 
   const results: TestResult[] = [];
 
   // Run tests for each project
-  for (const projectPath of cargoProjects) {
-    const projectName = path.basename(projectPath);
-
-    const result = await executeCommand("cargo test", projectPath);
+  for (const project of cargoProjects) {
+    const result = await executeCommand(
+      "cargo",
+      ["test", "--locked", "--package", project.name],
+      project.path,
+    );
 
     results.push({
-      project: projectName,
+      project: project.name,
       success: result.success,
       output: result.output,
       ...(result.error && { error: result.error }),

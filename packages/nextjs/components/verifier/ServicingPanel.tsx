@@ -193,7 +193,7 @@ export function ServicingPanel({ apiKey }: { apiKey: string }) {
                 inputMode="decimal"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                hint="Sale de la cuenta operadora, que debe tener saldo de mUSDC"
+                hint="Sale de la cuenta operadora, que debe tener saldo del token de pago"
               />
             </div>
           )}

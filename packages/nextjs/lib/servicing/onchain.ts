@@ -5,8 +5,10 @@ import {
   getDeployment,
   getPublicClient,
   getSigner,
+  resolveChain,
   writeAndWait,
 } from "../protocolServer";
+import { getProtocolToken } from "../web3/protocol";
 
 /**
  * Administración del crédito: activar el desembolso, registrar repagos,
@@ -123,7 +125,11 @@ export async function runVaultAction(
     // tiene que tener saldo y allowance. Sin esto la transacción revierte
     // con un error del token, no del vault, y es imposible de diagnosticar
     // desde el panel.
-    const token = getDeployment("MockUSDC");
+    const { chain } = resolveChain();
+    const token = getProtocolToken(chain.id);
+    if (!token.address) {
+      throw new Error(`No hay token de pago configurado para chain ${chain.id}`);
+    }
     const balance = (await signer.publicClient.readContract({
       address: token.address,
       abi: token.abi,
@@ -132,7 +138,7 @@ export async function runVaultAction(
     } as never)) as bigint;
     if (balance < amount) {
       throw new Error(
-        `El operador no tiene saldo suficiente (${balance} < ${amount}). Usa el faucet de MockUSDC con esa cuenta.`,
+        `El operador no tiene saldo suficiente (${balance} < ${amount}) en ${token.symbol}. La cuenta necesita saldo y allowance del token de pago.`,
       );
     }
 

@@ -1,4 +1,6 @@
 import { spawn } from "child_process";
+import * as fs from "fs";
+import * as path from "path";
 import { DeploymentConfig, DeployOptions } from "./type";
 import {
   extractGasPriceFromOutput,
@@ -6,9 +8,36 @@ import {
 } from "./contract";
 import { getRpcUrlFromChain } from "./network";
 import { createPublicClient, http, formatUnits } from "viem";
+import { redactSensitiveError } from "./redact";
 
 const DEFAULT_GAS_FEE_MULTIPLIER = 3;
 const MIN_FEE_GWEI = 0.1;
+const STYLUS_WORKSPACE = path.resolve(__dirname, "../../contracts");
+const DEPLOY_KEY_DIRECTORY = path.join(STYLUS_WORKSPACE, "target", "deploy-keys");
+
+export interface PreparedCommand {
+  executable: string;
+  args: string[];
+  displayArgs: string[];
+  cleanup: () => void;
+}
+
+function createPrivateKeyFile(privateKey: string): {
+  privateKeyPath: string;
+  cleanup: () => void;
+} {
+  fs.mkdirSync(DEPLOY_KEY_DIRECTORY, { recursive: true, mode: 0o700 });
+  const directory = fs.mkdtempSync(path.join(DEPLOY_KEY_DIRECTORY, "run-"));
+  fs.chmodSync(directory, 0o700);
+  const privateKeyPath = path.join(directory, "deployer.key");
+  fs.writeFileSync(privateKeyPath, `${privateKey}\n`, { mode: 0o600 });
+
+  return {
+    // cargo-stylus mounts the workspace at /source for reproducible Docker runs.
+    privateKeyPath: path.relative(STYLUS_WORKSPACE, privateKeyPath),
+    cleanup: () => fs.rmSync(directory, { recursive: true, force: true }),
+  };
+}
 
 function getGasFeeMultiplier(): number {
   const envVal = process.env["DEPLOY_GAS_FEE_MULTIPLIER"];
@@ -41,25 +70,34 @@ async function getBufferedMaxFeeGwei(rpcUrl: string): Promise<number> {
 export async function buildDeployCommand(
   config: DeploymentConfig,
   deployOptions: DeployOptions,
-) {
-  let baseCommand = `cargo stylus deploy --endpoint='${getRpcUrlFromChain(config.chain)}' --private-key='${config.privateKey}'`;
+): Promise<PreparedCommand> {
+  const args = ["stylus", "deploy"];
+  const displayArgs = ["stylus", "deploy"];
 
+  args.push(`--contract=${deployOptions.contract}`);
+  displayArgs.push(`--contract=${deployOptions.contract}`);
+
+  args.push(`--endpoint=${getRpcUrlFromChain(config.chain)}`);
+  displayArgs.push("--endpoint=***");
   if (deployOptions.estimateGas) {
-    return `${baseCommand} --estimate-gas`;
-  }
-
-  if (deployOptions.maxFee) {
-    baseCommand += ` --max-fee-per-gas-gwei=${deployOptions.maxFee}`;
+    args.push("--estimate-gas");
+    displayArgs.push("--estimate-gas");
   } else {
-    // maxFeePerGas is a CEILING (actual charge = base fee), so over-provisioning is safe and free.
-    // Cargo stylus without this flag uses a tight estimate that the base fee can creep past.
-    const rpcUrl = getRpcUrlFromChain(config.chain);
-    const maxFeeGwei = await getBufferedMaxFeeGwei(rpcUrl);
-    baseCommand += ` --max-fee-per-gas-gwei=${maxFeeGwei}`;
+    if (deployOptions.maxFee) {
+      args.push(`--max-fee-per-gas-gwei=${deployOptions.maxFee}`);
+      displayArgs.push(`--max-fee-per-gas-gwei=${deployOptions.maxFee}`);
+    } else {
+      // maxFeePerGas is a ceiling. A buffer avoids a deployment racing a rising base fee.
+      const rpcUrl = getRpcUrlFromChain(config.chain);
+      const maxFeeGwei = await getBufferedMaxFeeGwei(rpcUrl);
+      args.push(`--max-fee-per-gas-gwei=${maxFeeGwei}`);
+      displayArgs.push(`--max-fee-per-gas-gwei=${maxFeeGwei}`);
+    }
   }
 
   if (!deployOptions.verify) {
-    baseCommand += ` --no-verify`;
+    args.push("--no-verify");
+    displayArgs.push("--no-verify");
   } else {
     if (
       deployOptions.constructorArgs &&
@@ -77,25 +115,42 @@ export async function buildDeployCommand(
     deployOptions.constructorArgs.length > 0 &&
     !deployOptions.isOrbit
   ) {
-    baseCommand += ` --constructor-args ${deployOptions.constructorArgs.map((arg) => `"${arg}"`).join(" ")} `;
+    args.push(
+      "--constructor-args",
+      ...deployOptions.constructorArgs.map((argument) => String(argument)),
+    );
+    displayArgs.push(
+      "--constructor-args",
+      ...deployOptions.constructorArgs.map((argument) => String(argument)),
+    );
   }
 
-  return baseCommand;
+  const { privateKeyPath, cleanup } = createPrivateKeyFile(config.privateKey);
+  args.push(`--private-key-path=${privateKeyPath}`);
+  displayArgs.push("--private-key-path=***");
+
+  return { executable: "cargo", args, displayArgs, cleanup };
 }
 
 export async function estimateGasPrice(
   config: DeploymentConfig,
   deployOptions: DeployOptions,
 ): Promise<string> {
-  let deployCommand = `cargo stylus deploy --endpoint='${getRpcUrlFromChain(config.chain)}' --private-key='${config.privateKey}' --no-verify --estimate-gas `;
-  if (deployOptions.constructorArgs) {
-    deployCommand += ` --constructor-args='${deployOptions.constructorArgs.join(" ")}'`;
+  const prepared = await buildDeployCommand(config, {
+    ...deployOptions,
+    estimateGas: true,
+    verify: false,
+  });
+  let deployOutput: string;
+  try {
+    deployOutput = await executeFileCommand(
+      prepared,
+      config.contractName,
+      "Estimating gas price with cargo stylus",
+    );
+  } finally {
+    prepared.cleanup();
   }
-  const deployOutput = await executeCommand(
-    deployCommand,
-    config.contractName,
-    "Estimating gas price with cargo stylus",
-  );
   const gasPrice = extractGasPriceFromOutput(deployOutput);
   if (gasPrice) {
     return gasPrice;
@@ -103,22 +158,18 @@ export async function estimateGasPrice(
   return "0";
 }
 
-export function executeCommand(
-  command: string,
+export function executeFileCommand(
+  prepared: PreparedCommand,
   cwd: string,
   description: string,
 ): Promise<string> {
   console.log(`\n🔄 ${description}...`);
-  // Sanitize command to hide private key (create a copy to avoid modifying original)
-  const sanitizedCommand = command.slice();
-  console.log(
-    `Executing: ${sanitizedCommand.replace(/--private-key=[^\s]+/g, "--private-key=***")}`,
-  );
+  console.log(`Executing: ${prepared.executable} ${prepared.displayArgs.join(" ")}`);
 
   return new Promise((resolve, reject) => {
-    const childProcess = spawn(command, [], {
+    const childProcess = spawn(prepared.executable, prepared.args, {
       cwd,
-      shell: true,
+      shell: false,
       stdio: ["inherit", "pipe", "pipe"],
     });
 
@@ -126,60 +177,35 @@ export function executeCommand(
     let errorOutput = "";
     let errorLines: string[] = [];
 
-    // Handle stdout
-    if (childProcess.stdout) {
-      childProcess.stdout.on("data", (data: Buffer) => {
-        const chunk = data.toString();
-        output += chunk;
-      });
-    }
-
-    // Handle stderr
-    if (childProcess.stderr) {
-      childProcess.stderr.on("data", (data: Buffer) => {
-        const chunk = data.toString();
-        errorOutput += chunk;
-        const newLines = chunk.split("\n");
-        errorLines.push(...newLines);
-        // Keep only the last 20 lines, just for safety
-        if (errorLines.length > 20) {
-          errorLines = errorLines.slice(-20);
-        }
-      });
-    }
-
-    // Handle process completion
-    childProcess.on("close", (code: number | null) => {
-      // this can extract and detect errors from docker logs because it not throw error code
-      const errors = extractErrorLines(errorLines);
-
-      if (code === 0 && !errors) {
-        console.log(`\n✅ ${description} completed successfully!`);
-        resolve(output);
-      } else {
-        console.error(`\n❌ ${description} failed with exit code ${code}`);
-        // Print error output starting from "project metadata hash computed on deployment" or error patterns, or all logs if not found
-        if (errors) {
-          console.error(errors);
-          if (
-            !command.includes("--no-verify") &&
-            errors.includes("mismatch number of constructor arguments")
-          ) {
-            errorOutput += `\nCan not verify contract with constructor arguments.\n`;
-          }
-        }
-
-        reject(
-          new Error(
-            `Command failed with exit code ${code}. Error output: \n${errorOutput}`,
-          ),
-        );
-      }
+    childProcess.stdout?.on("data", (data: Buffer) => {
+      output += data.toString();
+    });
+    childProcess.stderr?.on("data", (data: Buffer) => {
+      const chunk = data.toString();
+      errorOutput += chunk;
+      errorLines.push(...chunk.split("\n"));
+      if (errorLines.length > 20) errorLines = errorLines.slice(-20);
     });
 
-    // Handle process errors
+    childProcess.on("close", (code: number | null) => {
+      const errors = extractErrorLines(errorLines);
+      if (code === 0) {
+        console.log(`\n✅ ${description} completed successfully!`);
+        resolve(`${output}\n${errorOutput}`);
+        return;
+      }
+
+      console.error(`\n❌ ${description} failed with exit code ${code}`);
+      if (errors) console.error(redactSensitiveError(errors));
+      reject(
+        new Error(
+          `Command failed with exit code ${code}. Error output: \n${redactSensitiveError(errorOutput)}`,
+        ),
+      );
+    });
+
     childProcess.on("error", (error: Error) => {
-      console.error(`\n❌ ${description} failed:`, error);
+      console.error(`\n❌ ${description} failed:`, redactSensitiveError(error));
       reject(error);
     });
   });

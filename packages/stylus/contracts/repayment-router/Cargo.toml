@@ -1,9 +1,9 @@
 [package]
-name = "credit-vault"
+name = "repayment-router"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-description = "Fouding private-credit vault for Arbitrum Stylus"
+description = "Fouding validated repayment router for Arbitrum Stylus"
 
 [dependencies]
 alloy-sol-types = { version = "=1.6.1", default-features = false }
@@ -17,11 +17,13 @@ default = ["mini-alloc"]
 export-abi = ["stylus-sdk/export-abi"]
 debug = ["stylus-sdk/debug"]
 mini-alloc = ["stylus-sdk/mini-alloc"]
-contract-client-gen = []
 
 [[bin]]
-name = "credit-vault"
+name = "repayment-router"
 path = "src/main.rs"
 
 [lib]
 crate-type = ["lib", "cdylib"]
+
+[contract]
+name = "repayment-router"
