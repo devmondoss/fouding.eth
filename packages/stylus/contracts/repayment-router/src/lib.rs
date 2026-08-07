@@ -171,7 +171,9 @@ impl RepaymentRouter {
         let key = repayment_key(vault, repayment_id);
         if self.processed.get(key) {
             return Err(Error::RepaymentAlreadyProcessed(
-                RepaymentAlreadyProcessed { repaymentId: repayment_id },
+                RepaymentAlreadyProcessed {
+                    repaymentId: repayment_id,
+                },
             ));
         }
         if amount == U256::ZERO {
@@ -179,7 +181,9 @@ impl RepaymentRouter {
         }
         let breakdown = principal
             .checked_add(interest)
-            .ok_or(Error::InvalidRepaymentBreakdown(InvalidRepaymentBreakdown {}))?;
+            .ok_or(Error::InvalidRepaymentBreakdown(
+                InvalidRepaymentBreakdown {},
+            ))?;
         if breakdown != amount {
             return Err(Error::InvalidRepaymentBreakdown(
                 InvalidRepaymentBreakdown {},
@@ -287,7 +291,12 @@ impl RepaymentRouter {
         Ok(())
     }
 
-    fn safe_approve(&mut self, token: Address, spender: Address, amount: U256) -> Result<(), Error> {
+    fn safe_approve(
+        &mut self,
+        token: Address,
+        spender: Address,
+        amount: U256,
+    ) -> Result<(), Error> {
         let call = Call::new_mutating(self);
         let success = IERC20Router::new(token)
             .approve(self.vm(), call, spender, amount)
@@ -323,7 +332,8 @@ mod tests {
     // buffer (the last mock registered) that every mocked call reads, so all
     // mocks in one flow must return the same bytes; this token satisfies
     // address (payment_token) and bool (transferFrom/approve) reads at once.
-    const TOKEN: Address = Address::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]);
+    const TOKEN: Address =
+        Address::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]);
     const WRONG_TOKEN: Address = Address::new([6u8; 20]);
     const ROUTER: Address = Address::new([7u8; 20]);
 
@@ -469,10 +479,7 @@ mod tests {
             U256::from(100u64),
             U256::from(0u64),
         );
-        assert!(matches!(
-            result,
-            Err(Error::VaultNotApproved(_))
-        ));
+        assert!(matches!(result, Err(Error::VaultNotApproved(_))));
     }
 
     #[test]
@@ -516,25 +523,11 @@ mod tests {
         let amount = U256::from(100u64);
         happy_path_mocks(&vm, amount);
         router
-            .record_repayment(
-                VAULT,
-                B256::repeat_byte(9),
-                amount,
-                amount,
-                U256::ZERO,
-            )
+            .record_repayment(VAULT, B256::repeat_byte(9), amount, amount, U256::ZERO)
             .unwrap();
-        let result = router.record_repayment(
-            VAULT,
-            B256::repeat_byte(9),
-            amount,
-            amount,
-            U256::ZERO,
-        );
-        assert!(matches!(
-            result,
-            Err(Error::RepaymentAlreadyProcessed(_))
-        ));
+        let result =
+            router.record_repayment(VAULT, B256::repeat_byte(9), amount, amount, U256::ZERO);
+        assert!(matches!(result, Err(Error::RepaymentAlreadyProcessed(_))));
     }
 
     #[test]
@@ -549,10 +542,7 @@ mod tests {
             U256::from(90u64),
             U256::from(90u64),
         );
-        assert!(matches!(
-            result,
-            Err(Error::InvalidRepaymentBreakdown(_))
-        ));
+        assert!(matches!(result, Err(Error::InvalidRepaymentBreakdown(_))));
     }
 
     #[test]
@@ -577,13 +567,8 @@ mod tests {
         let amount = U256::from(100u64);
         mock_transfer_from_failure(&vm, amount);
         mock_vault_token(&vm, TOKEN);
-        let result = router.record_repayment(
-            VAULT,
-            B256::repeat_byte(9),
-            amount,
-            amount,
-            U256::ZERO,
-        );
+        let result =
+            router.record_repayment(VAULT, B256::repeat_byte(9), amount, amount, U256::ZERO);
         assert!(matches!(result, Err(Error::TransferFailed(_))));
         assert!(!router.is_repayment_processed(VAULT, B256::repeat_byte(9)));
     }
@@ -597,13 +582,8 @@ mod tests {
         mock_transfer_from(&vm, amount);
         mock_approve(&vm, amount);
         mock_vault_token(&vm, TOKEN);
-        let result = router.record_repayment(
-            VAULT,
-            B256::repeat_byte(9),
-            amount,
-            amount,
-            U256::ZERO,
-        );
+        let result =
+            router.record_repayment(VAULT, B256::repeat_byte(9), amount, amount, U256::ZERO);
         assert!(matches!(result, Err(Error::VaultCallFailed(_))));
         assert!(!router.is_repayment_processed(VAULT, B256::repeat_byte(9)));
     }
