@@ -4,12 +4,14 @@ import { spawnSync } from "child_process";
 import {
   getExportConfig,
   ensureDeploymentDirectory,
-  executeCommand,
+  executeFileCommand,
   generateTsAbi,
   handleSolcError,
   parseAbiOutput,
   writeCleanAbiFile,
 } from "./utils/";
+
+const STYLUS_WORKSPACE = path.resolve(__dirname, "../contracts");
 
 function configureSolc(): () => void {
   const nativeSolc = spawnSync("solc", ["--version"], { stdio: "ignore" });
@@ -70,9 +72,24 @@ export async function exportStylusAbi(
     const restorePath = configureSolc();
     let exportOutput: string;
     try {
-      exportOutput = await executeCommand(
-        "cargo stylus export-abi --json",
-        fsPath,
+      exportOutput = await executeFileCommand(
+        {
+          executable: "cargo",
+          args: [
+            "stylus",
+            "export-abi",
+            "--json",
+            `--contract=${contractFolder}`,
+          ],
+          displayArgs: [
+            "stylus",
+            "export-abi",
+            "--json",
+            `--contract=${contractFolder}`,
+          ],
+          cleanup: () => undefined,
+        },
+        STYLUS_WORKSPACE,
         "Exporting ABI",
       );
     } finally {

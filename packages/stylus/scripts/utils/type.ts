@@ -20,6 +20,7 @@ export interface DeployOptions {
   maxFee?: string;
   verify?: boolean;
   minimal?: boolean;
+  resume?: boolean;
 }
 
 export interface DeploymentData {

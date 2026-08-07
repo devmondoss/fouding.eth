@@ -1,6 +1,5 @@
 import { spawn } from "child_process";
 import * as fs from "fs";
-import * as os from "os";
 import * as path from "path";
 import { DeploymentConfig, DeployOptions } from "./type";
 import {
@@ -9,9 +8,12 @@ import {
 } from "./contract";
 import { getRpcUrlFromChain } from "./network";
 import { createPublicClient, http, formatUnits } from "viem";
+import { redactSensitiveError } from "./redact";
 
 const DEFAULT_GAS_FEE_MULTIPLIER = 3;
 const MIN_FEE_GWEI = 0.1;
+const STYLUS_WORKSPACE = path.resolve(__dirname, "../../contracts");
+const DEPLOY_KEY_DIRECTORY = path.join(STYLUS_WORKSPACE, "target", "deploy-keys");
 
 export interface PreparedCommand {
   executable: string;
@@ -24,16 +26,16 @@ function createPrivateKeyFile(privateKey: string): {
   privateKeyPath: string;
   cleanup: () => void;
 } {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "fouding-stylus-key-"));
+  fs.mkdirSync(DEPLOY_KEY_DIRECTORY, { recursive: true, mode: 0o700 });
+  const directory = fs.mkdtempSync(path.join(DEPLOY_KEY_DIRECTORY, "run-"));
+  fs.chmodSync(directory, 0o700);
   const privateKeyPath = path.join(directory, "deployer.key");
   fs.writeFileSync(privateKeyPath, `${privateKey}\n`, { mode: 0o600 });
 
   return {
-    privateKeyPath,
-    cleanup: () => {
-      if (fs.existsSync(privateKeyPath)) fs.unlinkSync(privateKeyPath);
-      if (fs.existsSync(directory)) fs.rmdirSync(directory);
-    },
+    // cargo-stylus mounts the workspace at /source for reproducible Docker runs.
+    privateKeyPath: path.relative(STYLUS_WORKSPACE, privateKeyPath),
+    cleanup: () => fs.rmSync(directory, { recursive: true, force: true }),
   };
 }
 
@@ -72,9 +74,11 @@ export async function buildDeployCommand(
   const args = ["stylus", "deploy"];
   const displayArgs = ["stylus", "deploy"];
 
+  args.push(`--contract=${deployOptions.contract}`);
+  displayArgs.push(`--contract=${deployOptions.contract}`);
+
   args.push(`--endpoint=${getRpcUrlFromChain(config.chain)}`);
   displayArgs.push("--endpoint=***");
-
   if (deployOptions.estimateGas) {
     args.push("--estimate-gas");
     displayArgs.push("--estimate-gas");
@@ -187,103 +191,21 @@ export function executeFileCommand(
       const errors = extractErrorLines(errorLines);
       if (code === 0) {
         console.log(`\n✅ ${description} completed successfully!`);
-        resolve(output);
+        resolve(`${output}\n${errorOutput}`);
         return;
       }
 
       console.error(`\n❌ ${description} failed with exit code ${code}`);
-      if (errors) console.error(errors);
+      if (errors) console.error(redactSensitiveError(errors));
       reject(
         new Error(
-          `Command failed with exit code ${code}. Error output: \n${errorOutput}`,
+          `Command failed with exit code ${code}. Error output: \n${redactSensitiveError(errorOutput)}`,
         ),
       );
     });
 
     childProcess.on("error", (error: Error) => {
-      console.error(`\n❌ ${description} failed:`, error);
-      reject(error);
-    });
-  });
-}
-
-export function executeCommand(
-  command: string,
-  cwd: string,
-  description: string,
-): Promise<string> {
-  console.log(`\n🔄 ${description}...`);
-  // Sanitize command to hide private key (create a copy to avoid modifying original)
-  const sanitizedCommand = command.slice();
-  console.log(
-    `Executing: ${sanitizedCommand.replace(/--private-key=[^\s]+/g, "--private-key=***")}`,
-  );
-
-  return new Promise((resolve, reject) => {
-    const childProcess = spawn(command, [], {
-      cwd,
-      shell: true,
-      stdio: ["inherit", "pipe", "pipe"],
-    });
-
-    let output = "";
-    let errorOutput = "";
-    let errorLines: string[] = [];
-
-    // Handle stdout
-    if (childProcess.stdout) {
-      childProcess.stdout.on("data", (data: Buffer) => {
-        const chunk = data.toString();
-        output += chunk;
-      });
-    }
-
-    // Handle stderr
-    if (childProcess.stderr) {
-      childProcess.stderr.on("data", (data: Buffer) => {
-        const chunk = data.toString();
-        errorOutput += chunk;
-        const newLines = chunk.split("\n");
-        errorLines.push(...newLines);
-        // Keep only the last 20 lines, just for safety
-        if (errorLines.length > 20) {
-          errorLines = errorLines.slice(-20);
-        }
-      });
-    }
-
-    // Handle process completion
-    childProcess.on("close", (code: number | null) => {
-      // this can extract and detect errors from docker logs because it not throw error code
-      const errors = extractErrorLines(errorLines);
-
-      if (code === 0) {
-        console.log(`\n✅ ${description} completed successfully!`);
-        resolve(output);
-      } else {
-        console.error(`\n❌ ${description} failed with exit code ${code}`);
-        // Print error output starting from "project metadata hash computed on deployment" or error patterns, or all logs if not found
-        if (errors) {
-          console.error(errors);
-          if (
-            !command.includes("--no-verify") &&
-            errors.includes("mismatch number of constructor arguments")
-          ) {
-            errorOutput += `\nCan not verify contract with constructor arguments.\n`;
-          }
-        }
-
-        reject(
-          new Error(
-            `Command failed with exit code ${code}. Error output: \n${errorOutput}`,
-          ),
-        );
-      }
-    });
-
-    // Handle process errors
-    childProcess.on("error", (error: Error) => {
-      console.error(`\n❌ ${description} failed:`, error);
+      console.error(`\n❌ ${description} failed:`, redactSensitiveError(error));
       reject(error);
     });
   });

@@ -17,6 +17,9 @@ import { privateKeyToAccount } from "viem/accounts";
 import * as path from "path";
 import { arbitrumNitro } from "./utils/supportedChains";
 import { verifyStylusSourceOnExplorer } from "./verify_stylus_explorer";
+import { redactSensitiveError } from "./utils/redact";
+
+const STYLUS_WORKSPACE = path.resolve(__dirname, "../contracts");
 
 /**
  * Deploy a single contract using cargo stylus
@@ -42,7 +45,7 @@ export default async function deployStylusContract(
     try {
       deployOutput = await executeFileCommand(
         deployCommand,
-        path.join("contracts", deployOptions.contract!),
+        STYLUS_WORKSPACE,
         "Deploying contract with cargo stylus",
       );
     } finally {
@@ -72,6 +75,7 @@ export default async function deployStylusContract(
         console.log("Transaction hash: ", deploymentInfo.txHash);
       }
     } else {
+      console.error(redactSensitiveError(deployOutput));
       throw new Error("Failed to extract deployed address");
     }
 
@@ -137,18 +141,20 @@ export default async function deployStylusContract(
             args: [
               "stylus",
               "verify",
+              `--contract=${deployOptions.contract}`,
               `--endpoint=${getRpcUrlFromChain(config.chain)}`,
               `--deployment-tx=${deploymentInfo.txHash}`,
             ],
             displayArgs: [
               "stylus",
               "verify",
+              `--contract=${deployOptions.contract}`,
               "--endpoint=***",
               `--deployment-tx=${deploymentInfo.txHash}`,
             ],
             cleanup: () => undefined,
           },
-          path.join("contracts", deployOptions.contract!),
+          STYLUS_WORKSPACE,
           "Verifying contract with cargo stylus",
         );
         console.log(output);
@@ -158,9 +164,9 @@ export default async function deployStylusContract(
       } catch (error) {
         console.error(`❌ Verification failed in: ${deployOptions.contract}`);
         if (error instanceof Error) {
-          console.error(error.message);
+          console.error(redactSensitiveError(error));
         } else {
-          console.error(error);
+          console.error(redactSensitiveError(error));
         }
         throw error;
       }
@@ -168,9 +174,9 @@ export default async function deployStylusContract(
   } catch (error) {
     console.error(`❌ Deployment failed in: ${deployOptions.contract}`);
     if (error instanceof Error) {
-      console.error(error.message);
+      console.error(redactSensitiveError(error));
     } else {
-      console.error(error);
+      console.error(redactSensitiveError(error));
     }
     process.exit(1);
   }

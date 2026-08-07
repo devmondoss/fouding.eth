@@ -20,11 +20,14 @@ import {
   generateTsAbi,
   getDeploymentConfig,
   getRpcUrlFromChain,
+  parseAbiOutput,
+  parseContractDeployment,
   printDeployedAddresses,
   saveDeployment,
   writeCleanAbiFile,
 } from "./utils/";
 import { DeployOptions, DeploymentConfig } from "./utils/type";
+import { executeFileCommand } from "./utils/command";
 
 type FoundryArtifact = {
   abi: Abi;
@@ -38,6 +41,7 @@ type ContractDeployment = {
 };
 
 const FOUNDRY_ROOT = path.resolve(__dirname, "../../foundry");
+const STYLUS_WORKSPACE = path.resolve(__dirname, "../contracts");
 const USDC = 10n ** 6n;
 const DAY = 24n * 60n * 60n;
 
@@ -129,6 +133,52 @@ async function deploySolidity(
   };
 }
 
+async function loadExistingDeployment(
+  contractName: string,
+  baseConfig: DeploymentConfig,
+  publicClient: ReturnType<typeof createPublicClient>,
+): Promise<ContractDeployment | null> {
+  const manifestPath = path.resolve(
+    baseConfig.deploymentDir,
+    `${baseConfig.chain.id}_latest.json`,
+  );
+  if (!fs.existsSync(manifestPath)) return null;
+
+  try {
+    const manifest: unknown = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+    const stored = parseContractDeployment(
+      manifest,
+      contractName,
+      String(baseConfig.chain.id),
+    );
+    const code = await publicClient.getBytecode({ address: stored.address });
+    if (!code || code === "0x") {
+      throw new Error(`${contractName} has no bytecode on chain`);
+    }
+    const abiPath = path.resolve(
+      baseConfig.deploymentDir,
+      stored.contractFolder,
+    );
+    if (!fs.existsSync(abiPath)) {
+      throw new Error(`${contractName} ABI is missing from the deployment directory`);
+    }
+    console.log(`♻️ Reusing ${contractName}: ${stored.address}`);
+    return {
+      address: stored.address,
+      txHash: stored.txHash as Hex,
+      abi: parseAbiOutput(fs.readFileSync(abiPath, "utf8")) as Abi,
+    };
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message.includes(`Contract ${contractName} not found`)
+    ) {
+      return null;
+    }
+    throw error;
+  }
+}
+
 async function writeAndWait(
   label: string,
   walletClient: ReturnType<typeof createWalletClient>,
@@ -176,55 +226,110 @@ export default async function deployScript(deployOptions: DeployOptions) {
   console.log(`👤 Deployer: ${account.address}`);
   console.log(`📁 Deployment directory: ${baseConfig.deploymentDir}`);
 
-  archiveLatestDeployment(baseConfig.deploymentDir, baseConfig.chain.id);
-
   execFileSync("forge", ["build", "--root", FOUNDRY_ROOT], {
     stdio: "inherit",
   });
 
-  const mockUsdc = await deploySolidity(
-    "MockUSDC",
-    "MockUSDC",
-    baseConfig,
-    walletClient,
-    publicClient,
-    account.address,
-    Boolean(options.verify),
-  );
-  const accessRegistry = await deploySolidity(
-    "AccessRegistry",
-    "AccessRegistry",
-    baseConfig,
-    walletClient,
-    publicClient,
-    account.address,
-    Boolean(options.verify),
-  );
-  const passport = await deploySolidity(
-    "CompanyPassportSBT",
-    "CompanyPassportSBT",
-    baseConfig,
-    walletClient,
-    publicClient,
-    account.address,
-    Boolean(options.verify),
-  );
-  const registry = await deploySolidity(
-    "CreditRegistry",
-    "CreditRegistry",
-    baseConfig,
-    walletClient,
-    publicClient,
-    account.address,
-    Boolean(options.verify),
+  await executeFileCommand(
+    {
+      executable: "cargo",
+      args: [
+        "stylus",
+        "check",
+        "--contract=credit-vault",
+        `--endpoint=${rpcUrl}`,
+      ],
+      displayArgs: [
+        "stylus",
+        "check",
+        "--contract=credit-vault",
+        "--endpoint=***",
+      ],
+      cleanup: () => undefined,
+    },
+    STYLUS_WORKSPACE,
+    "Checking CreditVault against the target Stylus runtime",
   );
 
-  await deployStylusContract({
-    ...options,
-    contract: "credit-vault",
-    name: "CreditVault",
-    constructorArgs: [],
-  });
+  if (options.estimateGas) {
+    await deployStylusContract({
+      ...options,
+      contract: "credit-vault",
+      name: "CreditVault",
+      constructorArgs: [],
+    });
+    return;
+  }
+
+  if (!options.resume) {
+    archiveLatestDeployment(baseConfig.deploymentDir, baseConfig.chain.id);
+  }
+
+  const mockUsdc =
+    (options.resume &&
+      (await loadExistingDeployment("MockUSDC", baseConfig, publicClient))) ||
+    (await deploySolidity(
+      "MockUSDC",
+      "MockUSDC",
+      baseConfig,
+      walletClient,
+      publicClient,
+      account.address,
+      Boolean(options.verify),
+    ));
+  const accessRegistry =
+    (options.resume &&
+      (await loadExistingDeployment("AccessRegistry", baseConfig, publicClient))) ||
+    (await deploySolidity(
+      "AccessRegistry",
+      "AccessRegistry",
+      baseConfig,
+      walletClient,
+      publicClient,
+      account.address,
+      Boolean(options.verify),
+    ));
+  const passport =
+    (options.resume &&
+      (await loadExistingDeployment("CompanyPassportSBT", baseConfig, publicClient))) ||
+    (await deploySolidity(
+      "CompanyPassportSBT",
+      "CompanyPassportSBT",
+      baseConfig,
+      walletClient,
+      publicClient,
+      account.address,
+      Boolean(options.verify),
+    ));
+  const registry =
+    (options.resume &&
+      (await loadExistingDeployment("CreditRegistry", baseConfig, publicClient))) ||
+    (await deploySolidity(
+      "CreditRegistry",
+      "CreditRegistry",
+      baseConfig,
+      walletClient,
+      publicClient,
+      account.address,
+      Boolean(options.verify),
+    ));
+
+  let mainVault =
+    options.resume &&
+    (await loadExistingDeployment("CreditVault", baseConfig, publicClient));
+  if (!mainVault) {
+    await deployStylusContract({
+      ...options,
+      contract: "credit-vault",
+      name: "CreditVault",
+      constructorArgs: [],
+    });
+    const deploymentModule = await import("./utils/contract");
+    mainVault = deploymentModule.getContractData(
+      baseConfig.chain.id.toString(),
+      "CreditVault",
+    ) as ContractDeployment;
+  }
   if (!options.minimal) {
     await deployStylusContract({
       ...options,
@@ -241,10 +346,6 @@ export default async function deployScript(deployOptions: DeployOptions) {
   }
 
   const deploymentModule = await import("./utils/contract");
-  const mainVault = deploymentModule.getContractData(
-    baseConfig.chain.id.toString(),
-    "CreditVault",
-  ) as ContractDeployment;
 
   await writeAndWait("Registry.setPassportContract", walletClient, publicClient, {
     account,

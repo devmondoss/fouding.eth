@@ -24,6 +24,33 @@ function commandOutput(command: string, args: string[]): string {
   }).trim();
 }
 
+function getPublicSourceCommit(): string {
+  const sourceTree = commandOutput("git", [
+    "rev-parse",
+    `HEAD:${CONTRACT_SOURCE_PATH}`,
+  ]);
+  const remoteCommits = commandOutput("git", [
+    "rev-list",
+    "--remotes=origin",
+    "--",
+    CONTRACT_SOURCE_PATH,
+  ]).split("\n");
+
+  for (const commit of remoteCommits) {
+    if (!commit) continue;
+    try {
+      const remoteTree = commandOutput("git", [
+        "rev-parse",
+        `${commit}:${CONTRACT_SOURCE_PATH}`,
+      ]);
+      if (remoteTree === sourceTree) return commit;
+    } catch {
+      // The path may not exist in an older remote commit.
+    }
+  }
+  throw new Error("No public remote commit matches the local Stylus source tree");
+}
+
 function getPublicSourceUrl(): string {
   const dirtySource = commandOutput("git", [
     "status",
@@ -41,7 +68,7 @@ function getPublicSourceUrl(): string {
   if (!remote.startsWith("https://github.com/")) {
     throw new Error("Stylus explorer verification requires a public GitHub origin");
   }
-  const commit = commandOutput("git", ["rev-parse", "HEAD"]);
+  const commit = getPublicSourceCommit();
   return `${remote}/tree/${commit}/${CONTRACT_SOURCE_PATH}`;
 }
 

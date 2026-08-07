@@ -17,10 +17,8 @@ use stylus_sdk::{
     },
     alloy_sol_types::sol,
     prelude::*,
-    stylus_core::log,
 };
 
-#[cfg(not(test))]
 use stylus_sdk::alloy_primitives::keccak256;
 
 const STATUS_DRAFT: u8 = 0;
@@ -38,7 +36,6 @@ const MAX_PLATFORM_FEE_BPS: u16 = 2_000;
 
 sol_interface! {
     interface ICreditRegistry {
-        function isVaultRegistered(address vault) external view returns (bool);
         function isVaultConfigurationValid(address vault, bytes32 deal_id, address borrower, address originator, address payment_token, address passport, address access_registry) external view returns (bool);
         function hasRole(bytes32 role, address account) external view returns (bool);
     }
@@ -59,7 +56,6 @@ sol_interface! {
 
 sol! {
     interface RegistryCalls {
-        function isVaultRegistered(address vault) external view returns (bool);
         function hasRole(bytes32 role, address account) external view returns (bool);
         function isVaultConfigurationValid(address vault, bytes32 dealId, address borrower, address originator, address paymentToken, address passport, address accessRegistry) external view returns (bool);
     }
@@ -86,7 +82,6 @@ sol! {
     #[derive(Debug)] error InvalidState(uint8 expected, uint8 actual);
     #[derive(Debug)] error Unauthorized(address caller);
     #[derive(Debug)] error FundingDeadlinePassed(uint64 deadline);
-    #[derive(Debug)] error VaultNotRegistered(address vault);
     #[derive(Debug)] error BorrowerPassportInvalid(address borrower);
     #[derive(Debug)] error InvestorNotAllowed(address investor);
     #[derive(Debug)] error VaultConfigurationMismatch(address vault);
@@ -127,7 +122,6 @@ pub enum Error {
     InvalidState(InvalidState),
     Unauthorized(Unauthorized),
     FundingDeadlinePassed(FundingDeadlinePassed),
-    VaultNotRegistered(VaultNotRegistered),
     BorrowerPassportInvalid(BorrowerPassportInvalid),
     InvestorNotAllowed(InvestorNotAllowed),
     VaultConfigurationMismatch(VaultConfigurationMismatch),
@@ -240,17 +234,14 @@ impl CreditVault {
         self.legal_pack_hash.set(legal_pack_hash);
         self.collateral_hash.set(collateral_hash);
 
-        log(
-            self.vm(),
-            VaultInitialized {
-                dealId: deal_id,
-                borrower,
-                originator,
-                paymentToken: payment_token,
-                accessRegistry: access_registry,
-                fundingTarget: funding_target,
-            },
-        );
+        self.vm().log(VaultInitialized {
+            dealId: deal_id,
+            borrower,
+            originator,
+            paymentToken: payment_token,
+            accessRegistry: access_registry,
+            fundingTarget: funding_target,
+        });
         Ok(())
     }
 
@@ -266,12 +257,9 @@ impl CreditVault {
             }));
         }
         self.status.set(U8::from(STATUS_FUNDING));
-        log(
-            self.vm(),
-            FundingOpened {
-                fundingDeadline: deadline,
-            },
-        );
+        self.vm().log(FundingOpened {
+            fundingDeadline: deadline,
+        });
         Ok(())
     }
 
@@ -318,21 +306,15 @@ impl CreditVault {
         self.safe_transfer_from(token, investor, vault, amount)?;
         self.exit();
 
-        log(
-            self.vm(),
-            Funded {
-                investor,
-                amount,
-                totalFunded: next_total,
-            },
-        );
+        self.vm().log(Funded {
+            investor,
+            amount,
+            totalFunded: next_total,
+        });
         if next_total == self.funding_target.get() {
-            log(
-                self.vm(),
-                FundingCompleted {
-                    totalFunded: next_total,
-                },
-            );
+            self.vm().log(FundingCompleted {
+                totalFunded: next_total,
+            });
         }
         Ok(())
     }
@@ -344,12 +326,9 @@ impl CreditVault {
         let refundable = self.total_funded.get();
         self.total_claimable.set(refundable);
         self.status.set(U8::from(STATUS_CANCELLED));
-        log(
-            self.vm(),
-            FundingCancelled {
-                refundableAmount: refundable,
-            },
-        );
+        self.vm().log(FundingCancelled {
+            refundableAmount: refundable,
+        });
         Ok(())
     }
 
@@ -378,14 +357,11 @@ impl CreditVault {
         self.safe_transfer(token, self.borrower.get(), borrower_proceeds)?;
         self.exit();
 
-        log(
-            self.vm(),
-            Activated {
-                principalOutstanding: funded,
-                borrowerProceeds: borrower_proceeds,
-                platformFee: fee,
-            },
-        );
+        self.vm().log(Activated {
+            principalOutstanding: funded,
+            borrowerProceeds: borrower_proceeds,
+            platformFee: fee,
+        });
         Ok(())
     }
 
@@ -432,14 +408,11 @@ impl CreditVault {
         let vault = self.vm().contract_address();
         self.safe_transfer_from(token, payer, vault, amount)?;
         self.exit();
-        log(
-            self.vm(),
-            RepaymentRecorded {
-                payer,
-                amount,
-                totalRepaid: next_repaid,
-            },
-        );
+        self.vm().log(RepaymentRecorded {
+            payer,
+            amount,
+            totalRepaid: next_repaid,
+        });
         Ok(())
     }
 
@@ -479,14 +452,11 @@ impl CreditVault {
         self.safe_transfer(self.payment_token.get(), investor, amount)?;
         self.exit();
 
-        log(
-            self.vm(),
-            Claimed {
-                investor,
-                amount,
-                totalClaimed: global_total,
-            },
-        );
+        self.vm().log(Claimed {
+            investor,
+            amount,
+            totalClaimed: global_total,
+        });
         Ok(amount)
     }
 
@@ -495,12 +465,9 @@ impl CreditVault {
         self.require_servicing_actor()?;
         self.require_state(STATUS_ACTIVE)?;
         self.status.set(U8::from(STATUS_DEFAULTED));
-        log(
-            self.vm(),
-            DefaultDeclared {
-                principalOutstanding: self.principal_outstanding.get(),
-            },
-        );
+        self.vm().log(DefaultDeclared {
+            principalOutstanding: self.principal_outstanding.get(),
+        });
         Ok(())
     }
 
@@ -509,7 +476,7 @@ impl CreditVault {
         self.require_servicing_actor()?;
         self.require_state(STATUS_DEFAULTED)?;
         self.status.set(U8::from(STATUS_RECOVERY));
-        log(self.vm(), RecoveryStarted {});
+        self.vm().log(RecoveryStarted {});
         Ok(())
     }
 
@@ -555,14 +522,11 @@ impl CreditVault {
             amount,
         )?;
         self.exit();
-        log(
-            self.vm(),
-            RecoveryRecorded {
-                payer,
-                amount,
-                totalRepaid: next_repaid,
-            },
-        );
+        self.vm().log(RecoveryRecorded {
+            payer,
+            amount,
+            totalRepaid: next_repaid,
+        });
         Ok(())
     }
 
@@ -581,13 +545,10 @@ impl CreditVault {
             }));
         }
         self.status.set(U8::from(STATUS_CLOSED));
-        log(
-            self.vm(),
-            Closed {
-                totalRepaid: self.total_repaid.get(),
-                totalClaimed: self.total_claimed.get(),
-            },
-        );
+        self.vm().log(Closed {
+            totalRepaid: self.total_repaid.get(),
+            totalClaimed: self.total_claimed.get(),
+        });
         Ok(())
     }
 
@@ -724,25 +685,19 @@ impl CreditVault {
         Ok(())
     }
 
-    #[cfg(not(test))]
     fn is_servicer(&self, account: Address) -> Result<bool, Error> {
         let role = keccak256("SERVICER_ROLE");
         ICreditRegistry::new(self.registry.get())
-            .has_role(self, role, account)
+            .has_role(self.vm(), Call::new(), role, account)
             .map_err(|_| Error::Unauthorized(Unauthorized { caller: account }))
     }
 
-    #[cfg(test)]
-    fn is_servicer(&self, _account: Address) -> Result<bool, Error> {
-        Ok(false)
-    }
-
-    #[cfg(not(test))]
     fn ensure_official(&self) -> Result<(), Error> {
         let vault = self.vm().contract_address();
         let valid = ICreditRegistry::new(self.registry.get())
             .is_vault_configuration_valid(
-                self,
+                self.vm(),
+                Call::new(),
                 vault,
                 self.deal_id.get(),
                 self.borrower.get(),
@@ -759,7 +714,7 @@ impl CreditVault {
         }
         let borrower = self.borrower.get();
         let verified = ICompanyPassport::new(self.passport.get())
-            .is_verified_company(self, borrower)
+            .is_verified_company(self.vm(), Call::new(), borrower)
             .map_err(|_| Error::BorrowerPassportInvalid(BorrowerPassportInvalid { borrower }))?;
         if !verified {
             return Err(Error::BorrowerPassportInvalid(BorrowerPassportInvalid {
@@ -769,24 +724,13 @@ impl CreditVault {
         Ok(())
     }
 
-    #[cfg(test)]
-    fn ensure_official(&self) -> Result<(), Error> {
-        Ok(())
-    }
-
-    #[cfg(not(test))]
     fn ensure_investor_allowed(&self, investor: Address) -> Result<(), Error> {
         let allowed = IAccessRegistry::new(self.access_registry.get())
-            .is_allowed_investor(self, investor)
+            .is_allowed_investor(self.vm(), Call::new(), investor)
             .map_err(|_| Error::InvestorNotAllowed(InvestorNotAllowed { investor }))?;
         if !allowed {
             return Err(Error::InvestorNotAllowed(InvestorNotAllowed { investor }));
         }
-        Ok(())
-    }
-
-    #[cfg(test)]
-    fn ensure_investor_allowed(&self, _investor: Address) -> Result<(), Error> {
         Ok(())
     }
 
@@ -835,8 +779,9 @@ impl CreditVault {
         to: Address,
         amount: U256,
     ) -> Result<(), Error> {
+        let call = Call::new_mutating(self);
         let success = IERC20Interface::new(token)
-            .transfer_from(&mut *self, from, to, amount)
+            .transfer_from(self.vm(), call, from, to, amount)
             .map_err(|_| Error::TokenTransferFailed(TokenTransferFailed { token }))?;
         if !success {
             return Err(Error::TokenTransferFailed(TokenTransferFailed { token }));
@@ -857,8 +802,9 @@ impl CreditVault {
 
     #[cfg(not(test))]
     fn safe_transfer(&mut self, token: Address, to: Address, amount: U256) -> Result<(), Error> {
+        let call = Call::new_mutating(self);
         let success = IERC20Interface::new(token)
-            .transfer(&mut *self, to, amount)
+            .transfer(self.vm(), call, to, amount)
             .map_err(|_| Error::TokenTransferFailed(TokenTransferFailed { token }))?;
         if !success {
             return Err(Error::TokenTransferFailed(TokenTransferFailed { token }));
@@ -892,6 +838,10 @@ mod tests {
     const TARGET: u64 = 1_000_000_000;
 
     fn setup() -> (TestVM, CreditVault) {
+        setup_with_registry_validity(true)
+    }
+
+    fn setup_with_registry_validity(registry_valid: bool) -> (TestVM, CreditVault) {
         let vm = TestVMBuilder::new()
             .sender(ADMIN)
             .contract_address(VAULT)
@@ -918,20 +868,36 @@ mod tests {
                 B256::repeat_byte(3),
             )
             .unwrap();
-        mock_official(&vm);
+        mock_official(&vm, registry_valid);
         (vm, vault)
     }
 
-    fn mock_official(vm: &TestVM) {
-        vm.mock_static_call(
-            REGISTRY,
-            RegistryCalls::isVaultRegisteredCall { vault: VAULT }.abi_encode(),
-            Ok(true.abi_encode()),
-        );
+    fn mock_official(vm: &TestVM, registry_valid: bool) {
         vm.mock_static_call(
             PASSPORT,
             PassportCalls::isVerifiedCompanyCall { account: BORROWER }.abi_encode(),
             Ok(true.abi_encode()),
+        );
+        vm.mock_static_call(
+            ACCESS_REGISTRY,
+            AccessRegistryCalls::isAllowedInvestorCall { investor: INVESTOR }.abi_encode(),
+            Ok(true.abi_encode()),
+        );
+        // stylus-test 0.10.x keeps the latest return buffer globally while
+        // call success remains keyed by target and calldata.
+        vm.mock_static_call(
+            REGISTRY,
+            RegistryCalls::isVaultConfigurationValidCall {
+                vault: VAULT,
+                dealId: B256::repeat_byte(1),
+                borrower: BORROWER,
+                originator: ORIGINATOR,
+                paymentToken: TOKEN,
+                passport: PASSPORT,
+                accessRegistry: ACCESS_REGISTRY,
+            }
+            .abi_encode(),
+            Ok(registry_valid.abi_encode()),
         );
     }
 
@@ -944,6 +910,7 @@ mod tests {
                 amount,
             }
             .abi_encode(),
+            U256::ZERO,
             Ok(true.abi_encode()),
         );
     }
@@ -952,6 +919,7 @@ mod tests {
         vm.mock_call(
             TOKEN,
             TokenCalls::transferCall { to, amount }.abi_encode(),
+            U256::ZERO,
             Ok(true.abi_encode()),
         );
     }
@@ -1050,6 +1018,29 @@ mod tests {
         assert!(matches!(vault.activate(), Err(Error::InvalidState(_))));
         vault.open_funding().unwrap();
         assert!(matches!(vault.open_funding(), Err(Error::InvalidState(_))));
+    }
+
+    #[test]
+    fn fails_closed_for_invalid_registry_and_disallowed_investor() {
+        let (vm, mut vault) = setup_with_registry_validity(false);
+        vm.set_sender(ORIGINATOR);
+        let result = vault.open_funding();
+        assert!(
+            matches!(result, Err(Error::VaultConfigurationMismatch(_))),
+            "unexpected result: {result:?}"
+        );
+
+        let (vm, vault) = setup();
+        vm.mock_static_call(
+            ACCESS_REGISTRY,
+            AccessRegistryCalls::isAllowedInvestorCall { investor: INVESTOR }.abi_encode(),
+            Ok(false.abi_encode()),
+        );
+        let result = vault.ensure_investor_allowed(INVESTOR);
+        assert!(
+            matches!(result, Err(Error::InvestorNotAllowed(_))),
+            "unexpected result: {result:?}"
+        );
     }
 
     #[test]

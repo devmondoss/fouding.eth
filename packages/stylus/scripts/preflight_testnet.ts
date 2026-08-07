@@ -3,6 +3,7 @@ import { formatEther, http, parseEther, createPublicClient } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { arbitrumSepolia } from "viem/chains";
 import "./utils/network";
+import { redactSensitiveError } from "./utils/redact";
 
 const REQUIRED_BRANCH = "feat/pr-03-company-passport-testnet";
 const MINIMUM_BALANCE = parseEther("0.01");
@@ -67,7 +68,7 @@ export async function runTestnetPreflight(): Promise<{
 
 if (require.main === module) {
   runTestnetPreflight().catch((error: unknown) => {
-    console.error(error instanceof Error ? error.message : error);
+    console.error(redactSensitiveError(error));
     process.exit(1);
   });
 }

@@ -6,10 +6,11 @@ import { executeFileCommand } from "./utils/command";
 import { parseContractDeployment } from "./utils/deployment";
 import { verifySoliditySource } from "./verify_solidity_explorer";
 import { verifyStylusSourceOnExplorer } from "./verify_stylus_explorer";
+import { redactSensitiveError } from "./utils/redact";
 
 const CHAIN_ID = "421614";
 const DEPLOYMENT_FILE = path.resolve(__dirname, `../deployments/${CHAIN_ID}_latest.json`);
-const STYLUS_CONTRACT_DIR = path.resolve(__dirname, "../contracts/credit-vault");
+const STYLUS_WORKSPACE = path.resolve(__dirname, "../contracts");
 
 const SOLIDITY_CONTRACTS = [
   "MockUSDC",
@@ -45,24 +46,26 @@ async function verifyTestnet(): Promise<void> {
       args: [
         "stylus",
         "verify",
+        "--contract=credit-vault",
         `--endpoint=${rpcUrl}`,
         `--deployment-tx=${vault.txHash}`,
       ],
       displayArgs: [
         "stylus",
         "verify",
+        "--contract=credit-vault",
         "--endpoint=***",
         `--deployment-tx=${vault.txHash}`,
       ],
       cleanup: () => undefined,
     },
-    STYLUS_CONTRACT_DIR,
+    STYLUS_WORKSPACE,
     "Verifying reproducible CreditVault deployment",
   );
   await verifyStylusSourceOnExplorer(vault.address as Address);
 }
 
 verifyTestnet().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : error);
+  console.error(redactSensitiveError(error));
   process.exit(1);
 });
