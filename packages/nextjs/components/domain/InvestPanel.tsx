@@ -19,7 +19,7 @@ import {
 import { useSession } from "@/lib/useSession";
 import { useCreditRegistry } from "@/hooks/useCreditRegistry";
 import { useCreditVault } from "@/hooks/useCreditVault";
-import { useMockUsdc } from "@/hooks/useMockUsdc";
+import { useProtocolToken } from "@/hooks/useProtocolToken";
 import type { Opportunity } from "@/lib/types";
 
 const RAPIDOS = [1_000, 2_500, 5_000];
@@ -37,7 +37,7 @@ export function InvestPanel({
   const investor = session?.address as Address | undefined;
   const vault = useCreditVault(investor);
   const registry = useCreditRegistry(vault.address);
-  const token = useMockUsdc(investor, vault.address);
+  const token = useProtocolToken(investor, vault.address);
   const verified = session?.verified ?? false;
   const [amount, setAmount] = useState("2500");
   const [confirming, setConfirming] = useState(false);

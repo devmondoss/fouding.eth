@@ -13,6 +13,7 @@ import {
   toBytes,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { arbitrumSepolia } from "viem/chains";
 import deployStylusContract from "./deploy_contract";
 import { runTestnetPreflight } from "./preflight_testnet";
 import { verifySoliditySource } from "./verify_solidity_explorer";
@@ -44,6 +45,8 @@ const FOUNDRY_ROOT = path.resolve(__dirname, "../../foundry");
 const STYLUS_WORKSPACE = path.resolve(__dirname, "../contracts");
 const USDC = 10n ** 6n;
 const DAY = 24n * 60n * 60n;
+const ARBITRUM_SEPOLIA_USDC_ADDRESS =
+  "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d" as Address;
 
 function archiveLatestDeployment(deploymentDir: string, chainId: number): void {
   const latest = path.resolve(deploymentDir, `${chainId}_latest.json`);
@@ -265,18 +268,26 @@ export default async function deployScript(deployOptions: DeployOptions) {
     archiveLatestDeployment(baseConfig.deploymentDir, baseConfig.chain.id);
   }
 
-  const mockUsdc =
-    (options.resume &&
-      (await loadExistingDeployment("MockUSDC", baseConfig, publicClient))) ||
-    (await deploySolidity(
-      "MockUSDC",
-      "MockUSDC",
-      baseConfig,
-      walletClient,
-      publicClient,
-      account.address,
-      Boolean(options.verify),
-    ));
+  let paymentToken: Address;
+  if (baseConfig.chain.id === arbitrumSepolia.id) {
+    paymentToken = ARBITRUM_SEPOLIA_USDC_ADDRESS;
+    console.log(`💵 Payment token: Circle USDC (canonical) ${paymentToken}`);
+  } else {
+    const mockUsdc =
+      (options.resume &&
+        (await loadExistingDeployment("MockUSDC", baseConfig, publicClient))) ||
+      (await deploySolidity(
+        "MockUSDC",
+        "MockUSDC",
+        baseConfig,
+        walletClient,
+        publicClient,
+        account.address,
+        Boolean(options.verify),
+      ));
+    paymentToken = mockUsdc.address;
+    console.log(`💵 Payment token: MockUSDC ${paymentToken}`);
+  }
   const accessRegistry =
     (options.resume &&
       (await loadExistingDeployment("AccessRegistry", baseConfig, publicClient))) ||
@@ -369,7 +380,7 @@ export default async function deployScript(deployOptions: DeployOptions) {
     address: registry.address,
     abi: registry.abi,
     functionName: "setPaymentToken",
-    args: [mockUsdc.address, true],
+    args: [paymentToken, true],
   });
 
   const devAccounts = (
@@ -471,7 +482,7 @@ export default async function deployScript(deployOptions: DeployOptions) {
         vault.dealId,
         borrower,
         account.address,
-        mockUsdc.address,
+        paymentToken,
         registry.address,
         passport.address,
         accessRegistry.address,
@@ -495,7 +506,7 @@ export default async function deployScript(deployOptions: DeployOptions) {
         vault.deployment.address,
         borrower,
         account.address,
-        mockUsdc.address,
+        paymentToken,
         vault.dealId,
       ],
     });

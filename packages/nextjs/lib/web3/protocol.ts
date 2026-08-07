@@ -1,6 +1,6 @@
 import type { Abi, Address } from "viem";
 import deployedContracts from "@/contracts/deployedContracts";
-import { protocolChain } from "@/lib/web3/config";
+import { arbitrumSepolia, protocolChain } from "@/lib/web3/config";
 
 export type ProtocolContractName =
   | "AccessRegistry"
@@ -16,6 +16,84 @@ type ProtocolDeployment = {
   abi: Abi;
   txHash: `0x${string}`;
 };
+
+/**
+ * Token de pago canónico del protocolo por red. En Arbitrum Sepolia es el
+ * USDC de Circle (sin faucet); en devnet cae al MockUSDC desplegado.
+ */
+export const ARBITRUM_SEPOLIA_USDC_ADDRESS =
+  "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d";
+
+export const usdcAbi = [
+  {
+    type: "function",
+    name: "balanceOf",
+    stateMutability: "view",
+    inputs: [{ name: "account", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "allowance",
+    stateMutability: "view",
+    inputs: [
+      { name: "owner", type: "address" },
+      { name: "spender", type: "address" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "approve",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "spender", type: "address" },
+      { name: "value", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "transferFrom",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "from", type: "address" },
+      { name: "to", type: "address" },
+      { name: "value", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+] as const;
+
+export type ProtocolToken = {
+  address?: Address;
+  abi: Abi;
+  symbol: string;
+  faucetCapable: boolean;
+};
+
+export function getProtocolToken(chainId?: number): ProtocolToken {
+  const id = chainId ?? protocolChain.id;
+  if (id === arbitrumSepolia.id) {
+    return {
+      address: ARBITRUM_SEPOLIA_USDC_ADDRESS as Address,
+      abi: usdcAbi,
+      symbol: "USDC",
+      faucetCapable: false,
+    };
+  }
+  const deployments = deployedContracts as unknown as Record<
+    string,
+    Record<string, ProtocolDeployment> | undefined
+  >;
+  const mockUsdc = deployments[String(id)]?.["MockUSDC"];
+  return {
+    address: mockUsdc?.address,
+    abi: mockUsdc?.abi ?? mockUsdcAbi,
+    symbol: "mUSDC",
+    faucetCapable: true,
+  };
+}
 
 export function getProtocolContract(
   name: ProtocolContractName,
