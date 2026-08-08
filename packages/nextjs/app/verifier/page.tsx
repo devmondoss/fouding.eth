@@ -23,7 +23,7 @@ import type { VerifierSubmission } from "@/lib/verifier/types";
 
 /**
  * Panel interno del verificador. Deliberadamente FUERA del módulo único
- * del inversionista (design-system.md §6) — esto no es parte del
+ * del inversionista (docs/design-system.md §6) — esto no es parte del
  * producto que ve un inversionista, es herramienta operativa. No usa
  * `useSession`/Privy: se protege con la API key de
  * `lib/verifier/auth.ts`, guardada en localStorage de este navegador.

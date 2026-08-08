@@ -58,6 +58,7 @@ packages/nextjs  frontend Next.js 16 / React 19
 packages/foundry Solidity, waitlist, tests de permisos/SBT/registry/token
 packages/stylus  CreditVault Rust Stylus, scripts de deploy y E2E
 nitro-devnode    cadena Arbitrum Nitro local
+docs             propuesta, stack, sistema de diseño, plan y checklist de entrega
 ```
 
 Privy sigue siendo la fuente de sesión y wallet. Wagmi/Viem se usan para

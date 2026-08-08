@@ -7,7 +7,7 @@ import * as RechartsPrimitive from "recharts";
  * Envoltorio de Recharts al estilo shadcn/ui: un ChartConfig declarativo
  * (label + color por serie) que alimenta tooltip, leyenda y CSS vars por
  * serie, para no repetir colores a mano en cada gráfico. Es el único punto
- * de entrada a gráficos de la plataforma — ver design-system.md §9.
+ * de entrada a gráficos de la plataforma — ver docs/design-system.md §9.
  */
 
 export type ChartConfig = Record<

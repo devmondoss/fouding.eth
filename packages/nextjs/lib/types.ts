@@ -1,6 +1,6 @@
 /**
  * Modelo de dominio. Se define UNA vez, con la forma que van a tener los
- * contratos. Ver build-plan.md §Fase 2.
+ * contratos. Ver docs/build-plan.md §Fase 2.
  *
  * Convenciones que no se negocian:
  *   - Montos en bigint, micro-USDC (6 decimales). 1_500_000_000n = 1,500 USDC.
@@ -114,6 +114,11 @@ export type Opportunity = {
   investorCount: number;
 
   recoveredAmount?: bigint; // solo si hubo default y liquidación
+
+  /** CreditVault de esta oportunidad. Null mientras no se haya desplegado
+   * uno — ver packages/stylus/scripts/. Sin esto no hay `fund`/`claim`/
+   * `transferPosition` reales para la oportunidad. */
+  vaultAddress: Address | null;
 };
 
 /** Posición del inversionista: ERC-20 transferible SOLO entre wallets verificadas. */

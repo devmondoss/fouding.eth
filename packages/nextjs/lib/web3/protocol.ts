@@ -9,7 +9,8 @@ export type ProtocolContractName =
   | "CreditVault"
   | "CreditVaultHappy"
   | "CreditVaultRecovery"
-  | "MockUSDC";
+  | "MockUSDC"
+  | "RepaymentRouter";
 
 type ProtocolDeployment = {
   address: Address;
@@ -265,6 +266,64 @@ export const creditVaultAbi = [
     stateMutability: "nonpayable",
     inputs: [],
     outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    // Transferencia restringida: el contrato exige que `to` esté aprobado
+    // en el AccessRegistry del vault (docs/conceptos-y-cambios.md §Parte 2).
+    type: "function",
+    name: "transferPosition",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "to", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [],
+  },
+] as const;
+
+/**
+ * RepaymentRouter: entrypoint validado de repago (packages/stylus/contracts/
+ * repayment-router). Se vuelve msg.sender frente a CreditVault.record_repayment,
+ * así que necesita SERVICER_ROLE en CreditRegistry y el vault destino
+ * aprobado — ver packages/stylus/scripts/deploy.ts.
+ */
+export const repaymentRouterAbi = [
+  {
+    type: "function",
+    name: "recordRepayment",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "vault", type: "address" },
+      { name: "repaymentId", type: "bytes32" },
+      { name: "amount", type: "uint256" },
+      { name: "principal", type: "uint256" },
+      { name: "interest", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "isRepaymentProcessed",
+    stateMutability: "view",
+    inputs: [
+      { name: "vault", type: "address" },
+      { name: "repaymentId", type: "bytes32" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "isVaultApproved",
+    stateMutability: "view",
+    inputs: [{ name: "vault", type: "address" }],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "token",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
   },
 ] as const;
 

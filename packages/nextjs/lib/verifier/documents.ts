@@ -4,7 +4,7 @@ import { sql } from "../db/client";
 /**
  * El documento NUNCA sale de acá ni va a la cadena — onchain solo va su
  * hash (legalPackHash en VerifierSubmission), que es literalmente la
- * clave con la que se guarda. Ver conceptos-y-cambios.md §SUNAT:
+ * clave con la que se guarda. Ver docs/conceptos-y-cambios.md §SUNAT:
  * "el documento tiene datos sensibles y se queda en storage privado;
  * onchain va solo su hash".
  *

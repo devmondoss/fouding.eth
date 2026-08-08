@@ -3,7 +3,7 @@
  *
  * Funciones PURAS y deterministas: mismos datos -> mismo resultado. Esto es
  * a propósito. Es la lógica que después se porta al contrato (candidata a
- * Stylus, ver conceptos-y-cambios.md §Parte 5), así que no puede depender
+ * Stylus, ver docs/conceptos-y-cambios.md §Parte 5), así que no puede depender
  * de nada externo ni de la fecha actual.
  */
 

@@ -35,7 +35,10 @@ export function InvestPanel({
   const { balance, invest } = usePlatform();
   const { session } = useSession();
   const investor = session?.address as Address | undefined;
-  const vault = useCreditVault(investor);
+  const vault = useCreditVault(
+    investor,
+    o.vaultAddress ? { address: o.vaultAddress } : null,
+  );
   const registry = useCreditRegistry(vault.address);
   const token = useProtocolToken(investor, vault.address);
   const verified = session?.verified ?? false;

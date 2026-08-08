@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { Address } from "viem";
 import { AnimatePresence, motion } from "motion/react";
-import { CalendarClock, Tag as TagIcon, X } from "lucide-react";
+import { CalendarClock, Send, Tag as TagIcon, X } from "lucide-react";
 import { ActivityRow } from "@/components/domain/ActivityRow";
 import { ClaimPanel } from "@/components/domain/ClaimPanel";
 import { initials } from "@/components/domain/OpportunityCard";
@@ -15,11 +16,23 @@ import { EmptyState, Field } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import { StatusPill } from "@/components/ui/Pill";
 import { Metric } from "@/components/ui/Stat";
+import { useCreditVault } from "@/hooks/useCreditVault";
 import { usePlatform } from "@/lib/data/store";
 import { formatBps, formatDate, formatUsdc, usdc } from "@/lib/format";
 import { nextMilestone, projectedReturn } from "@/lib/opportunity";
+import { useSession } from "@/lib/useSession";
 import { waterfallForOpportunity } from "@/lib/underwriting";
-import type { OpportunityStatus, Position } from "@/lib/types";
+import type { Opportunity, OpportunityStatus, Position } from "@/lib/types";
+
+type Listing = {
+  id: string;
+  opportunitySlug: string;
+  sellerWallet: string;
+  amount: string;
+  price: string;
+  status: "open" | "interested" | "filled" | "cancelled";
+  interestedWallet: string | null;
+};
 
 const STEPS = [
   { key: "resumen", label: "Resumen" },
@@ -45,12 +58,26 @@ export function PortfolioOverlay({
   onOpenOpportunity: (slug: string) => void;
 }) {
   const { positions, activity, getOpportunity, listPosition } = usePlatform();
+  const { session } = useSession();
+  const wallet = session?.address;
   const [step, setStep] = useState<StepKey>("resumen");
   const [dir, setDir] = useState(1);
 
   const [listing, setListing] = useState<Position | null>(null);
   const [price, setPrice] = useState("0");
   const [busy, setBusy] = useState(false);
+
+  const [myListings, setMyListings] = useState<Listing[]>([]);
+  useEffect(() => {
+    if (!wallet) return;
+    fetch(`/api/listings?seller=${encodeURIComponent(wallet)}`)
+      .then((res) => (res.ok ? (res.json() as Promise<Listing[]>) : []))
+      .then(setMyListings)
+      .catch(() => setMyListings([]));
+  }, [wallet]);
+  const withInterest = myListings.filter(
+    (l) => l.status === "interested" && l.interestedWallet,
+  );
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -102,11 +129,35 @@ export function PortfolioOverlay({
   );
 
   async function confirmarVenta() {
-    if (!listing) return;
+    if (!listing || !wallet) return;
     setBusy(true);
-    await listPosition(listing.id, usdc(Number(price) || 0));
+    const priceAmount = usdc(Number(price) || 0);
+    // El flag local (`listedPrice`) solo maneja el pill "Publicada" en esta
+    // pantalla — la publicación real, la que otros inversionistas pueden
+    // ver y marcar interés, vive en position_listings (ver OrderBook).
+    await listPosition(listing.id, priceAmount);
+    try {
+      await fetch("/api/listings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          opportunitySlug: listing.opportunitySlug,
+          sellerWallet: wallet,
+          amount: listing.principal.toString(),
+          price: priceAmount.toString(),
+        }),
+      });
+    } catch {
+      // El pill local ya quedó marcado; la publicación real puede reintentarse.
+    }
     setBusy(false);
     setListing(null);
+  }
+
+  async function refreshMyListings() {
+    if (!wallet) return;
+    const res = await fetch(`/api/listings?seller=${encodeURIComponent(wallet)}`);
+    if (res.ok) setMyListings((await res.json()) as Listing[]);
   }
 
   return (
@@ -263,8 +314,9 @@ export function PortfolioOverlay({
                 </div>
               )}
 
-              {step === "posiciones" &&
-                (rows.length ? (
+              {step === "posiciones" && (
+                <div className="flex flex-col gap-4">
+                {rows.length ? (
                   <div className="flex flex-col gap-3">
                     {rows.map(({ p, o }) => {
                       const ganancia = projectedReturn(o, p.principal);
@@ -352,7 +404,34 @@ export function PortfolioOverlay({
                     title="Todavía no tienes inversiones"
                     detail="Explora las oportunidades abiertas y coloca tu primer ticket."
                   />
-                ))}
+                )}
+
+                {withInterest.length > 0 && (
+                  <section className="card p-4">
+                    <h3 className="h3">Interesados en tus publicaciones</h3>
+                    <p className="mt-1 text-[12.5px] text-mid">
+                      Marcar interés no mueve fondos — vos ejecutás la
+                      transferencia una vez coordinado el pago.
+                    </p>
+                    <div className="mt-3 flex flex-col gap-2">
+                      {withInterest.map((l) => {
+                        const o = getOpportunity(l.opportunitySlug);
+                        if (!o) return null;
+                        return (
+                          <SellerListingRow
+                            key={l.id}
+                            listing={l}
+                            opportunity={o}
+                            sellerWallet={wallet!}
+                            onFilled={refreshMyListings}
+                          />
+                        );
+                      })}
+                    </div>
+                  </section>
+                )}
+                </div>
+              )}
 
               {step === "movimientos" && (
                 <div className="card overflow-hidden">
@@ -433,5 +512,99 @@ function SellModal({
         comprador únicamente si su wallet figura en el registro de acceso.
       </p>
     </Modal>
+  );
+}
+
+/**
+ * Una fila = un hook `useCreditVault` propio, para respetar las reglas de
+ * hooks (no se puede llamarlo condicionalmente dentro de un `.map` en el
+ * padre). El vendedor firma `transferPosition` de verdad — es la única
+ * transacción real de todo el flujo de mercado secundario; el resto es
+ * matching en Postgres.
+ */
+function SellerListingRow({
+  listing,
+  opportunity,
+  sellerWallet,
+  onFilled,
+}: {
+  listing: {
+    id: string;
+    amount: string;
+    price: string;
+    interestedWallet: string | null;
+  };
+  opportunity: Opportunity;
+  sellerWallet: Address;
+  onFilled: () => void;
+}) {
+  const vault = useCreditVault(
+    sellerWallet,
+    opportunity.vaultAddress ? { address: opportunity.vaultAddress } : null,
+  );
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function transfer() {
+    if (!listing.interestedWallet || !vault.address) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const hash = await vault.transferPosition(
+        listing.interestedWallet as Address,
+        BigInt(listing.amount),
+      );
+      await fetch(`/api/listings/${listing.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "fill",
+          sellerWallet,
+          txHash: hash,
+        }),
+      });
+      onFilled();
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "La transacción no pudo confirmarse",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2 rounded-[var(--r-panel)] border border-border px-3.5 py-2.5">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="truncate text-[12.5px] font-semibold text-hi">
+            {opportunity.projectTitle}
+          </div>
+          <div className="num text-[11.5px] text-low">
+            {formatUsdc(BigInt(listing.amount))} USDC · interesado{" "}
+            {listing.interestedWallet?.slice(0, 6)}…{listing.interestedWallet?.slice(-4)}
+          </div>
+        </div>
+        <Button
+          size="sm"
+          icon={<Send className="h-3 w-3" />}
+          loading={busy}
+          disabled={!opportunity.vaultAddress}
+          onClick={transfer}
+        >
+          Transferir
+        </Button>
+      </div>
+      {!opportunity.vaultAddress && (
+        <p className="text-[11px]" style={{ color: "var(--negative)" }}>
+          Esta oportunidad todavía no tiene vault desplegado.
+        </p>
+      )}
+      {error && (
+        <p className="text-[11px]" style={{ color: "var(--negative)" }}>
+          {error}
+        </p>
+      )}
+    </div>
   );
 }

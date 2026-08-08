@@ -14,13 +14,13 @@ export type VerifierSubmission = {
   projectTitle: string;
   requestedAmount: string; // string: evita perder precisión de bigint en JSON
   /** keccak256 del legal pack — el documento en sí NUNCA se sube acá,
-   * solo su hash (ver conceptos-y-cambios.md §SUNAT). */
+   * solo su hash (ver docs/conceptos-y-cambios.md §SUNAT). */
   legalPackHash: string;
   status: SubmissionStatus;
   submittedAt: string;
   decidedAt: string | null;
   /** Wallet del verificador que decidió — para el honorario fijo y el
-   * stake, ver conceptos-y-cambios.md §Verificador. */
+   * stake, ver docs/conceptos-y-cambios.md §Verificador. */
   decidedBy: string | null;
   note: string | null;
   passportTxHash: string | null;

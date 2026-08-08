@@ -80,7 +80,7 @@ async function main() {
   // La empresa prestataria. Vive aparte de la oportunidad porque una
   // empresa puede volver a pedir capital y su pasaporte es ACUMULATIVO:
   // el historial de pagos es justamente lo que hace que el segundo
-  // crédito salga mejor que el primero (ver conceptos-y-cambios.md §SBT).
+  // crédito salga mejor que el primero (ver docs/conceptos-y-cambios.md §SBT).
   await sql`
     CREATE TABLE IF NOT EXISTS companies (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -139,7 +139,7 @@ async function main() {
 
   // Identidad declarada por quien pide acceso como inversionista.
   //
-  // Vive acá y NO en cadena porque es PII (stack.md §4). Lo que va onchain
+  // Vive acá y NO en cadena porque es PII (docs/stack.md §4). Lo que va onchain
   // es `application_hash`, que se calcula sobre estos mismos campos: así el
   // registro de la cadena queda atado a lo declarado y no es un hash
   // decorativo. Antes el formulario pedía nombre y documento y los tiraba
@@ -162,8 +162,35 @@ async function main() {
       WHERE submission_id IS NOT NULL
   `;
 
+  // Libro de órdenes del mercado secundario. `transfer_position` en el
+  // contrato solo mueve la posición — no liquida el pago en USDC entre
+  // comprador y vendedor, así que esta tabla es matching + intención, no
+  // custodia. `interested_wallet` es quien se anota; el vendedor decide si
+  // ejecuta la transferencia real y con qué monto (puede ser parcial).
+  // Montos en TEXT por la misma razón que en `opportunities`: son bigint de
+  // micro-USDC.
+  await sql`
+    CREATE TABLE IF NOT EXISTS position_listings (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      opportunity_slug TEXT NOT NULL REFERENCES opportunities(slug),
+      seller_wallet TEXT NOT NULL,
+      amount TEXT NOT NULL,
+      price TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'open',
+      interested_wallet TEXT,
+      filled_tx_hash TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+  await sql`
+    CREATE INDEX IF NOT EXISTS position_listings_opportunity_idx
+      ON position_listings (opportunity_slug)
+      WHERE status = 'open'
+  `;
+
   console.log(
-    "Migración completa: verifier_submissions + passport receipt, verifier_documents, onchain_activity, rate_limits, companies, opportunities, access_applications",
+    "Migración completa: verifier_submissions + passport receipt, verifier_documents, onchain_activity, rate_limits, companies, opportunities, access_applications, position_listings",
   );
 }
 

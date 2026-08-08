@@ -11,7 +11,7 @@ import type { VerifierSubmission } from "@/lib/verifier/types";
 
 /**
  * Panel del dueño de negocio — deliberadamente FUERA del módulo único
- * del inversionista (design-system.md §6), igual que app/verifier.
+ * del inversionista (docs/design-system.md §6), igual que app/verifier.
  *
  * Esta ruta ahora hace UNA sola cosa: mostrar tus solicitudes. Todo lo
  * demás vive en su propia URL, porque la barra de direcciones tiene que

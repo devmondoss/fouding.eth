@@ -10,5 +10,6 @@
   {"type":"event","name":"DefaultDeclared","inputs":[{"name":"principalOutstanding","type":"uint256","indexed":false}]},
   {"type":"event","name":"RecoveryStarted","inputs":[]},
   {"type":"event","name":"RecoveryRecorded","inputs":[{"name":"payer","type":"address","indexed":true},{"name":"amount","type":"uint256","indexed":false},{"name":"totalRepaid","type":"uint256","indexed":false}]},
-  {"type":"event","name":"Closed","inputs":[{"name":"totalRepaid","type":"uint256","indexed":false},{"name":"totalClaimed","type":"uint256","indexed":false}]}
+  {"type":"event","name":"Closed","inputs":[{"name":"totalRepaid","type":"uint256","indexed":false},{"name":"totalClaimed","type":"uint256","indexed":false}]},
+  {"type":"event","name":"PositionTransferred","inputs":[{"name":"from","type":"address","indexed":true},{"name":"to","type":"address","indexed":true},{"name":"amount","type":"uint256","indexed":false},{"name":"claimedMoved","type":"uint256","indexed":false}]}
 ]

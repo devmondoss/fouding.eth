@@ -1,6 +1,6 @@
 "use client";
 
-import type { Address } from "viem";
+import type { Abi, Address } from "viem";
 import { useReadContract } from "wagmi";
 import { protocolChain } from "@/lib/web3/config";
 import {
@@ -10,12 +10,22 @@ import {
 } from "@/lib/web3/protocol";
 import { useProtocolWrite } from "@/hooks/useProtocolWrite";
 
+/** Vault explícito de una oportunidad — cuando existe, gana sobre `name`. */
+export type VaultOverride = { address: Address; abi?: Abi } | null;
+
 export function useCreditVault(
   investor?: Address,
+  vaultOverride?: VaultOverride,
   name: Extract<ProtocolContractName, "CreditVault" | "CreditVaultRecovery"> =
     "CreditVault",
 ) {
-  const deployment = getProtocolContract(name);
+  // Sin `opportunity.vaultAddress` (oportunidad aún sin vault propio) cae al
+  // deployment fijo por nombre — el comportamiento de siempre para las
+  // pantallas que todavía no pasan una oportunidad concreta.
+  const fallback = getProtocolContract(name);
+  const deployment = vaultOverride
+    ? { address: vaultOverride.address, abi: vaultOverride.abi ?? creditVaultAbi }
+    : fallback;
   const abi = deployment?.abi ?? creditVaultAbi;
   const status = useReadContract({
     address: deployment?.address,
@@ -73,6 +83,21 @@ export function useCreditVault(
     });
   };
 
+  // Transferencia restringida: el contrato exige que `to` esté aprobado en
+  // el AccessRegistry del vault (docs/conceptos-y-cambios.md §Parte 2,
+  // estilo ERC-3643). No hay contraparte ni libro de órdenes todavía — esto
+  // solo mueve la posición a una wallet destino ya conocida.
+  const transferPosition = async (to: Address, amount: bigint) => {
+    if (!deployment || !investor) throw new Error("Wallet or vault unavailable");
+    return writeAndConfirm({
+      account: investor,
+      address: deployment.address,
+      abi: deployment.abi,
+      functionName: "transferPosition",
+      args: [to, amount],
+    });
+  };
+
   const [contributed, claimed, claimable] =
     (position.data as readonly [bigint, bigint, bigint] | undefined) ?? [];
 
@@ -97,5 +122,6 @@ export function useCreditVault(
     isConfirming,
     fund,
     claim,
+    transferPosition,
   };
 }

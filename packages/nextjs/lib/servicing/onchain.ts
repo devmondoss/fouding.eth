@@ -1,12 +1,14 @@
 import "server-only";
 
-import type { Address, Hex } from "viem";
+import { randomUUID } from "node:crypto";
+import { keccak256, toHex, type Address, type Hex } from "viem";
 import {
   getDeployment,
   getPublicClient,
   getSigner,
   resolveChain,
   writeAndWait,
+  type Deployment,
 } from "../protocolServer";
 import { getProtocolToken } from "../web3/protocol";
 
@@ -16,7 +18,7 @@ import { getProtocolToken } from "../web3/protocol";
  *
  * El CreditVault implementa todo esto y estaba probado, pero solo se
  * alcanzaba desde packages/stylus/scripts/protocol_e2e.ts — o sea que el
- * camino de default, que es el diferenciador del pitch (checklist.md
+ * camino de default, que es el diferenciador del pitch (docs/checklist.md
  * §Presentación), no se podía mostrar en una demo.
  *
  * Firma desde el servidor por la misma razón que compliance: los roles
@@ -67,6 +69,21 @@ export const ACTIONS_BY_STATUS: Record<number, VaultAction[]> = {
 /** Acciones que mueven dinero DESDE el operador hacia el vault. */
 const PULLS_FUNDS: VaultAction[] = ["recordRepayment", "recordRecovery"];
 
+/**
+ * `recordRepayment` se enruta por `RepaymentRouter` cuando está desplegado
+ * en esta chain — dedup por repaymentId y traza auditable
+ * (packages/stylus/contracts/repayment-router). Si todavía no se
+ * redesplegó (ver docs/pendientes.md), cae al llamado directo al vault que
+ * ya existía, para no romper una demo en curso.
+ */
+function getRepaymentRouter(): Deployment | null {
+  try {
+    return getDeployment("RepaymentRouter");
+  } catch {
+    return null;
+  }
+}
+
 export type VaultState = {
   address: Address;
   status: number;
@@ -113,18 +130,24 @@ export async function getVaultState(): Promise<VaultState> {
 export async function runVaultAction(
   action: VaultAction,
   amount?: bigint,
+  breakdown?: { principal: bigint; interest: bigint },
 ): Promise<Hex> {
   const vault = getDeployment("CreditVault");
   const signer = getSigner(KEYS);
+  const router = action === "recordRepayment" ? getRepaymentRouter() : null;
+  // Spender del approve: el router intermedia custodia antes de llamar al
+  // vault (packages/stylus/contracts/repayment-router), así que el
+  // allowance tiene que apuntar ahí y no al vault directo cuando existe.
+  const spender = router?.address ?? vault.address;
 
   if (PULLS_FUNDS.includes(action)) {
     if (!amount || amount <= 0n) {
       throw new Error("El monto debe ser mayor que cero");
     }
-    // El vault hace transferFrom sobre QUIEN LLAMA, así que el operador
-    // tiene que tener saldo y allowance. Sin esto la transacción revierte
-    // con un error del token, no del vault, y es imposible de diagnosticar
-    // desde el panel.
+    // El operador (o el router, en su nombre) hace transferFrom sobre QUIEN
+    // LLAMA, así que la cuenta que firma tiene que tener saldo y allowance
+    // sobre `spender`. Sin esto la transacción revierte con un error del
+    // token, no del vault, y es imposible de diagnosticar desde el panel.
     const { chain } = resolveChain();
     const token = getProtocolToken(chain.id);
     if (!token.address) {
@@ -146,16 +169,33 @@ export async function runVaultAction(
       address: token.address,
       abi: token.abi,
       functionName: "allowance",
-      args: [signer.account.address, vault.address],
+      args: [signer.account.address, spender],
     } as never)) as bigint;
     if (allowance < amount) {
       await writeAndWait(signer, {
         address: token.address,
         abi: token.abi,
         functionName: "approve",
-        args: [vault.address, amount],
+        args: [spender, amount],
       });
     }
+  }
+
+  if (action === "recordRepayment" && router) {
+    const principal = breakdown?.principal ?? amount!;
+    const interest = breakdown?.interest ?? 0n;
+    if (principal + interest !== amount) {
+      throw new Error("principal + interest debe ser igual a amount");
+    }
+    const repaymentId = keccak256(
+      toHex(`${vault.address}:${Date.now()}:${randomUUID()}`),
+    );
+    return writeAndWait(signer, {
+      address: router.address,
+      abi: router.abi,
+      functionName: "recordRepayment",
+      args: [vault.address, repaymentId, amount, principal, interest],
+    });
   }
 
   const args =

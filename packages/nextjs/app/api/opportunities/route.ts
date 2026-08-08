@@ -4,7 +4,7 @@ import { listOpportunities } from "@/lib/opportunities/store";
 
 /**
  * Catálogo público. Es deliberadamente abierto: explorar oportunidades no
- * exige identificarse (design-system.md §6, "nadie necesita registrarse
+ * exige identificarse (docs/design-system.md §6, "nadie necesita registrarse
  * para mirar un catálogo"). Lo que sí exige verificación es invertir, y
  * eso lo controla AccessRegistry en cadena, no esta ruta.
  *

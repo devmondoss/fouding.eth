@@ -28,7 +28,7 @@ export function ActivityRow({
   event: ActivityEvent;
   compact?: boolean;
   /** Si se pasa, la fila abre la ficha de la operación. No hay rutas: es
-   * la aplicación en un solo módulo — ver design-system.md §6. */
+   * la aplicación en un solo módulo — ver docs/design-system.md §6. */
   onOpen?: (slug: string) => void;
 }) {
   const Icon = ICON[event.kind];

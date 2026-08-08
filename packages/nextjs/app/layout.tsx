@@ -6,7 +6,7 @@ import { SessionProvider } from "@/lib/useSession";
 import { Web3Provider } from "@/components/providers/Web3Provider";
 import "./globals.css";
 
-// Única familia tipográfica del producto. Ver design-system.md §3.
+// Única familia tipográfica del producto. Ver docs/design-system.md §3.
 const monaSans = localFont({
   src: "../node_modules/mona-sans/Mona-Sans.woff2",
   variable: "--font-mona-sans",

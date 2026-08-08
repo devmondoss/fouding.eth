@@ -43,6 +43,7 @@ export type WireOpportunity = Omit<
   | "targetAmount"
   | "raisedAmount"
   | "recoveredAmount"
+  | "vaultAddress"
 > & {
   company: WireCompany;
   collateral: WireCollateral;
@@ -60,7 +61,7 @@ export function opportunityToWire(o: Opportunity): WireOpportunity {
     targetAmount: o.targetAmount.toString(),
     raisedAmount: o.raisedAmount.toString(),
     recoveredAmount: o.recoveredAmount != null ? o.recoveredAmount.toString() : null,
-    vaultAddress: null,
+    vaultAddress: o.vaultAddress,
     company: {
       ...o.company,
       passport: {
@@ -93,6 +94,7 @@ export function opportunityFromWire(w: WireOpportunity): Opportunity {
     legalPackHash: w.legalPackHash,
     fundingDeadline: w.fundingDeadline,
     investorCount: w.investorCount,
+    vaultAddress: (w.vaultAddress as Opportunity["vaultAddress"]) ?? null,
     ...(w.recoveredAmount != null
       ? { recoveredAmount: BigInt(w.recoveredAmount) }
       : {}),

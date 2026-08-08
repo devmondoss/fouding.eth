@@ -2,7 +2,7 @@
 
 /**
  * Adaptador de datos del lado INVERSIONISTA. Las pantallas nunca leen
- * datos directamente: consumen esta interfaz (build-plan.md §regla de oro).
+ * datos directamente: consumen esta interfaz (docs/build-plan.md §regla de oro).
  *
  * Qué es real y qué no, hoy:
  *
@@ -123,7 +123,7 @@ type PlatformValue = {
    * El catálogo que se está mostrando es el sembrado de demo, no lo que
    * publicó un verificador. Se expone para poder DECIRLO en pantalla: un
    * fallback silencioso a datos de mentira es justo lo que no queremos
-   * (checklist.md §Presentación, "cierre honesto: qué es real y qué no").
+   * (docs/checklist.md §Presentación, "cierre honesto: qué es real y qué no").
    */
   usingSeedData: boolean;
   refreshOpportunities: () => Promise<void>;

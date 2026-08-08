@@ -494,6 +494,12 @@ export default async function deployScript(deployOptions: DeployOptions) {
         maturityDate,
         legalPackHash,
         collateralHash,
+        // Waterfall costs on default/recovery: 6% legal, 1.5% servicing of
+        // principal — same defaults as underwriting.ts::DEFAULT_COSTS, so
+        // the on-chain cascade matches the off-chain spec it was ported
+        // from.
+        600,
+        150,
       ],
     });
     await writeAndWait(`Registry.registerVault(${vault.name})`, walletClient, publicClient, {
@@ -509,6 +515,67 @@ export default async function deployScript(deployOptions: DeployOptions) {
         paymentToken,
         vault.dealId,
       ],
+    });
+    // Milestone schedule has to exist before `activate` will accept the
+    // vault (CreditVault now escrows the borrower's share and releases it
+    // tranche by tranche instead of paying it out in one shot). Four
+    // tranches matching lib/data/seed.ts's demo opportunities, so a fresh
+    // devnet deploy is immediately activatable from the servicing panel.
+    await writeAndWait(`${vault.name}.setMilestones`, walletClient, publicClient, {
+      account,
+      chain: baseConfig.chain,
+      address: vault.deployment.address,
+      abi: vault.deployment.abi,
+      functionName: "setMilestones",
+      args: [[3_000, 2_500, 2_500, 2_000]],
+    });
+  }
+
+  // RepaymentRouter: the validated repayment entrypoint (dedup by
+  // repaymentId) that intermediates custody between a payer and a vault's
+  // `record_repayment`. It becomes `msg.sender` on the vault side, so it
+  // needs SERVICER_ROLE on the registry — same role a human servicer
+  // account would need — and each vault must be explicitly approved.
+  let router =
+    options.resume &&
+    (await loadExistingDeployment("RepaymentRouter", baseConfig, publicClient));
+  if (!router) {
+    await deployStylusContract({
+      ...options,
+      contract: "repayment-router",
+      name: "RepaymentRouter",
+      constructorArgs: [],
+    });
+    router = deploymentModule.getContractData(
+      baseConfig.chain.id.toString(),
+      "RepaymentRouter",
+    ) as ContractDeployment;
+  }
+  await writeAndWait("RepaymentRouter.initialize", walletClient, publicClient, {
+    account,
+    chain: baseConfig.chain,
+    address: router.address,
+    abi: router.abi,
+    functionName: "initialize",
+    args: [paymentToken],
+  });
+  const servicerRole = keccak256(toBytes("SERVICER_ROLE"));
+  await writeAndWait("Registry.grantRole(SERVICER_ROLE, RepaymentRouter)", walletClient, publicClient, {
+    account,
+    chain: baseConfig.chain,
+    address: registry.address,
+    abi: registry.abi,
+    functionName: "grantRole",
+    args: [servicerRole, router.address],
+  });
+  for (const vault of vaults) {
+    await writeAndWait(`RepaymentRouter.setVaultApproved(${vault.name})`, walletClient, publicClient, {
+      account,
+      chain: baseConfig.chain,
+      address: router.address,
+      abi: router.abi,
+      functionName: "setVaultApproved",
+      args: [vault.deployment.address, true],
     });
   }
 

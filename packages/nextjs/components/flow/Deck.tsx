@@ -21,7 +21,7 @@ const FILTROS: { key: OpportunityStatus | "all"; label: string }[] = [
 /**
  * Catálogo. Desde lg (desktop) es paginado y sin scroll: se avanza por
  * páginas, con teclado o con las flechas — la pantalla de trabajo
- * calibrada en design-system.md §6. Debajo de lg, la página del navegador
+ * calibrada en docs/design-system.md §6. Debajo de lg, la página del navegador
  * ya hace scroll normal (ver globals.css), así que en mobile el catálogo
  * es una lista vertical simple: todo lo visible, sin paginar.
  */

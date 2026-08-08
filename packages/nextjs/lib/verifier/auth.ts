@@ -7,7 +7,7 @@ import { clientIp, isRateLimited } from "./rateLimit";
  * de verdad — es el mínimo indispensable para que estas rutas no queden
  * abiertas a cualquiera mientras no hay IdentityRegistry ni Supabase.
  * Reemplazar por auth real (wallet del verificador + su stake, ver
- * conceptos-y-cambios.md §Verificador) cuando el contrato exista.
+ * docs/conceptos-y-cambios.md §Verificador) cuando el contrato exista.
  *
  * Como la key es una sola y la comparten todos los clientes, limitar
  * por key no serviría de nada — el rate limit va por IP (ver

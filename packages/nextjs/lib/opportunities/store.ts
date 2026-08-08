@@ -243,6 +243,21 @@ export async function uniqueSlug(base: string): Promise<string> {
   throw new Error(`No se pudo generar un slug único para "${base}"`);
 }
 
+/**
+ * Ata el CreditVault desplegado a esta oportunidad — la escribe quien
+ * despliega el vault (script de deploy o el panel del verificador), no la
+ * publicación inicial (ver comentario de la columna en scripts/migrate.ts).
+ */
+export async function setOpportunityVaultAddress(
+  slug: string,
+  vaultAddress: string,
+): Promise<WireOpportunity | null> {
+  await sql`
+    UPDATE opportunities SET vault_address = ${vaultAddress} WHERE slug = ${slug}
+  `;
+  return getOpportunityBySlug(slug);
+}
+
 export async function getOpportunityBySubmission(
   submissionId: string,
 ): Promise<WireOpportunity | null> {

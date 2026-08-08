@@ -5,7 +5,7 @@ import { arbitrumNitro } from "@/utils/scaffold-stylus/supportedChains";
 
 /**
  * Arbitrum Sepolia únicamente por ahora — es donde vive el CreditVault
- * mientras se desarrolla (ver hackathon.md §Bloque 0). Agregar Arbitrum
+ * mientras se desarrolla (ver docs/hackathon.md §Bloque 0). Agregar Arbitrum
  * One acá cuando haya contratos verificados en mainnet.
  *
  * `createConfig` es el de @privy-io/wagmi, no el de wagmi a secas — ya

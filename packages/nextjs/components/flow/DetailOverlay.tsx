@@ -6,6 +6,7 @@ import { CheckCircle2, MapPin, X } from "lucide-react";
 import { CollateralPanel } from "@/components/domain/CollateralPanel";
 import { InvestPanel } from "@/components/domain/InvestPanel";
 import { MilestoneTimeline } from "@/components/domain/MilestoneTimeline";
+import { OrderBook } from "@/components/domain/OrderBook";
 import { PassportPanel } from "@/components/domain/PassportPanel";
 import { ScorePanel } from "@/components/domain/ScorePanel";
 import { WaterfallPanel } from "@/components/domain/WaterfallPanel";
@@ -34,6 +35,7 @@ const STEPS = [
   { key: "calificacion", label: "Calificación crediticia" },
   { key: "empresa", label: "Empresa" },
   { key: "orden", label: "Prelación de pagos" },
+  { key: "mercado", label: "Mercado secundario" },
 ] as const;
 
 type StepKey = (typeof STEPS)[number]["key"];
@@ -177,6 +179,7 @@ export function DetailOverlay({
                   {step === "calificacion" && <ScorePanel o={o} />}
                   {step === "empresa" && <PassportPanel company={o.company} />}
                   {step === "orden" && <WaterfallPanel o={o} />}
+                  {step === "mercado" && <OrderBook opportunitySlug={o.slug} />}
                 </motion.div>
               </AnimatePresence>
             </div>
