@@ -138,7 +138,9 @@ export const SCENES = [
   {
     id: "prelacion",
     chapter: "04 — Orden de pago",
-    caption: "Si la empresa no paga, el orden de pago lo ejecuta el contrato.",
+    // Sin repetir "orden de pago": el chip del capítulo, justo encima, ya
+    // lo dice. Decirlo dos veces en el mismo cuadro gasta el remate.
+    caption: "Si la empresa no paga, el reparto ya está escrito en el contrato.",
     path: "/",
     setup: [
       { kind: "click", target: { role: "button", name: "Cerrar", optional: true } },
@@ -162,7 +164,10 @@ export const SCENES = [
     // volver a poner esta escena. Regrabarla es un comando.
     id: "calificacion",
     chapter: "05 — Calificación",
-    caption: "El score sale del expediente verificado, no de una promesa.",
+    // "score" es el término del código; en pantalla va en castellano llano
+    // (PRODUCT.md §Terminología), y además es como se titula la pestaña que
+    // se ve detrás en este mismo cuadro: "Calificación crediticia".
+    caption: "La calificación sale del expediente verificado, no de una promesa.",
     path: "/",
     setup: [
       { kind: "click", target: { role: "button", name: "Cerrar", optional: true } },

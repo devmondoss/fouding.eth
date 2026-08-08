@@ -164,8 +164,8 @@ export const EndCard: React.FC = () => {
 };
 
 /**
- * El tinta plano a 1080p se banda-ea al comprimir a h264. Un degradado
- * radial muy tenue le da al codec algo que hacer y mata el banding.
+ * La tinta plana a 1080p produce bandas al comprimir a h264. Un degradado
+ * radial muy tenue le da al codec algo que hacer y las elimina.
  */
 const Grain: React.FC = () => (
   <AbsoluteFill
