@@ -1,0 +1,11 @@
+# Perfil de Chromium con la sesión de Privy: tiene tokens reales.
+.profile/
+
+# Video crudo de Playwright, antes de moverlo a public/clips/.
+.raw-video/
+
+# Los clips pesan y se regeneran con `yarn capture`.
+public/clips/*.webm
+
+# Render final.
+out/

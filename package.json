@@ -6,7 +6,8 @@
     "packages": [
       "packages/nextjs",
       "packages/stylus",
-      "packages/foundry"
+      "packages/foundry",
+      "packages/demo"
     ]
   },
   "resolutions": {
@@ -22,6 +23,10 @@
     "next:check-types": "yarn workspace @founding/nextjs check-types",
     "next:build": "yarn workspace @founding/nextjs build",
     "next:indexer": "yarn workspace @founding/nextjs indexer",
+    "demo": "yarn workspace @founding/demo build",
+    "demo:login": "yarn workspace @founding/demo login",
+    "demo:studio": "yarn workspace @founding/demo studio",
+    "demo:duration": "yarn workspace @founding/demo duration",
     "stylus:lint": "yarn workspace @founding/stylus lint",
     "stylus:test": "yarn workspace @founding/stylus test",
     "foundry:fmt": "yarn workspace @founding/foundry fmt",

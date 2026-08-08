@@ -1,0 +1,27 @@
+{
+  "name": "@founding/demo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "login": "node capture/capture.mjs --login",
+    "capture": "node capture/capture.mjs",
+    "studio": "remotion studio src/index.ts",
+    "render": "remotion render src/index.ts Demo out/founding-demo.mp4",
+    "render:gif": "remotion render src/index.ts Demo out/founding-demo.gif --codec=gif --every-nth-frame=2 --width=960",
+    "duration": "node capture/duration.mjs",
+    "build": "node capture/capture.mjs && remotion render src/index.ts Demo out/founding-demo.mp4"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.507",
+    "@remotion/transitions": "4.0.507",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "remotion": "4.0.507"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "playwright": "1.62.1",
+    "typescript": "^5"
+  }
+}
