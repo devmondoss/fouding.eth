@@ -9,15 +9,25 @@ import { Button } from "@/components/ui/Button";
 import { useProtocolToken } from "@/hooks/useProtocolToken";
 import { usePlatform } from "@/lib/data/store";
 import { useSession } from "@/lib/useSession";
-import { formatUsdc, usdc } from "@/lib/format";
+import { formatPen, formatUsdc, MOCK_PEN_PER_USD, penToUsdc, usdc } from "@/lib/format";
+import { useLayerKeys } from "@/lib/keyboard";
 import { dialog, scrim, T } from "@/lib/motion";
 
 const MONTOS = [500, 1_000, 5_000, 10_000];
+const MONTOS_PEN = [500, 2_000, 5_000, 20_000];
 
 type Step = "monto" | "procesando" | "listo";
+type Moneda = "usdc" | "pen";
+type MetodoPago = "yape" | "plin" | "tarjeta";
+
+const METODOS: { key: MetodoPago; label: string }[] = [
+  { key: "yape", label: "Yape" },
+  { key: "plin", label: "Plin" },
+  { key: "tarjeta", label: "Tarjeta" },
+];
 
 /**
- * Módulo dedicado para conseguir saldo. Siempre dice en cuál de los tres
+ * Módulo dedicado para conseguir saldo. Siempre dice en cuál de los
  * modos está:
  *
  *   faucet       MockUSDC desplegado en la red configurada (devnet):
@@ -26,7 +36,12 @@ type Step = "monto" | "procesando" | "listo";
  *   depósito     token real canónico (Circle USDC en Arbitrum Sepolia):
  *                no hay faucet, se muestra la dirección para depositar y
  *                el saldo se lee directo onchain.
- *   simulación   sin contrato al que llamar: suma el saldo local.
+ *   simulación   sin contrato al que llamar: suma el saldo local. Dentro de
+ *                este modo se puede simular además la rampa fiat (PEN vía
+ *                Yape/Plin/Tarjeta, docs/pendientes.md bloque 5): no hay
+ *                proveedor real conectado, el tipo de cambio es fijo
+ *                (lib/format.ts::MOCK_PEN_PER_USD) y el saldo se acredita
+ *                con el mismo addFunds() de siempre.
  */
 export function AddFundsFlow({ onClose }: { onClose: () => void }) {
   const { balance, addFunds } = usePlatform();
@@ -37,22 +52,23 @@ export function AddFundsFlow({ onClose }: { onClose: () => void }) {
 
   const [step, setStep] = useState<Step>("monto");
   const [amount, setAmount] = useState("1000");
+  const [moneda, setMoneda] = useState<Moneda>("usdc");
+  const [metodo, setMetodo] = useState<MetodoPago>("yape");
   const [progress, setProgress] = useState(0);
   const [balanceBefore] = useState(balance);
   const [error, setError] = useState<string | null>(null);
 
   const parsed = Number(amount.replace(/[^0-9.]/g, "")) || 0;
-  const value = usdc(parsed);
+  const value = moneda === "pen" ? penToUsdc(parsed) : usdc(parsed);
 
+  const metodoLabel = METODOS.find((m) => m.key === metodo)?.label ?? "";
   const pasos = canFaucet
     ? ["Firmando la transacción", "Esperando confirmación en la red"]
-    : ["Actualizando saldo de demostración"];
+    : moneda === "pen"
+      ? [`Confirmando el pago con ${metodoLabel} (simulado)`, "Acreditando USDC"]
+      : ["Actualizando saldo de demostración"];
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  useLayerKeys({ onEscape: onClose });
 
   useEffect(() => {
     if (step !== "procesando") return;
@@ -66,6 +82,15 @@ export function AddFundsFlow({ onClose }: { onClose: () => void }) {
           setProgress(1);
           // Monto fijo: lo define el contrato, no esta pantalla.
           await token.faucet();
+        } else if (moneda === "pen") {
+          // Dos pasos simulados para que no se sienta instantáneo: "pago
+          // confirmado" y luego "acreditado" son eventos distintos en
+          // cualquier on-ramp real, aunque acá los dos sean el mismo
+          // addFunds() de golpe.
+          await new Promise((r) => setTimeout(r, 700));
+          if (!alive) return;
+          setProgress(1);
+          await addFunds(value);
         } else {
           await addFunds(value);
         }
@@ -174,8 +199,36 @@ export function AddFundsFlow({ onClose }: { onClose: () => void }) {
                   </>
                 ) : (
                   <>
-                    <label className="mt-5 block">
-                      <span className="text-[12.5px] font-medium text-hi">Monto a agregar</span>
+                    <div className="mt-5 flex gap-1.5 rounded-[var(--r-input)] border border-border bg-surface p-1">
+                      {(
+                        [
+                          { key: "usdc" as const, label: "USDC directo" },
+                          { key: "pen" as const, label: "Soles (Yape/Plin/Tarjeta)" },
+                        ]
+                      ).map((opt) => (
+                        <button
+                          key={opt.key}
+                          onClick={() => {
+                            setMoneda(opt.key);
+                            setAmount(opt.key === "pen" ? "500" : "1000");
+                          }}
+                          className="flex-1 rounded-[calc(var(--r-input)-3px)] py-1.5 text-[11.5px] font-medium transition-colors"
+                          style={{
+                            backgroundColor:
+                              moneda === opt.key ? "var(--brand)" : "transparent",
+                            color:
+                              moneda === opt.key ? "var(--brand-ink)" : "var(--text-mid)",
+                          }}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <label className="mt-3 block">
+                      <span className="text-[12.5px] font-medium text-hi">
+                        {moneda === "pen" ? "Monto a pagar" : "Monto a agregar"}
+                      </span>
                       <span className="mt-1.5 flex items-center gap-2 rounded-[var(--r-input)] border border-border bg-surface px-3 transition-colors focus-within:border-[var(--brand-ink)]">
                         <input
                           autoFocus
@@ -184,29 +237,63 @@ export function AddFundsFlow({ onClose }: { onClose: () => void }) {
                           onChange={(e) => setAmount(e.target.value)}
                           className="num h-11 w-full bg-transparent text-[16px] text-hi outline-none"
                         />
-                        <span className="text-[12.5px] text-low">USDC</span>
+                        <span className="text-[12.5px] text-low">
+                          {moneda === "pen" ? "PEN" : "USDC"}
+                        </span>
                       </span>
+                      {moneda === "pen" && (
+                        <span className="mt-1.5 block text-[11.5px] text-low">
+                          ≈ {formatUsdc(value)} USDC · tipo de cambio simulado{" "}
+                          {MOCK_PEN_PER_USD.toFixed(2)} PEN/USD
+                        </span>
+                      )}
                     </label>
 
                     <div className="mt-2.5 grid grid-cols-4 gap-2">
-                      {MONTOS.map((m) => (
+                      {(moneda === "pen" ? MONTOS_PEN : MONTOS).map((m) => (
                         <button
                           key={m}
                           onClick={() => setAmount(String(m))}
                           className="num rounded-[var(--r-input)] border border-border bg-surface py-1.5 text-[11.5px] text-mid transition-colors hover:border-[var(--brand-ink)] hover:text-[var(--brand-ink)]"
                         >
-                          {m.toLocaleString("es-PE")}
+                          {moneda === "pen" ? formatPen(m) : m.toLocaleString("es-PE")}
                         </button>
                       ))}
                     </div>
+
+                    {moneda === "pen" && (
+                      <div className="mt-3">
+                        <span className="text-[12.5px] font-medium text-hi">
+                          Método de pago
+                        </span>
+                        <div className="mt-1.5 grid grid-cols-3 gap-2">
+                          {METODOS.map((m) => (
+                            <button
+                              key={m.key}
+                              onClick={() => setMetodo(m.key)}
+                              className="rounded-[var(--r-input)] border py-2 text-[12px] font-medium transition-colors"
+                              style={{
+                                borderColor:
+                                  metodo === m.key ? "var(--brand-ink)" : "var(--border)",
+                                color:
+                                  metodo === m.key ? "var(--brand-ink)" : "var(--text-mid)",
+                              }}
+                            >
+                              {m.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     <div
                       className="mt-3 flex items-start gap-2 rounded-[var(--r-panel)] border px-3 py-2 text-[12px]"
                       style={{ borderColor: "var(--warning)", color: "var(--warning)" }}
                     >
                       <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                      Saldo de demostración: no hay contrato desplegado en esta
-                      red, así que este depósito no toca la cadena.
+                      {moneda === "pen"
+                        ? "Rampa simulada: no hay proveedor de pagos real conectado. El tipo de cambio es fijo y el saldo se acredita localmente."
+                        : "Saldo de demostración: no hay contrato desplegado en esta red, así que este depósito no toca la cadena."}
                     </div>
                   </>
                 )}
@@ -222,7 +309,9 @@ export function AddFundsFlow({ onClose }: { onClose: () => void }) {
                     ? `Recibir ${token.symbol} de prueba`
                     : canDeposit
                       ? "Listo"
-                      : "Confirmar"}
+                      : moneda === "pen"
+                        ? `Pagar con ${metodoLabel}`
+                        : "Confirmar"}
                 </Button>
               </motion.div>
             )}

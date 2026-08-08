@@ -1,10 +1,10 @@
 ﻿/**
- * Datos sembrados. Empresas y cifras verosÃ­miles de PerÃº.
+ * Datos sembrados. Empresas y cifras verosímiles de Perú.
  *
  * No son aleatorios: cubren los cinco estados del producto y el deal en
- * default estÃ¡ construido para explicar POR QUÃ‰ fallÃ³ (cobertura bajo 1x,
- * garantÃ­a sin inscribir, gravamen previo, aporte propio mÃ­nimo e historial
- * flojo). Sirve de material didÃ¡ctico en la demo.
+ * default está construido para explicar POR QUÉ falló (cobertura bajo 1x,
+ * garantía sin inscribir, gravamen previo, aporte propio mínimo e historial
+ * flojo). Sirve de material didáctico en la demo.
  */
 
 import { usdc } from "../format";
@@ -35,13 +35,13 @@ export const OPPORTUNITIES: Opportunity[] = [
         defaults: 0,
       },
     },
-    projectTitle: "Segunda lÃ­nea de embotellado PET",
+    projectTitle: "Segunda línea de embotellado PET",
     summary:
-      "InstalaciÃ³n de una lÃ­nea adicional de llenado y etiquetado para atender contratos de maquila ya firmados con dos distribuidoras regionales.",
+      "Instalación de una línea adicional de llenado y etiquetado para atender contratos de maquila ya firmados con dos distribuidoras regionales.",
     highlights: [
       "Contratos de maquila firmados con dos distribuidoras regionales",
-      "9 aÃ±os de operaciÃ³n continua en Arequipa",
-      "DuplicarÃ­a la capacidad de embotellado de la planta",
+      "9 años de operación continua en Arequipa",
+      "Duplicaría la capacidad de embotellado de la planta",
     ],
     targetAmount: usdc(180_000),
     raisedAmount: usdc(118_500),
@@ -51,11 +51,11 @@ export const OPPORTUNITIES: Opportunity[] = [
     status: "funding",
     collateral: {
       kind: "machinery",
-      description: "LÃ­nea de llenado y etiquetado Krones (2019)",
+      description: "Línea de llenado y etiquetado Krones (2019)",
       appraisedValue: usdc(380_000),
       haircutBps: 3500,
       netRecoverableValue: usdc(247_000),
-      registryEntry: "Partida 11029384 â€” RMC Arequipa",
+      registryEntry: "Partida 11029384 — RMC Arequipa",
       titleVerified: true,
       liens: [],
     },
@@ -71,13 +71,13 @@ export const OPPORTUNITIES: Opportunity[] = [
       {
         index: 1,
         title: "Llegada e internamiento",
-        description: "Equipo en planta, con DUA y guÃ­a de remisiÃ³n.",
+        description: "Equipo en planta, con DUA y guía de remisión.",
         releaseBps: 2500,
         status: "pending",
       },
       {
         index: 2,
-        title: "InstalaciÃ³n y montaje",
+        title: "Instalación y montaje",
         description: "Acta de montaje firmada por el integrador.",
         releaseBps: 2500,
         status: "pending",
@@ -85,7 +85,7 @@ export const OPPORTUNITIES: Opportunity[] = [
       {
         index: 3,
         title: "Puesta en marcha",
-        description: "Certificado de operaciÃ³n y primer lote producido.",
+        description: "Certificado de operación y primer lote producido.",
         releaseBps: 2000,
         status: "pending",
       },
@@ -102,9 +102,9 @@ export const OPPORTUNITIES: Opportunity[] = [
     slug: "transportes-rios-flota-refrigerada",
     company: {
       id: "co-002",
-      name: "Transportes RÃ­os del Sur E.I.R.L.",
+      name: "Transportes Ríos del Sur E.I.R.L.",
       ruc: "20601234567",
-      sector: "LogÃ­stica",
+      sector: "Logística",
       city: "Trujillo",
       yearsOperating: 6,
       employees: 31,
@@ -120,11 +120,11 @@ export const OPPORTUNITIES: Opportunity[] = [
     },
     projectTitle: "Flota de reparto refrigerado",
     summary:
-      "IncorporaciÃ³n de tres furgones refrigerados para cubrir la ruta Trujilloâ€“Chiclayo de una cadena de retail con contrato a 24 meses.",
+      "Incorporación de tres furgones refrigerados para cubrir la ruta Trujillo–Chiclayo de una cadena de retail con contrato a 24 meses.",
     highlights: [
-      "Contrato de distribuciÃ³n a 24 meses con una cadena de retail",
-      "Ruta Trujilloâ€“Chiclayo ya operada por la empresa desde 2022",
-      "Las unidades quedan como garantÃ­a inscrita a nombre propio",
+      "Contrato de distribución a 24 meses con una cadena de retail",
+      "Ruta Trujillo–Chiclayo ya operada por la empresa desde 2022",
+      "Las unidades quedan como garantía inscrita a nombre propio",
     ],
     targetAmount: usdc(95_000),
     raisedAmount: usdc(41_200),
@@ -138,7 +138,7 @@ export const OPPORTUNITIES: Opportunity[] = [
       appraisedValue: usdc(168_000),
       haircutBps: 4000,
       netRecoverableValue: usdc(100_800),
-      registryEntry: "Partida 70481122 â€” Registro Vehicular La Libertad",
+      registryEntry: "Partida 70481122 — Registro Vehicular La Libertad",
       titleVerified: true,
       liens: ["Prenda vehicular liberada en 2024"],
     },
@@ -152,16 +152,16 @@ export const OPPORTUNITIES: Opportunity[] = [
       },
       {
         index: 1,
-        title: "Acondicionamiento tÃ©rmico",
+        title: "Acondicionamiento térmico",
         description:
-          "InstalaciÃ³n de equipos de frÃ­o y certificaciÃ³n sanitaria.",
+          "Instalación de equipos de frío y certificación sanitaria.",
         releaseBps: 3500,
         status: "pending",
       },
       {
         index: 2,
         title: "Puesta en ruta",
-        description: "Primer mes de operaciÃ³n facturado al cliente ancla.",
+        description: "Primer mes de operación facturado al cliente ancla.",
         releaseBps: 2500,
         status: "pending",
       },
@@ -179,7 +179,7 @@ export const OPPORTUNITIES: Opportunity[] = [
     slug: "cafe-alto-mayo-planta-secado",
     company: {
       id: "co-003",
-      name: "CafÃ© Alto Mayo S.A.C.",
+      name: "Café Alto Mayo S.A.C.",
       ruc: "20487654321",
       sector: "Agroindustria",
       city: "Moyobamba",
@@ -197,10 +197,10 @@ export const OPPORTUNITIES: Opportunity[] = [
     },
     projectTitle: "Planta de secado y trilla",
     summary:
-      "AmpliaciÃ³n de capacidad de secado para procesar la cosecha de 340 productores asociados sin depender de maquila de terceros.",
+      "Ampliación de capacidad de secado para procesar la cosecha de 340 productores asociados sin depender de maquila de terceros.",
     highlights: [
       "Cadena de suministro con 340 productores asociados",
-      "12 aÃ±os operando sin un solo pago tardÃ­o",
+      "12 años operando sin un solo pago tardío",
       "Elimina la dependencia de maquila de terceros",
     ],
     targetAmount: usdc(240_000),
@@ -211,11 +211,11 @@ export const OPPORTUNITIES: Opportunity[] = [
     status: "active",
     collateral: {
       kind: "real_estate",
-      description: "Planta industrial de 2,400 mÂ² â€” Moyobamba",
+      description: "Planta industrial de 2,400 m² — Moyobamba",
       appraisedValue: usdc(620_000),
       haircutBps: 3000,
       netRecoverableValue: usdc(434_000),
-      registryEntry: "Partida 04129877 â€” SUNARP Moyobamba",
+      registryEntry: "Partida 04129877 — SUNARP Moyobamba",
       titleVerified: true,
       liens: [],
     },
@@ -223,7 +223,7 @@ export const OPPORTUNITIES: Opportunity[] = [
       {
         index: 0,
         title: "Obra civil",
-        description: "Losa, techado y acometida elÃ©ctrica terminadas.",
+        description: "Losa, techado y acometida eléctrica terminadas.",
         releaseBps: 2500,
         status: "released",
         evidenceName: "acta-obra-civil.pdf",
@@ -234,7 +234,7 @@ export const OPPORTUNITIES: Opportunity[] = [
         index: 1,
         title: "Compra de secadoras",
         description:
-          "Dos secadoras estÃ¡ticas de 12 t, facturadas e internadas.",
+          "Dos secadoras estáticas de 12 t, facturadas e internadas.",
         releaseBps: 2500,
         status: "released",
         evidenceName: "factura-secadoras.pdf",
@@ -244,7 +244,7 @@ export const OPPORTUNITIES: Opportunity[] = [
       {
         index: 2,
         title: "Montaje de trilla",
-        description: "LÃ­nea de trilla y clasificaciÃ³n instalada y probada.",
+        description: "Línea de trilla y clasificación instalada y probada.",
         releaseBps: 3000,
         status: "submitted",
         evidenceName: "acta-montaje-trilla.pdf",
@@ -252,7 +252,7 @@ export const OPPORTUNITIES: Opportunity[] = [
       },
       {
         index: 3,
-        title: "Primera campaÃ±a",
+        title: "Primera campaña",
         description: "Procesamiento de 120 t con reporte de rendimiento.",
         releaseBps: 2000,
         status: "pending",
@@ -270,9 +270,9 @@ export const OPPORTUNITIES: Opportunity[] = [
     slug: "metalmecanica-huachipa-cnc",
     company: {
       id: "co-004",
-      name: "MetalmecÃ¡nica Huachipa S.A.C.",
+      name: "Metalmecánica Huachipa S.A.C.",
       ruc: "20512348899",
-      sector: "MetalmecÃ¡nica",
+      sector: "Metalmecánica",
       city: "Lima",
       yearsOperating: 7,
       employees: 40,
@@ -288,11 +288,11 @@ export const OPPORTUNITIES: Opportunity[] = [
     },
     projectTitle: "Centro de mecanizado CNC",
     summary:
-      "AdquisiciÃ³n de torno CNC para internalizar piezas que hoy se tercerizan, con demanda comprometida por dos clientes mineros.",
+      "Adquisición de torno CNC para internalizar piezas que hoy se tercerizan, con demanda comprometida por dos clientes mineros.",
     highlights: [
       "Demanda comprometida por dos clientes del sector minero",
       "Reduce el tiempo de entrega al dejar de tercerizar",
-      "El equipo queda inscrito como garantÃ­a mobiliaria",
+      "El equipo queda inscrito como garantía mobiliaria",
     ],
     targetAmount: usdc(150_000),
     raisedAmount: usdc(150_000),
@@ -306,14 +306,14 @@ export const OPPORTUNITIES: Opportunity[] = [
       appraisedValue: usdc(265_000),
       haircutBps: 3500,
       netRecoverableValue: usdc(172_250),
-      registryEntry: "Partida 13998021 â€” RMC Lima",
+      registryEntry: "Partida 13998021 — RMC Lima",
       titleVerified: true,
       liens: [],
     },
     milestones: [
       {
         index: 0,
-        title: "Carta de crÃ©dito al proveedor",
+        title: "Carta de crédito al proveedor",
         description: "50% del equipo, contra orden de compra confirmada.",
         releaseBps: 5000,
         status: "released",
@@ -323,8 +323,8 @@ export const OPPORTUNITIES: Opportunity[] = [
       },
       {
         index: 1,
-        title: "InstalaciÃ³n y calibraciÃ³n",
-        description: "Equipo operativo con protocolo de calibraciÃ³n firmado.",
+        title: "Instalación y calibración",
+        description: "Equipo operativo con protocolo de calibración firmado.",
         releaseBps: 3000,
         status: "submitted",
         evidenceName: "protocolo-calibracion.pdf",
@@ -332,7 +332,7 @@ export const OPPORTUNITIES: Opportunity[] = [
       },
       {
         index: 2,
-        title: "CapacitaciÃ³n y primer lote",
+        title: "Capacitación y primer lote",
         description: "Operarios certificados y primer lote entregado.",
         releaseBps: 2000,
         status: "pending",
@@ -367,13 +367,13 @@ export const OPPORTUNITIES: Opportunity[] = [
         defaults: 0,
       },
     },
-    projectTitle: "RenovaciÃ³n de telares circulares",
+    projectTitle: "Renovación de telares circulares",
     summary:
-      "Reemplazo de ocho telares para reducir merma y atender pedidos de exportaciÃ³n con certificaciÃ³n de calidad.",
+      "Reemplazo de ocho telares para reducir merma y atender pedidos de exportación con certificación de calidad.",
     highlights: [
-      "15 aÃ±os de operaciÃ³n y 4 crÃ©ditos pagados sin incidentes",
-      "Pedidos de exportaciÃ³n sujetos a certificaciÃ³n de calidad",
-      "Pagado en su totalidad, capital e interÃ©s, al vencimiento",
+      "15 años de operación y 4 créditos pagados sin incidentes",
+      "Pedidos de exportación sujetos a certificación de calidad",
+      "Pagado en su totalidad, capital e interés, al vencimiento",
     ],
     targetAmount: usdc(130_000),
     raisedAmount: usdc(130_000),
@@ -387,7 +387,7 @@ export const OPPORTUNITIES: Opportunity[] = [
       appraisedValue: usdc(300_000),
       haircutBps: 3500,
       netRecoverableValue: usdc(195_000),
-      registryEntry: "Partida 12774510 â€” RMC Lima",
+      registryEntry: "Partida 12774510 — RMC Lima",
       titleVerified: true,
       liens: [],
     },
@@ -395,7 +395,7 @@ export const OPPORTUNITIES: Opportunity[] = [
       {
         index: 0,
         title: "Compra de equipos",
-        description: "Facturas y guÃ­as de internamiento.",
+        description: "Facturas y guías de internamiento.",
         releaseBps: 6000,
         status: "released",
         evidenceName: "facturas-telares.pdf",
@@ -404,8 +404,8 @@ export const OPPORTUNITIES: Opportunity[] = [
       },
       {
         index: 1,
-        title: "InstalaciÃ³n",
-        description: "Equipos montados y en producciÃ³n.",
+        title: "Instalación",
+        description: "Equipos montados y en producción.",
         releaseBps: 2500,
         status: "released",
         evidenceName: "acta-instalacion.pdf",
@@ -414,8 +414,8 @@ export const OPPORTUNITIES: Opportunity[] = [
       },
       {
         index: 2,
-        title: "CertificaciÃ³n de calidad",
-        description: "AuditorÃ­a de cliente aprobada.",
+        title: "Certificación de calidad",
+        description: "Auditoría de cliente aprobada.",
         releaseBps: 1500,
         status: "released",
         evidenceName: "certificado-auditoria.pdf",
@@ -436,9 +436,9 @@ export const OPPORTUNITIES: Opportunity[] = [
     slug: "frigorificos-pacifico-camara",
     company: {
       id: "co-006",
-      name: "FrigorÃ­ficos del PacÃ­fico S.A.C.",
+      name: "Frigoríficos del Pacífico S.A.C.",
       ruc: "20556677889",
-      sector: "Cadena de frÃ­o",
+      sector: "Cadena de frío",
       city: "Callao",
       yearsOperating: 5,
       employees: 27,
@@ -452,12 +452,12 @@ export const OPPORTUNITIES: Opportunity[] = [
         defaults: 1,
       },
     },
-    projectTitle: "AmpliaciÃ³n de cÃ¡mara de congelado",
+    projectTitle: "Ampliación de cámara de congelado",
     summary:
-      "AmpliaciÃ³n de capacidad de congelado para servicio de almacenaje a exportadores de productos hidrobiolÃ³gicos.",
+      "Ampliación de capacidad de congelado para servicio de almacenaje a exportadores de productos hidrobiológicos.",
     highlights: [
-      "El hito de puesta en marcha nunca se presentÃ³: origen del incumplimiento",
-      "GarantÃ­a sin inscripciÃ³n registral al momento de aprobarse",
+      "El hito de puesta en marcha nunca se presentó: origen del incumplimiento",
+      "Garantía sin inscripción registral al momento de aprobarse",
       "78,400 USDC recuperados y ya distribuidos a los inversionistas",
     ],
     targetAmount: usdc(110_000),
@@ -468,7 +468,7 @@ export const OPPORTUNITIES: Opportunity[] = [
     status: "defaulted",
     collateral: {
       kind: "machinery",
-      description: "Sistema de refrigeraciÃ³n industrial Bitzer",
+      description: "Sistema de refrigeración industrial Bitzer",
       appraisedValue: usdc(190_000),
       haircutBps: 4500,
       netRecoverableValue: usdc(104_500),
@@ -490,7 +490,7 @@ export const OPPORTUNITIES: Opportunity[] = [
       {
         index: 1,
         title: "Obra de aislamiento",
-        description: "Paneles y piso tÃ©cnico instalados.",
+        description: "Paneles y piso técnico instalados.",
         releaseBps: 3000,
         status: "released",
         evidenceName: "acta-aislamiento.pdf",
@@ -500,7 +500,7 @@ export const OPPORTUNITIES: Opportunity[] = [
       {
         index: 2,
         title: "Puesta en marcha",
-        description: "Nunca se presentÃ³ evidencia. Origen del incumplimiento.",
+        description: "Nunca se presentó evidencia. Origen del incumplimiento.",
         releaseBps: 2000,
         status: "pending",
       },
@@ -549,15 +549,15 @@ export const POSITIONS: Position[] = [
 /** Saldo simulado de la wallet del inversionista. */
 export const INITIAL_BALANCE = usdc(25_000);
 
-/** Historial de la cuenta. Lo mÃ¡s reciente primero. */
+/** Historial de la cuenta. Lo más reciente primero. */
 export const ACTIVITY: ActivityEvent[] = [
   {
     id: "ev-009",
     at: "2026-07-28",
     kind: "recovery",
     opportunitySlug: "frigorificos-pacifico-camara",
-    title: "DistribuciÃ³n de recupero",
-    detail: "Waterfall ejecutado tras la liquidaciÃ³n de la garantÃ­a",
+    title: "Distribución de recupero",
+    detail: "Waterfall ejecutado tras la liquidación de la garantía",
     amount: usdc(1_508.4),
     direction: "in",
   },
@@ -567,7 +567,7 @@ export const ACTIVITY: ActivityEvent[] = [
     kind: "default",
     opportunitySlug: "frigorificos-pacifico-camara",
     title: "Incumplimiento declarado",
-    detail: "Hito 3 nunca presentado. Se activÃ³ la ejecuciÃ³n del colateral",
+    detail: "Hito 3 nunca presentado. Se activó la ejecución del colateral",
     amount: null,
     direction: "none",
   },
@@ -577,7 +577,7 @@ export const ACTIVITY: ActivityEvent[] = [
     kind: "release",
     opportunitySlug: "cafe-alto-mayo-planta-secado",
     title: "Hito 2 desembolsado",
-    detail: "Compra de secadoras â€” evidencia aprobada por el originador",
+    detail: "Compra de secadoras — evidencia aprobada por el originador",
     amount: usdc(60_000),
     direction: "none",
   },
@@ -587,7 +587,7 @@ export const ACTIVITY: ActivityEvent[] = [
     kind: "release",
     opportunitySlug: "metalmecanica-huachipa-cnc",
     title: "Hito 1 desembolsado",
-    detail: "Carta de crÃ©dito al proveedor del torno CNC",
+    detail: "Carta de crédito al proveedor del torno CNC",
     amount: usdc(75_000),
     direction: "none",
   },
@@ -596,8 +596,8 @@ export const ACTIVITY: ActivityEvent[] = [
     at: "2026-04-08",
     kind: "invest",
     opportunitySlug: "metalmecanica-huachipa-cnc",
-    title: "InversiÃ³n confirmada",
-    detail: "Centro de mecanizado CNC â€” MetalmecÃ¡nica Huachipa S.A.C.",
+    title: "Inversión confirmada",
+    detail: "Centro de mecanizado CNC — Metalmecánica Huachipa S.A.C.",
     amount: usdc(3_500),
     direction: "out",
   },
@@ -616,8 +616,8 @@ export const ACTIVITY: ActivityEvent[] = [
     at: "2026-03-12",
     kind: "invest",
     opportunitySlug: "cafe-alto-mayo-planta-secado",
-    title: "InversiÃ³n confirmada",
-    detail: "Planta de secado y trilla â€” CafÃ© Alto Mayo S.A.C.",
+    title: "Inversión confirmada",
+    detail: "Planta de secado y trilla — Café Alto Mayo S.A.C.",
     amount: usdc(5_000),
     direction: "out",
   },
@@ -626,8 +626,8 @@ export const ACTIVITY: ActivityEvent[] = [
     at: "2026-03-04",
     kind: "repayment",
     opportunitySlug: "textiles-punto-norte-telares",
-    title: "PrÃ©stamo pagado en su totalidad",
-    detail: "Capital mÃ¡s intereses devueltos al vencimiento",
+    title: "Préstamo pagado en su totalidad",
+    detail: "Capital más intereses devueltos al vencimiento",
     amount: usdc(4_397.5),
     direction: "in",
   },
@@ -636,8 +636,8 @@ export const ACTIVITY: ActivityEvent[] = [
     at: "2025-10-15",
     kind: "invest",
     opportunitySlug: "textiles-punto-norte-telares",
-    title: "InversiÃ³n confirmada",
-    detail: "RenovaciÃ³n de telares â€” Textiles Punto Norte S.A.C.",
+    title: "Inversión confirmada",
+    detail: "Renovación de telares — Textiles Punto Norte S.A.C.",
     amount: usdc(4_000),
     direction: "out",
   },

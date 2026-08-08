@@ -18,6 +18,10 @@
   - **Un bug preexistente** (de antes de esta sesión, nunca se había podido correr `cargo test`) en el test `transfer_position_moves_contribution_and_pro_rata_claim`: asumía que `claim()` soporta un retiro parcial, pero el contrato siempre drena el 100% disponible. El test se reescribió con dos repagos (parcial → venta → repago del resto) para que el escenario sea real.
   - `repayment-router/Cargo.toml` no declaraba el feature `contract-client-gen` (sí lo hace `credit-vault/Cargo.toml`) — con `-D warnings` eso rompía `clippy`.
 - ⚠️ **Igual falta redesplegar.** El `CreditVault` en Sepolia (`421614`) sigue siendo el bytecode viejo, sin nada de esto. Compilar y testear no reemplaza el deploy.
+- ✅ **Mojibake arreglado en `seed.ts`** — el archivo tenía texto guardado con doble encoding (UTF-8 decodificado como Latin-1/Windows-1252 y regrabado): "MetalmecÃ¡nica", "RenovaciÃ³n", etc. Confirmado que no aparece en ningún otro archivo del repo.
+- ✅ **Fiat↔crypto simulado** (bloque 5) — `AddFundsFlow.tsx` ahora tiene un modo PEN dentro de la simulación: monto en soles, tipo de cambio fijo (`lib/format.ts::MOCK_PEN_PER_USD`), selector de método (Yape/Plin/Tarjeta, todo mock) y acredita el saldo automáticamente vía el `addFunds()` que ya existía. Declarado como simulado en la UI, igual que `usingSeedData`.
+- ⚠️ **`cargo-stylus` no compila en Windows nativo** (usa `std::os::unix::net`, exclusivo de Linux/macOS) — confirmado al intentar instalarlo. La ruta estándar es WSL2, pero el `wsl.exe` de este equipo dice que el subsistema no está habilitado y pide `wsl --install` con una PowerShell **como Administrador** — algo que no se puede aprobar desde una sesión sin privilegios elevados. Falta que alguien con acceso admin corra eso (ver "Por dónde seguir").
+- ✅ **Wallet deployer fondeada en Arbitrum Sepolia** (0.04 ETH) — el faucet solo daba Sepolia L1, así que se depositó a L2 llamando `depositEth()` directo en el Delayed Inbox de Arbitrum Sepolia (`0xaAe29B0366299461418F5324a79Afc425BE5ae21`, verificado contra el paquete oficial `@arbitrum/sdk`), sin pasar por la UI del bridge. La private key vive en `packages/stylus/.env` (gitignored).
 
 ---
 
@@ -58,10 +62,10 @@
 
 ## 5. Fiat ↔ crypto (on/off-ramp)
 
-- [ ] **No existe ningún camino PEN ↔ USDC**, ni en contrato ni en UI.
-- [ ] Definir qué lado se resuelve primero: empresa (recibe USDC, convierte a PEN) o inversionista (tiene PEN, entra en USDC).
-- [ ] Evaluar proveedores (Transak, MoonPay, rampa local peruana) — ninguno elegido ni descartado.
-- [ ] Decidir si entra al MVP o se declara roadmap explícito en el pitch.
+- [x] **Lado inversionista simulado.** `AddFundsFlow.tsx` — pagar en PEN vía Yape/Plin/Tarjeta (mock), tipo de cambio fijo, acredita saldo local automáticamente. Declarado como simulado en la UI (banner de advertencia), no engaña a nadie.
+- [ ] **Lado empresa sin resolver** — la empresa recibe USDC del desembolso y necesita convertir a PEN para operar; eso no tiene ni siquiera un mock todavía.
+- [ ] Evaluar proveedores reales (Transak, MoonPay, rampa local peruana) — ninguno elegido ni descartado; el mock no reemplaza esta decisión, solo tapa el hueco de UX para la demo.
+- [ ] Decidir si el on-ramp real entra al MVP o se declara roadmap explícito en el pitch — dado que ahora hay un mock presentable, es más fácil defender "roadmap" sin que se sienta como una laguna.
 
 ---
 
@@ -139,9 +143,10 @@
 
 ## Por dónde seguir ahora
 
-1. **Redesplegar el protocolo completo** (bloque 1) — devnet primero para probar el flujo entero (hitos, router, waterfall) de punta a punta, después Sepolia. Ya no hay excusa técnica: compila y los tests pasan.
-2. **Actualizar `CREDIT_VAULT_ADDRESS` en Railway** una vez redesplegado (bloque 8).
-3. **Cifra de impacto** (bloque 9) — no depende de código, se puede resolver en paralelo.
-4. **Confirmar verificación en Arbiscan + actualizar el README** con las direcciones nuevas y comparativa de gas (bloques 2 y 9).
-5. Recién después: settlement de precio en el mercado secundario (bloque 4) y fiat↔crypto (bloque 5), que probablemente queden como roadmap explícito en el pitch si el tiempo aprieta.
+1. **Habilitar WSL2 (necesita un humano con permisos de administrador)** — abrir PowerShell **como Administrador** y correr `wsl --install`, aceptar el UAC, reiniciar Windows cuando lo pida. Sin esto, `cargo-stylus` no tiene dónde correr en esta máquina y el redeploy queda frenado.
+2. **Instalar Rust + cargo-stylus dentro de WSL2** una vez habilitado (mismo procedimiento que ya se hizo en Windows, pero ahí sí compila nativo) y correr `deploy.ts` contra Arbitrum Sepolia — la wallet deployer ya está fondeada (`packages/stylus/.env`, gitignored).
+3. **Actualizar `CREDIT_VAULT_ADDRESS` en Railway** una vez redesplegado (bloque 8).
+4. **Cifra de impacto** (bloque 9) — no depende de código, se puede resolver en paralelo mientras se resuelve lo de WSL2.
+5. **Confirmar verificación en Arbiscan + actualizar el README** con las direcciones nuevas y comparativa de gas (bloques 2 y 9).
+6. El on-ramp fiat del lado empresa (bloque 5) y el settlement de precio del mercado secundario (bloque 4) quedan como roadmap explícito en el pitch si el tiempo aprieta — el lado inversionista del on-ramp ya tiene un mock presentable.
 </content>

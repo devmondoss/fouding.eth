@@ -71,3 +71,24 @@ export function shortHash(hash: string, size = 6): string {
   if (hash.length <= size * 2 + 2) return hash;
   return `${hash.slice(0, size + 2)}…${hash.slice(-size)}`;
 }
+
+/**
+ * Tipo de cambio fijo del on-ramp simulado (docs/pendientes.md bloque 5:
+ * "no existe ningún camino PEN ↔ USDC"). No es un dato de mercado — es un
+ * número congelado para que la demo sea determinista. El día que haya un
+ * proveedor real (Transak/MoonPay/rampa local), esta constante desaparece.
+ */
+export const MOCK_PEN_PER_USD = 3.75;
+
+export function formatPen(soles: number): string {
+  return new Intl.NumberFormat("es-PE", {
+    style: "currency",
+    currency: "PEN",
+    maximumFractionDigits: 0,
+  }).format(soles);
+}
+
+/** PEN -> micro-USDC, usando el tipo de cambio simulado. */
+export function penToUsdc(soles: number): bigint {
+  return usdc(soles / MOCK_PEN_PER_USD);
+}
