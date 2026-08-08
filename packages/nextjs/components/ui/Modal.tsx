@@ -1,7 +1,6 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { X } from "lucide-react";
 import { useId, type ReactNode } from "react";
 import { useFocusTrap, useLayerKeys } from "@/lib/keyboard";
 import { dialog, scrim, T } from "@/lib/motion";
@@ -56,17 +55,18 @@ export function Modal({
             className="relative max-h-[86vh] w-full overflow-y-auto rounded-[var(--r-card)] border border-border bg-surface p-5 shadow-[var(--shadow-lg)] sm:p-6"
             style={{ maxWidth: width }}
           >
+            {/* La cruz decía "cerrar" solo para quien ya conoce la
+                convención. La palabra lo dice y ocupa lo mismo. */}
             <motion.button
-              whileTap={{ scale: 0.92 }}
+              whileTap={{ scale: 0.96 }}
               transition={T.fast}
               onClick={onClose}
-              className="focusable absolute right-5 top-5 text-low transition-colors hover:text-hi"
-              aria-label="Cerrar"
+              className="focusable absolute right-5 top-[18px] -mr-1 flex h-6 items-center px-1 text-[12px] text-low transition-colors hover:text-hi sm:right-6"
             >
-              <X className="h-4 w-4" />
+              Cerrar
             </motion.button>
 
-            <h2 id={titleId} className="h2 pr-8">
+            <h2 id={titleId} className="h2 pr-16">
               {title}
             </h2>
             {subtitle && (

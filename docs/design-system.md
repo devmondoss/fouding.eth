@@ -127,6 +127,59 @@ Los tokens `--positive-soft`, `--warning-soft`, `--negative-soft` y `--brand-sof
 - **`Field`** — input blanco, borde neutro, foco en azul.
 - **`OpportunityCard`** — la pieza central. Banda superior con monograma de la empresa, ciudad y sector; título; etiquetas; rentabilidad grande en azul y meta; recaudado con barra de avance; inversionistas y días restantes; pie con calificación y cobertura.
 - **`frosted`** — vidrio esmerilado, único resto del glassmorphism original. Se usa solo donde algo se superpone al contenido: la barra fija superior.
+- **`Logo` / `Wordmark`** — la marca. Un asterisco tipográfico en Mona Sans sobre un cuadro `--brand`. Sale de un solo sitio: estaba copiada a mano en cuatro archivos con tres tamaños distintos, y el glifo lo ponía una librería de íconos.
+- **`Waiting`** — la espera. Una regla de 2px que barre su pista. Reemplaza al spinner en las once superficies donde aparecía. `WaitingScreen` es la versión a pantalla completa.
+- **`Choice` / `ChipChoice`** — radiogroup de verdad, con punto que se rellena. No es una fila de botones y la marca no es un check.
+
+---
+
+## 5.1 Sin iconografía — regla dura
+
+**Ningún ícono de librería, en ninguna superficie.** No `lucide-react`, no `heroicons`, no `react-icons`. La regla la sostiene ESLint (`no-restricted-imports` en `packages/nextjs/eslint.config.mjs`), no la buena voluntad.
+
+**Y dentro de un botón, nunca un glifo.** La etiqueta tiene que completar el concepto sola: si hace falta un dibujo para entender "Aprobar", el problema es la palabra. `Button` ya no acepta `icon` ni `iconRight` — la prop no existe, así que no hay dónde reincidir.
+
+**Motivo.** El producto tenía 33 archivos importando `lucide-react` y unos 60 glifos en pantalla: escudos de estado, flechas en cada botón de avance, checks verdes por viñeta, chips de ícono en el onboarding, un aro girando en once sitios. Es la estampa exacta de una interfaz generada, y en una plataforma que mueve capital de terceros esa estampa cuesta credibilidad — un jurado y un dueño de PyME la leen igual. La anti-referencia de §1 ("si parece una app cripto, está mal") se extiende: **si parece hecho con IA, está mal**.
+
+**Qué reemplaza a qué:**
+
+| Caso | Antes | Ahora |
+| --- | --- | --- |
+| Acción en un botón | `icon` + etiqueta | Solo la etiqueta |
+| Cerrar una capa | `<X />` | La palabra "Cerrar" |
+| Paginar, avanzar, volver | Chevrón / flecha | "Anterior" / "Siguiente" / "Atrás" |
+| Espera | `<Loader2 className="animate-spin" />` | `Waiting` (`.waiting` en `globals.css`) |
+| Espera dentro de un control | Spinner sustituyendo la etiqueta | `.working` — barre el borde inferior, la etiqueta no se mueve |
+| Estado (cobertura, verificación, hito) | Dos escudos que solo cambian de color | La palabra: "Suficiente"/"Insuficiente", "Con acceso"/"Sin acceso", "hecho"/"pendiente" |
+| Viñeta de una lista de hechos | Check verde | `.marker` — cuadro de marca de 6px |
+| Selección en un radiogroup | Check | Punto que se rellena (`Dot` en `Choice`) |
+| Copiar / copiado | Dos glifos de 12px | "Copiar" / "Copiado" |
+| Portada de la operación | Ícono de sector | Patrón de la garantía, inclinado por sector |
+| Confirmación de una acción | Medallón con candado o billetera | La cifra, con el `T.spring` puesto en ella |
+
+El check verde merece una nota aparte: además de genérico, **afirmaba de más**. Puesto como viñeta de "Aspectos destacados" o de "Qué necesitas para calificar", decía "verificado" sobre frases que son declaraciones del expediente o requisitos por cumplir.
+
+**Excepción nombrada:** `utils/scaffold-eth/notification.tsx` sigue con heroicons. Es andamio de scaffold-eth que ningún archivo de `app/` o `components/` alcanza —su toast no se pinta nunca— y está eximido explícitamente en la config de ESLint. Si algún día un hook de scaffold se usa de verdad, ese toast entra al barrido.
+
+**Cinco superficies quedan pendientes en esta rama**, y no por criterio: `app/verifier/page.tsx`, `PassportPanel`, `BusinessDashboard`, `SolicitudWizard` y `PublishOpportunityForm` se barrieron en el árbol de trabajo, pero dependen de `lib/verifier/submission.ts` y de campos nuevos de `VerifierSubmission` que llegan con el trabajo del bucle de expedientes. Entran cuando esa rama aterrice. Hasta entonces, la regla de ESLint y el `Button` sin `icon` hacen fallar el lint y el typecheck en esos cinco archivos — **es el resultado esperado del corte, no una regresión**.
+
+---
+
+## 5.2 Lo que no se explica
+
+**Una superficie no explica cómo funciona por dentro.** El dato en pantalla vale más que el párrafo que lo narra, y si el dato ya está, el párrafo es ruido.
+
+Se retiró, en las cuatro superficies:
+
+- **La glosa del estado.** La píldora dice "En revisión"; la línea debajo que volvía a decirlo en prosa se fue (`DetailOverlay`, `ProfilePanel`).
+- **El procedimiento interno.** Contra qué se contrasta el RUC, qué es un token soulbound, cómo se calcula el valor neto recuperable, qué define el verificador después.
+- **La doctrina junto al botón.** "Explorar el catálogo es libre; comprometer capital exige…" delante de un botón que dice "Solicitar acceso". "Tu honorario es fijo: no cambia si apruebas o rechazas" al lado de Aprobar/Rechazar.
+- **La repetición.** El recibo de inversión volvía a explicar hitos y prelación por tercera vez a alguien que ya invirtió.
+- **El desplegable para leer una línea.** El "Ver detalle técnico" de `InvestPanel` era un control extra para mostrar texto que cabía debajo del titular.
+
+Se queda: **la restricción** ("Mínimo 10 000 USDC", "11 dígitos", "No se puede cambiar"), **la consecuencia irreversible** ("No se revierte", "Se borra tu wallet"), **el riesgo antes de firmar** ("Sin comprador, el capital queda inmovilizado") y **la honestidad sobre el dato** ("Catálogo de demostración", "Declarado", "Referencial").
+
+Criterio para decidir: si la frase se puede borrar y la persona igual sabe qué hacer y qué le puede pasar, se borra.
 
 ---
 
@@ -224,7 +277,7 @@ Hay una pila. Solo la capa de arriba actúa, y la base solo actúa cuando no hay
 No hay un estándar formal comprometido, pero estas cinco cosas dejaron de ser opcionales:
 
 1. **Contraste medido, no estimado.** Texto ≥4.5:1, elementos de UI ≥3:1. El barrido en vivo sobre estilos computados debe dar cero nodos por debajo del piso en las cuatro rutas.
-2. **Ningún estado depende solo del color.** La cobertura insuficiente cambia el ícono a `ShieldX` *y* dice "insuficiente"; los tramos del inversionista en el waterfall llevan borde de tinta *y* la palabra "te corresponde"; la verificación pendiente en la barra lleva ícono *y* la palabra "Sin acceso".
+2. **Ningún estado depende solo del color — y ahora lo carga la palabra, no un glifo.** La cobertura insuficiente dice "Insuficiente"; los tramos del inversionista en el waterfall llevan borde de tinta *y* la palabra "tramo del inversionista"; la cuenta en la barra dice "Con acceso" o "Sin acceso". Los dos escudos que solo cambiaban de color eran, en la práctica, codificación cromática con un dibujo encima: la misma silueta a 14px en verde o en rojo. Ver §5.1.
 3. **`.focusable` en todo control propio.** Es la misma regla de foco que ya tenía `Button`, disponible como clase. Tarjetas, pestañas, chips, puntos de paginador y filas de tabla la llevan. `Field` la resuelve en el envoltorio porque el input anula su propio contorno.
 4. **Los diálogos son diálogos.** `role="dialog"`, `aria-modal`, `aria-labelledby`, trampa de foco y restauración. Las tiras de pestañas son `role="tablist"` con `aria-selected`.
 5. **Los errores se anuncian.** `role="alert"` en el mensaje de `Field` y en los errores de decisión del verificador.
@@ -261,6 +314,8 @@ Los términos técnicos siguen en el código y en la documentación de producto;
 - ✅ **Toda acción irreversible se confirma**, y con el mismo peso: si borrar la cuenta tiene un modal diseñado, declarar un incumplimiento y emitir un pasaporte soulbound también. Nada de `window.confirm`.
 - ✅ **Todo rechazo lleva motivo.** El dashboard de la empresa le promete al dueño que puede "corregir lo observado": si el verificador no tiene dónde escribirlo, esa promesa es mentira.
 - ✅ **Ninguna respuesta no-2xx se traga en silencio.** `if (res.ok) await load()` sin `else` es un bug de diseño, no de red.
+- ❌ **Sin íconos de librería, en ninguna parte.** Y nunca un glifo dentro de un botón: la palabra completa el concepto sola — ver §5.1. Lo sostiene ESLint.
+- ❌ **Sin explicar el mecanismo al lado del dato.** Restricción, consecuencia y riesgo se dicen; el procedimiento interno no — ver §5.2.
 - ❌ Sin degradados.
 - ❌ Sin sombras de color.
 - ❌ Sin `backdrop-filter` en filas de listas largas — solo en la barra pegajosa de `/negocios`, que es el único sitio donde algo se superpone a contenido que scrollea.

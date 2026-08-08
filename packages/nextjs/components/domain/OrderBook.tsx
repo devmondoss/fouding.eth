@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Tag as TagIcon } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/Field";
 import { formatUsdc } from "@/lib/format";
@@ -73,9 +72,7 @@ export function OrderBook({ opportunitySlug }: { opportunitySlug: string }) {
         <div>
           <h3 className="h3">Mercado secundario</h3>
           <p className="mt-1 text-[12.5px] text-mid">
-            Posiciones publicadas por otros inversionistas. Marcar interés no
-            mueve fondos — el vendedor ejecuta la transferencia una vez
-            coordinado el pago.
+            Marcar interés no mueve fondos.
           </p>
         </div>
       </div>
@@ -100,15 +97,12 @@ export function OrderBook({ opportunitySlug }: { opportunitySlug: string }) {
                 key={l.id}
                 className="flex items-center justify-between gap-3 rounded-[var(--r-panel)] border border-border px-3.5 py-2.5"
               >
-                <div className="flex items-center gap-2.5">
-                  <TagIcon className="h-3.5 w-3.5 shrink-0 text-low" />
-                  <div>
-                    <div className="num text-[13px] font-semibold text-hi">
-                      {formatUsdc(BigInt(l.amount))} USDC
-                    </div>
-                    <div className="num text-[11.5px] text-low">
-                      Precio: {formatUsdc(BigInt(l.price))} USDC
-                    </div>
+                <div>
+                  <div className="num text-[13px] font-semibold text-hi">
+                    {formatUsdc(BigInt(l.amount))} USDC
+                  </div>
+                  <div className="num text-[11.5px] text-low">
+                    Precio: {formatUsdc(BigInt(l.price))} USDC
                   </div>
                 </div>
                 {mine ? (

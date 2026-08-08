@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { CheckCircle2, MapPin, X } from "lucide-react";
 import { CollateralPanel } from "@/components/domain/CollateralPanel";
 import { InvestPanel } from "@/components/domain/InvestPanel";
 import { MilestoneTimeline } from "@/components/domain/MilestoneTimeline";
@@ -16,11 +15,7 @@ import { Metric } from "@/components/ui/Stat";
 import { formatBps, formatUsdc } from "@/lib/format";
 import { useFocusTrap, useLayerKeys } from "@/lib/keyboard";
 import { dialog, scrim, slide, T } from "@/lib/motion";
-import {
-  expectedInterest,
-  issuerTrackRecord,
-  STATUS_HELP,
-} from "@/lib/opportunity";
+import { expectedInterest, issuerTrackRecord } from "@/lib/opportunity";
 import type { Opportunity } from "@/lib/types";
 
 const TRACK_TONE_COLOR = {
@@ -113,26 +108,23 @@ export function DetailOverlay({
                 <h2 className="h1 text-[17px] sm:text-[21px]">{o.projectTitle}</h2>
                 <StatusPill status={o.status} />
               </div>
+              {/* La línea de ayuda del estado se fue: la píldora de al lado
+                  del título ya dice en qué punto está la operación, y
+                  repetirlo en prosa debajo era la misma información dos
+                  veces, la segunda en el tamaño más chico de la pantalla. */}
               <div className="mt-1 flex flex-wrap items-center gap-2 sm:gap-2.5 text-[12.5px] text-mid">
                 <span className="font-medium text-hi">{o.company.name}</span>
-                <span className="flex items-center gap-1">
-                  <MapPin className="h-3 w-3" />
-                  {o.company.city}
-                </span>
+                <span>{o.company.city}</span>
                 <Tag label={o.company.sector} />
               </div>
-              <p className="mt-1 text-[11.5px] text-low">
-                {STATUS_HELP[o.status]}
-              </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="focusable flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border transition-colors hover:bg-surface-soft"
-            aria-label="Cerrar la ficha"
+            className="focusable -mr-1 flex h-8 shrink-0 items-center rounded-[var(--r-input)] px-2 text-[12.5px] text-mid transition-colors hover:bg-surface-soft hover:text-hi"
           >
-            <X className="h-4 w-4 text-mid" />
+            Cerrar
           </button>
         </div>
 
@@ -252,14 +244,14 @@ function Resumen({ o }: { o: Opportunity }) {
           <h3 className="h3">Aspectos destacados</h3>
           <ul className="mt-3 flex flex-col gap-2.5">
             {o.highlights.map((h) => (
+              // El check verde afirmaba "verificado" sobre cada frase, que
+              // es más de lo que el dato sostiene: son hechos declarados en
+              // el expediente. El cuadro los enumera sin certificarlos.
               <li
                 key={h}
                 className="flex items-start gap-2.5 text-[13px] leading-relaxed text-mid"
               >
-                <CheckCircle2
-                  className="mt-0.5 h-4 w-4 shrink-0"
-                  style={{ color: "var(--positive)" }}
-                />
+                <span className="marker mt-[7px]" />
                 {h}
               </li>
             ))}

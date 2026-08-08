@@ -1,9 +1,19 @@
 "use client";
 
 import { motion, type HTMLMotionProps } from "motion/react";
-import { Loader2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { T } from "@/lib/motion";
+
+/**
+ * Un botón es su palabra. No acepta ícono —ni a la izquierda ni a la
+ * derecha— porque la etiqueta ya tiene que completar el concepto sola: si
+ * hace falta un glifo para entender "Aprobar", el problema es la palabra.
+ * Ver docs/design-system.md §5.1.
+ *
+ * La espera tampoco es un ícono girando: la etiqueta se queda quieta y una
+ * regla de 1.5px barre el borde inferior. El botón nunca cambia de tamaño
+ * ni de texto al pasar a ocupado, así que no salta el layout de la fila.
+ */
 
 const VARIANT = {
   primary:
@@ -17,9 +27,9 @@ const VARIANT = {
 } as const;
 
 const SIZE = {
-  sm: "h-8 px-3 text-[12.5px] gap-1.5",
-  md: "h-10 px-4 text-[13.5px] gap-2",
-  lg: "h-11 px-5 text-[14px] gap-2",
+  sm: "h-8 px-3 text-[12.5px]",
+  md: "h-10 px-4 text-[13.5px]",
+  lg: "h-11 px-5 text-[14px]",
 } as const;
 
 const BG: Partial<Record<keyof typeof VARIANT, string>> = {
@@ -32,8 +42,6 @@ export function Button({
   variant = "primary",
   size = "md",
   loading = false,
-  icon,
-  iconRight,
   className = "",
   disabled,
   ...rest
@@ -42,8 +50,6 @@ export function Button({
   variant?: keyof typeof VARIANT;
   size?: keyof typeof SIZE;
   loading?: boolean;
-  icon?: ReactNode;
-  iconRight?: ReactNode;
 } & HTMLMotionProps<"button">) {
   const inert = disabled || loading;
 
@@ -51,6 +57,7 @@ export function Button({
     <motion.button
       {...rest}
       disabled={inert}
+      aria-busy={loading || undefined}
       whileHover={inert ? undefined : { y: -1 }}
       whileTap={inert ? undefined : { scale: 0.97 }}
       transition={T.fast}
@@ -63,17 +70,20 @@ export function Button({
             : undefined,
       }}
       className={[
-        "inline-flex shrink-0 items-center justify-center rounded-[var(--r-input)] font-medium",
-        "transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-45",
+        "relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-[var(--r-input)] font-medium",
+        "transition-colors duration-150",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-ink)]",
         VARIANT[variant],
         SIZE[size],
+        inert ? "cursor-not-allowed" : "",
+        // La opacidad de inhabilitado no se aplica mientras carga: un botón
+        // ocupado sigue siendo el foco de la acción, no un control apagado.
+        disabled && !loading ? "opacity-45" : "",
+        loading ? "working" : "",
         className,
       ].join(" ")}
     >
-      {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : icon}
       {children}
-      {iconRight}
     </motion.button>
   );
 }

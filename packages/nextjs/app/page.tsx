@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence } from "motion/react";
-import { Loader2 } from "lucide-react";
 import { AddFundsFlow } from "@/components/flow/AddFundsFlow";
 import { AuthFlow } from "@/components/flow/AuthFlow";
 import { Deck } from "@/components/flow/Deck";
@@ -12,6 +11,8 @@ import { Onboarding } from "@/components/flow/Onboarding";
 import { PortfolioOverlay } from "@/components/flow/PortfolioOverlay";
 import { ProfilePanel } from "@/components/flow/ProfilePanel";
 import { TopBar } from "@/components/flow/TopBar";
+import { Logo } from "@/components/ui/Logo";
+import { Waiting } from "@/components/ui/Waiting";
 import { usePlatform } from "@/lib/data/store";
 import { useOnce } from "@/lib/useOnce";
 import { useSession } from "@/lib/useSession";
@@ -82,13 +83,10 @@ export default function App() {
         className="flex h-screen flex-col items-center justify-center gap-3"
         style={{ backgroundColor: "var(--surface)" }}
       >
-        <span
-          className="flex h-9 w-9 items-center justify-center rounded-[8px] text-[17px] font-bold"
-          style={{ backgroundColor: "var(--brand)", color: "var(--brand-ink)" }}
-        >
-          ✳
-        </span>
-        <Loader2 className="h-4 w-4 animate-spin" style={{ color: "var(--brand-ink)" }} />
+        {/* La marca sale de un solo sitio y la espera es la misma regla que
+            en el resto del producto — no un spinner suelto. */}
+        <Logo size={36} />
+        <Waiting label="Entrando" />
       </div>
     );
   }

@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { motion } from "motion/react";
-import { AlertTriangle, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { Waiting } from "@/components/ui/Waiting";
 import { useSession } from "@/lib/useSession";
 import { fadeUp, T } from "@/lib/motion";
 
@@ -90,7 +90,6 @@ export function AuthFlow() {
                   className="mt-7 w-full"
                   onClick={resumeSession}
                   disabled={connecting}
-                  iconRight={<ArrowRight className="h-4 w-4" />}
                 >
                   Continuar como {pendingAccount}
                 </Button>
@@ -113,7 +112,6 @@ export function AuthFlow() {
                   className="mt-7 w-full"
                   loading={connecting}
                   onClick={() => start("connect")}
-                  iconRight={<ArrowRight className="h-4 w-4" />}
                 >
                   Iniciar sesión
                 </Button>
@@ -138,17 +136,11 @@ export function AuthFlow() {
                 anterior no se pierde. Y una salida, por si el modal se
                 cierra sin resolver. */}
             {connecting && !connectError && (
-              <div
-                role="status"
-                className="mt-4 flex items-start gap-2.5 rounded-[var(--r-panel)] border border-border px-3.5 py-3"
-              >
-                <Loader2
-                  className="mt-px h-3.5 w-3.5 shrink-0 animate-spin"
-                  style={{ color: "var(--brand-ink)" }}
-                />
-                <div className="min-w-0 text-[12px] leading-relaxed text-mid">
+              <div className="mt-4 rounded-[var(--r-panel)] border border-border px-3.5 py-3">
+                <Waiting label="Conectando" width={64} />
+                <div className="mt-2 text-[12px] leading-relaxed text-mid">
                   {intent === "switch"
-                    ? "Cerrando tu sesión actual para pedirte el otro correo. Tu wallet anterior no se toca: sigue existiendo y puedes volver a ella."
+                    ? "Cerrando tu sesión actual para pedirte el otro correo. Tu wallet anterior sigue existiendo."
                     : "Continúa en la ventana que se abrió."}
                   <button
                     onClick={cancelConnect}
@@ -166,23 +158,18 @@ export function AuthFlow() {
                 className="mt-4 rounded-[var(--r-panel)] border px-3.5 py-3"
                 style={{ borderColor: "var(--negative)" }}
               >
-                <div className="flex items-start gap-2.5">
-                  <AlertTriangle
-                    className="mt-px h-3.5 w-3.5 shrink-0"
-                    style={{ color: "var(--negative)" }}
-                  />
-                  <div className="min-w-0">
-                    <div
-                      className="text-[12.5px] font-semibold"
-                      style={{ color: "var(--negative)" }}
-                    >
-                      No se pudo conectar
-                    </div>
-                    <p className="mt-0.5 text-[12px] leading-relaxed text-mid">
-                      {connectError}
-                    </p>
-                  </div>
+                {/* El triángulo de advertencia junto a "No se pudo conectar"
+                    en rojo era el tercer canal diciendo lo mismo: borde,
+                    color y glifo. Bastan los dos primeros y la frase. */}
+                <div
+                  className="text-[12.5px] font-semibold"
+                  style={{ color: "var(--negative)" }}
+                >
+                  No se pudo conectar
                 </div>
+                <p className="mt-0.5 text-[12px] leading-relaxed text-mid">
+                  {connectError}
+                </p>
                 <Button
                   variant="outline"
                   size="sm"

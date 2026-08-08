@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { ChevronLeft, ChevronRight, Info } from "lucide-react";
 import { OpportunityCard } from "@/components/domain/OpportunityCard";
 import { usePlatform } from "@/lib/data/store";
 import { formatUsdc } from "@/lib/format";
@@ -112,12 +111,10 @@ export function Deck({ onSelect }: { onSelect: (o: Opportunity) => void }) {
           promete no hacer. */}
       {usingSeedData && (
         <div
-          className="mx-4 mt-3 flex items-center gap-2 rounded-[var(--r-panel)] border px-3 py-2 text-[12px] sm:mx-6 lg:mx-0"
+          className="mx-4 mt-3 rounded-[var(--r-panel)] border px-3 py-2 text-[12px] sm:mx-6 lg:mx-0"
           style={{ borderColor: "var(--warning)", color: "var(--warning)" }}
         >
-          <Info className="h-3.5 w-3.5 shrink-0" />
-          Catálogo de demostración — todavía no hay oportunidades publicadas
-          por un verificador.
+          Catálogo de demostración — ningún verificador publicó todavía.
         </div>
       )}
 
@@ -200,6 +197,13 @@ export function Deck({ onSelect }: { onSelect: (o: Opportunity) => void }) {
   );
 }
 
+/**
+ * Paginación con palabras. Eran dos chevrones en círculos de 36px: el
+ * glifo direccional es el que menos falta hace, porque la fila ya está
+ * ordenada de izquierda a derecha y los puntos del medio dicen dónde
+ * estás. Con la palabra, además, se sabe qué avanza — la página, no la
+ * tarjeta ni el paso de la ficha.
+ */
 function PagerButton({
   onClick,
   disabled,
@@ -209,15 +213,14 @@ function PagerButton({
   disabled: boolean;
   side: "left" | "right";
 }) {
-  const Icon = side === "left" ? ChevronLeft : ChevronRight;
   return (
     <button
       onClick={onClick}
       disabled={disabled}
       aria-label={side === "left" ? "Página anterior" : "Página siguiente"}
-      className="focusable flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface transition-all disabled:opacity-30 enabled:hover:border-border-strong enabled:hover:shadow-[var(--shadow-md)]"
+      className="focusable flex h-9 items-center rounded-[var(--r-input)] px-2.5 text-[12.5px] font-medium text-mid transition-colors disabled:opacity-30 enabled:hover:bg-surface-soft enabled:hover:text-hi"
     >
-      <Icon className="h-4 w-4 text-mid" />
+      {side === "left" ? "Anterior" : "Siguiente"}
     </button>
   );
 }

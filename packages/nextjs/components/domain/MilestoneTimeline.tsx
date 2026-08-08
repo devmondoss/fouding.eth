@@ -1,4 +1,3 @@
-import { Check, FileText } from "lucide-react";
 import { MilestonePill } from "@/components/ui/Pill";
 import { Metric } from "@/components/ui/Stat";
 import { formatBps, formatDate, formatUsdc } from "@/lib/format";
@@ -73,16 +72,19 @@ export function MilestoneTimeline({ o }: { o: Opportunity }) {
                     m.status === "released" ? color : "var(--surface)",
                 }}
               >
-                {m.status === "released" ? (
-                  <Check className="h-3 w-3 text-white" strokeWidth={3.5} />
-                ) : (
-                  <span
-                    className="num text-[10px] font-bold"
-                    style={{ color }}
-                  >
-                    {m.index + 1}
-                  </span>
-                )}
+                {/* El nodo liberado llevaba un check en vez del número, así
+                    que el hito 3 dejaba de llamarse 3 justo cuando se
+                    cumplía. El orden es el dato del cronograma: el número se
+                    queda y el relleno dice el estado, que además la píldora
+                    nombra al lado. */}
+                <span
+                  className="num text-[10px] font-bold"
+                  style={{
+                    color: m.status === "released" ? "#FFFFFF" : color,
+                  }}
+                >
+                  {m.index + 1}
+                </span>
               </span>
 
               <div className="min-w-0 flex-1">
@@ -107,12 +109,7 @@ export function MilestoneTimeline({ o }: { o: Opportunity }) {
 
                 {(m.evidenceName || m.releasedAt) && (
                   <div className="mt-1.5 flex items-center gap-3 text-[11.5px] text-low">
-                    {m.evidenceName && (
-                      <span className="flex items-center gap-1">
-                        <FileText className="h-3 w-3" />
-                        {m.evidenceName}
-                      </span>
-                    )}
+                    {m.evidenceName && <span>Evidencia: {m.evidenceName}</span>}
                     {m.releasedAt && <span>{formatDate(m.releasedAt)}</span>}
                   </div>
                 )}

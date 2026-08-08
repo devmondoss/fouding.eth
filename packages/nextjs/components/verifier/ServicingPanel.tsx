@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, Landmark, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Pill } from "@/components/ui/Pill";
 import { Row } from "@/components/ui/Stat";
+import { Waiting } from "@/components/ui/Waiting";
 import { formatUsdc, shortHash, usdc } from "@/lib/format";
 
 /**
@@ -132,17 +132,8 @@ export function ServicingPanel({ apiKey }: { apiKey: string }) {
   return (
     <section className="card mt-6 p-4">
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Landmark className="h-4 w-4 text-mid" />
-          <h2 className="h3">Administración del crédito</h2>
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          icon={<RefreshCw className="h-3.5 w-3.5" />}
-          onClick={load}
-          loading={loading}
-        >
+        <h2 className="h3">Administración del crédito</h2>
+        <Button variant="ghost" size="sm" onClick={load} loading={loading}>
           Actualizar
         </Button>
       </div>
@@ -157,7 +148,9 @@ export function ServicingPanel({ apiKey }: { apiKey: string }) {
       )}
 
       {!state && !error && (
-        <p className="mt-3 text-[12.5px] text-low">Leyendo el vault…</p>
+        <div className="mt-3">
+          <Waiting label="Leyendo el estado del crédito" />
+        </div>
       )}
 
       {state && (
@@ -193,7 +186,7 @@ export function ServicingPanel({ apiKey }: { apiKey: string }) {
                 inputMode="decimal"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                hint="Sale de la cuenta operadora, que debe tener saldo del token de pago"
+                hint="Sale de la cuenta operadora"
               />
             </div>
           )}
@@ -213,11 +206,6 @@ export function ServicingPanel({ apiKey }: { apiKey: string }) {
                   disabled={
                     busy !== null ||
                     (NEEDS_AMOUNT.includes(action) && !amount.trim())
-                  }
-                  icon={
-                    DESTRUCTIVE.includes(action) ? (
-                      <AlertTriangle className="h-3.5 w-3.5" />
-                    ) : undefined
                   }
                   onClick={() => run(action)}
                 >

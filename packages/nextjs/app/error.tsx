@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
 /**
@@ -25,16 +24,13 @@ export default function Error({
   return (
     <div className="flex h-screen w-full items-center justify-center bg-bg px-4">
       <div className="card max-w-[400px] p-6 text-center">
-        <div
-          className="mx-auto flex h-11 w-11 items-center justify-center rounded-full border"
-          style={{ borderColor: "var(--negative)" }}
-        >
-          <AlertTriangle className="h-5 w-5" style={{ color: "var(--negative)" }} />
-        </div>
-        <h1 className="h2 mt-3 text-[16px]">Algo falló</h1>
+        {/* El triángulo en un círculo rojo era el sello de error genérico.
+            El titular ya dice que algo falló. */}
+        <h1 className="h2 text-[16px]" style={{ color: "var(--negative)" }}>
+          Algo falló
+        </h1>
         <p className="mt-1.5 text-[13px] text-mid">
-          Hubo un problema cargando la plataforma. Puede ser algo temporal —
-          intenta de nuevo.
+          Hubo un problema cargando la plataforma. Puede ser temporal.
         </p>
         <Button className="mt-4 w-full" onClick={reset}>
           Reintentar

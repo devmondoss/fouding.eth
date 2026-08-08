@@ -1,7 +1,6 @@
 "use client";
 
 import { motion } from "motion/react";
-import { Clock, ShieldCheck, ShieldX } from "lucide-react";
 import { CoverArt } from "./CoverArt";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { StatusPill } from "@/components/ui/Pill";
@@ -45,8 +44,8 @@ export function OpportunityCard({
       whileTap={{ scale: 0.99 }}
       className="focusable card card-hover group relative flex h-full w-full flex-col overflow-hidden p-5 text-left"
     >
-      {/* Watermark de portada — esquina, no banner. La marca es el
-          patrón + ícono de sector, apenas visible detrás del titular. */}
+      {/* Watermark de portada — esquina, no banner. La marca es el patrón
+          de la garantía, apenas visible detrás del titular. */}
       <div className="pointer-events-none absolute -right-6 -top-6 h-28 w-28 overflow-hidden rounded-full opacity-70">
         <CoverArt sector={o.company.sector} collateralKind={o.collateral.kind} height={112} />
       </div>
@@ -82,19 +81,14 @@ export function OpportunityCard({
         </div>
       </div>
 
-      {/* La cobertura insuficiente cambiaba solo de color manteniendo el
-          mismo escudo con el check: codificación puramente cromática, en la
-          tarjeta principal, contra el requisito explícito de que ningún
-          estado dependa solo del color. El ícono y la palabra lo dicen. */}
+      {/* El estado de la cobertura lo lleva la frase, no un escudo: dos
+          escudos distintos del mismo tamaño se diferenciaban por el color
+          antes que por la forma, así que en la práctica el dato era
+          cromático. "insuficiente" no depende de nada. */}
       <div
-        className="relative mt-1.5 flex items-center gap-1 text-[11px] font-medium"
+        className="relative mt-1.5 text-[11px] font-medium"
         style={{ color: cov >= 10000 ? "var(--positive)" : "var(--negative)" }}
       >
-        {cov >= 10000 ? (
-          <ShieldCheck className="h-3 w-3 shrink-0" />
-        ) : (
-          <ShieldX className="h-3 w-3 shrink-0" />
-        )}
         <span className="num">{formatRatio(cov)}</span> de cobertura
         {cov >= 10000 ? " de garantía" : " — insuficiente"}
       </div>
@@ -115,9 +109,8 @@ export function OpportunityCard({
         <div className="mt-3 flex items-center justify-between">
           <ScoreBadge score={score.score} grade={score.grade} size="sm" />
           {open && days > 0 && (
-            <span className="flex items-center gap-1 text-[11px] text-low">
-              <Clock className="h-3 w-3" />
-              {days} días
+            <span className="text-[11px] text-low">
+              <span className="num">{days}</span> días para cerrar
             </span>
           )}
         </div>

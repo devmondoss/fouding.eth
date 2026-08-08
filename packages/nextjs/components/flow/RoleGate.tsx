@@ -1,7 +1,6 @@
 "use client";
 
 import { motion } from "motion/react";
-import { ArrowRight, Building2, TrendingUp } from "lucide-react";
 import { T } from "@/lib/motion";
 import type { Role } from "@/lib/useSession";
 
@@ -37,19 +36,16 @@ export function RoleGate({
           ¿Qué te trae por acá?
         </h1>
         <p className="mt-2 text-center text-[13.5px] text-mid">
-          Elige una — esta wallet queda fija a esa opción, no se puede
-          cambiar después.
+          Esta wallet queda fija a lo que elijas.
         </p>
 
         <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <RoleCard
-            icon={<TrendingUp className="h-5 w-5" style={{ color: "var(--brand-ink)" }} />}
             title="Soy inversionista"
             detail="Quiero invertir en crédito privado respaldado por garantía real."
             onClick={() => onChoose("investor")}
           />
           <RoleCard
-            icon={<Building2 className="h-5 w-5" style={{ color: "var(--brand-ink)" }} />}
             title="Soy dueño de negocio"
             detail="Quiero solicitar financiamiento para mi empresa."
             onClick={() => onChoose("business")}
@@ -73,13 +69,18 @@ export function RoleGate({
   );
 }
 
+/**
+ * Las dos tarjetas abrían con un chip chartreuse: una flecha ascendente
+ * para el inversionista y un edificio para la empresa. Dos íconos de
+ * librería encima de dos frases que ya empiezan por "Soy" — el sujeto lo
+ * dice el titular. Y la flecha del "Continuar" tampoco hacía falta: la
+ * tarjeta entera es el botón.
+ */
 function RoleCard({
-  icon,
   title,
   detail,
   onClick,
 }: {
-  icon: React.ReactNode;
   title: string;
   detail: string;
   onClick: () => void;
@@ -87,22 +88,15 @@ function RoleCard({
   return (
     <button
       onClick={onClick}
-      className="card group flex flex-col items-start gap-2.5 p-5 text-left transition-colors hover:bg-surface-soft"
+      className="focusable card card-hover group flex flex-col items-start gap-2 p-5 text-left"
     >
-      <span
-        className="flex h-9 w-9 items-center justify-center rounded-full"
-        style={{ backgroundColor: "var(--brand)" }}
-      >
-        {icon}
-      </span>
-      <span className="h3">{title}</span>
+      <span className="h3 text-[17px]">{title}</span>
       <span className="text-[13px] leading-relaxed text-mid">{detail}</span>
       <span
-        className="mt-1 flex items-center gap-1 text-[12.5px] font-medium"
+        className="mt-2 text-[12.5px] font-medium underline decoration-transparent underline-offset-4 transition-colors group-hover:decoration-current"
         style={{ color: "var(--brand-ink)" }}
       >
         Continuar
-        <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
       </span>
     </button>
   );

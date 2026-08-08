@@ -2,17 +2,6 @@
 
 import { useState } from "react";
 import { motion } from "motion/react";
-import {
-  AlertTriangle,
-  Check,
-  Copy,
-  HelpCircle,
-  LogOut,
-  ShieldCheck,
-  ShieldEllipsis,
-  Trash2,
-  X,
-} from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Metric } from "@/components/ui/Stat";
@@ -123,10 +112,9 @@ export function ProfilePanel({
           <h2 className="h2 text-[16px]">Cuenta</h2>
           <button
             onClick={onClose}
-            className="focusable flex h-8 w-8 items-center justify-center rounded-full border border-border transition-colors hover:bg-surface-soft"
-            aria-label="Cerrar la cuenta"
+            className="focusable -mr-1 flex h-8 items-center rounded-[var(--r-input)] px-2 text-[12.5px] text-mid transition-colors hover:bg-surface-soft hover:text-hi"
           >
-            <X className="h-4 w-4 text-mid" />
+            Cerrar
           </button>
         </div>
 
@@ -144,16 +132,18 @@ export function ProfilePanel({
                 <span className="num truncate text-[13px] font-semibold text-hi">
                   {session.address.slice(0, 8)}…{session.address.slice(-6)}
                 </span>
+                {/* El par de íconos copiar/check se leía igual antes y
+                    después de copiar: dos glifos de 12px que solo cambian de
+                    silueta. La palabra dice cuál de los dos estados es. */}
                 <button
                   onClick={() => {
                     navigator.clipboard?.writeText(session.address);
                     setCopied(true);
                     setTimeout(() => setCopied(false), 1600);
                   }}
-                  className="shrink-0 text-low transition-colors hover:text-hi"
-                  aria-label="Copiar dirección"
+                  className="focusable shrink-0 text-[11.5px] font-medium text-low transition-colors hover:text-hi"
                 >
-                  {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                  {copied ? "Copiada" : "Copiar"}
                 </button>
               </div>
               <div className="text-[11.5px] text-low">
@@ -162,41 +152,33 @@ export function ProfilePanel({
             </div>
           </div>
 
-          {/* Verificación */}
+          {/* Verificación. Los tres párrafos que glosaban el estado se
+              fueron: cada uno decía en prosa lo que el titular ya afirma, y
+              el que importa —el pendiente— tenía el botón debajo de tres
+              líneas de texto que nadie necesita para pulsarlo. */}
           <div className="mt-5 rounded-[var(--r-panel)] border border-border p-4">
-            <div className="flex items-start gap-2.5">
-              {session.verified ? (
-                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "var(--positive)" }} />
-              ) : (
-                <ShieldEllipsis className="mt-0.5 h-4 w-4 shrink-0 text-low" />
-              )}
-              <div className="min-w-0 flex-1">
-                <div className="text-[13px] font-semibold text-hi">
-                  {session.verified
-                    ? "Acceso de inversionista aprobado"
-                    : session.accessStatus === 1
-                      ? "Solicitud en revisión"
-                      : "Acceso de inversionista pendiente"}
-                </div>
-                <p className="mt-1 text-[12px] leading-relaxed text-mid">
-                  {session.verified
-                    ? "Tu wallet está habilitada para participar en las rondas disponibles."
-                    : session.accessStatus === 1
-                      ? "La solicitud onchain está pendiente de aprobación por el equipo de cumplimiento."
-                      : "Solicita acceso a la waitlist. Solo las wallets aprobadas pueden invertir."}
-                </p>
-                {!session.verified && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="mt-3"
-                    onClick={() => setVerifying(true)}
-                  >
-                    {session.accessStatus === 1 ? "Solicitud pendiente" : "Solicitar acceso"}
-                  </Button>
-                )}
-              </div>
+            <div
+              className="text-[13px] font-semibold"
+              style={{
+                color: session.verified ? "var(--positive)" : "var(--text-hi)",
+              }}
+            >
+              {session.verified
+                ? "Acceso de inversionista aprobado"
+                : session.accessStatus === 1
+                  ? "Solicitud en revisión"
+                  : "Acceso de inversionista pendiente"}
             </div>
+            {!session.verified && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-3"
+                onClick={() => setVerifying(true)}
+              >
+                {session.accessStatus === 1 ? "Solicitud pendiente" : "Solicitar acceso"}
+              </Button>
+            )}
           </div>
 
           {/* Estadísticas */}
@@ -214,10 +196,9 @@ export function ProfilePanel({
             <div className="label mb-2">Preferencias</div>
             <button
               onClick={onReplayIntro}
-              className="flex w-full items-center gap-2.5 rounded-[var(--r-panel)] border border-border px-3.5 py-3 text-left transition-colors hover:bg-surface-soft"
+              className="focusable w-full rounded-[var(--r-panel)] border border-border px-3.5 py-3 text-left text-[13px] text-hi transition-colors hover:bg-surface-soft"
             >
-              <HelpCircle className="h-4 w-4 shrink-0 text-low" />
-              <span className="text-[13px] text-hi">Ver introducción de nuevo</span>
+              Ver la introducción de nuevo
             </button>
           </div>
         </div>
@@ -226,9 +207,8 @@ export function ProfilePanel({
         <div className="shrink-0 border-t border-border p-5">
           <button
             onClick={onSignOut}
-            className="flex w-full items-center justify-center gap-2 rounded-[var(--r-input)] border border-border py-2.5 text-[13px] text-mid transition-colors hover:border-[var(--negative)] hover:text-[var(--negative)]"
+            className="focusable w-full rounded-[var(--r-input)] border border-border py-2.5 text-[13px] text-mid transition-colors hover:border-[var(--negative)] hover:text-[var(--negative)]"
           >
-            <LogOut className="h-3.5 w-3.5" />
             Cerrar sesión
           </button>
           <button
@@ -236,9 +216,8 @@ export function ProfilePanel({
               setDeleteError(null);
               setConfirmingDelete(true);
             }}
-            className="mt-2 flex w-full items-center justify-center gap-2 py-2 text-[12px] text-low transition-colors hover:text-[var(--negative)]"
+            className="focusable mt-2 w-full py-2 text-[12px] text-low transition-colors hover:text-[var(--negative)]"
           >
-            <Trash2 className="h-3.5 w-3.5" />
             Eliminar cuenta
           </button>
         </div>
@@ -249,7 +228,6 @@ export function ProfilePanel({
         open={verifying}
         onClose={() => setVerifying(false)}
         title="Solicitud de acceso"
-        subtitle="Requerida antes de invertir en cualquier operación"
         footer={
           <>
             <Button variant="ghost" onClick={() => setVerifying(false)}>
@@ -283,11 +261,11 @@ export function ProfilePanel({
             placeholder="DNI o pasaporte"
           />
         </div>
+        {/* Lo que se dice es qué pasa con los datos de la persona, no cómo
+            funciona el anclaje criptográfico. Una línea. */}
         <p className="mt-4 text-[12px] leading-relaxed text-low">
-          Tus datos se guardan en la base de la plataforma, no en la
-          blockchain: en cadena queda solo su huella criptográfica, que sirve
-          para probar después que lo declarado no cambió. La revisión la hace
-          una persona, fuera de cadena.
+          Tus datos no van a la blockchain: en cadena queda solo su huella. La
+          revisión la hace una persona.
         </p>
         {verificationError && (
           <p className="mt-3 text-[12px] text-[var(--negative)]">
@@ -318,17 +296,10 @@ export function ProfilePanel({
           </>
         }
       >
-        <div className="flex items-start gap-2.5">
-          <AlertTriangle
-            className="mt-0.5 h-4 w-4 shrink-0"
-            style={{ color: "var(--negative)" }}
-          />
-          <p className="text-[13px] leading-relaxed text-mid">
-            Se borra tu wallet y tu historial de esta cuenta — no se puede
-            recuperar. Tu correo va a quedar libre para registrarse de
-            nuevo como una cuenta completamente nueva.
-          </p>
-        </div>
+        <p className="text-[13px] leading-relaxed text-mid">
+          Se borra tu wallet y tu historial de esta cuenta — no se puede
+          recuperar. Tu correo queda libre para registrarse de nuevo.
+        </p>
         {deleteError && (
           <p className="mt-3 text-[12.5px]" style={{ color: "var(--negative)" }}>
             {deleteError}

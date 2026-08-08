@@ -1,4 +1,3 @@
-import { AlertTriangle, FileCheck2, ShieldCheck, ShieldX } from "lucide-react";
 import { Row } from "@/components/ui/Stat";
 import { Tag } from "@/components/ui/Pill";
 import { COLLATERAL_LABEL, coverageBps } from "@/lib/opportunity";
@@ -32,19 +31,22 @@ export function CollateralPanel({ o }: { o: Opportunity }) {
           backgroundColor: "var(--surface)",
         }}
       >
-        <div className="flex items-center gap-2.5">
-          {ok ? (
-            <ShieldCheck className="h-5 w-5" style={{ color: "var(--positive)" }} />
-          ) : (
-            <ShieldX className="h-5 w-5" style={{ color: "var(--negative)" }} />
-          )}
-          <div>
-            <div className="text-[13px] font-semibold text-hi">
-              Cobertura de la garantía
-            </div>
-            <div className="num text-[12px] text-mid">
-              Valor recuperable / monto solicitado
-            </div>
+        {/* El escudo era el tercer canal: borde, cifra de 26px y glifo,
+            todos diciendo lo mismo. La palabra que faltaba —si la cobertura
+            alcanza o no— ahora está escrita. */}
+        <div>
+          <div className="text-[13px] font-semibold text-hi">
+            Cobertura de la garantía
+          </div>
+          <div
+            className="text-[12px] font-medium"
+            style={{ color: ok ? "var(--positive)" : "var(--negative)" }}
+          >
+            {ok ? "Suficiente" : "Insuficiente"}
+            <span className="num font-normal text-mid">
+              {" "}
+              · valor recuperable sobre monto solicitado
+            </span>
           </div>
         </div>
         <span
@@ -74,42 +76,36 @@ export function CollateralPanel({ o }: { o: Opportunity }) {
         />
       </div>
 
-      <div className="mt-4 flex flex-col gap-2.5 border-t border-border pt-4">
-        <div className="flex items-start gap-2.5">
-          <FileCheck2
-            className="mt-0.5 h-4 w-4 shrink-0"
+      <div className="mt-4 flex flex-col gap-3 border-t border-border pt-4">
+        <div>
+          <div className="text-[12.5px] font-medium text-hi">
+            {c.registryEntry ?? "Garantía sin inscripción registral"}
+          </div>
+          <div
+            className="text-[12px]"
             style={{
               color: c.registryEntry ? "var(--positive)" : "var(--negative)",
             }}
-          />
-          <div>
-            <div className="text-[12.5px] font-medium text-hi">
-              {c.registryEntry ?? "Garantía sin inscripción registral"}
-            </div>
-            <div className="text-[12px] text-low">
-              {c.registryEntry
-                ? "Inscrita y oponible frente a terceros"
-                : "Sin inscripción la ejecución es más lenta e incierta"}
-            </div>
+          >
+            {c.registryEntry
+              ? "Inscrita y oponible frente a terceros"
+              : "Sin inscripción, la ejecución es más lenta e incierta"}
           </div>
         </div>
 
         {c.liens.length > 0 && (
-          <div className="flex items-start gap-2.5">
-            <AlertTriangle
-              className="mt-0.5 h-4 w-4 shrink-0"
+          <div>
+            <div
+              className="text-[12.5px] font-medium"
               style={{ color: "var(--warning)" }}
-            />
-            <div>
-              <div className="text-[12.5px] font-medium text-hi">
-                Gravámenes previos
-              </div>
-              {c.liens.map((l) => (
-                <div key={l} className="text-[12px] text-low">
-                  {l}
-                </div>
-              ))}
+            >
+              Gravámenes previos
             </div>
+            {c.liens.map((l) => (
+              <div key={l} className="text-[12px] text-low">
+                {l}
+              </div>
+            ))}
           </div>
         )}
       </div>

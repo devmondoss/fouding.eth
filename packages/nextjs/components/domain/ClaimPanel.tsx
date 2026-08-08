@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import type { Address } from "viem";
-import { ArrowDownToLine, Check } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Row } from "@/components/ui/Stat";
 import { useCreditVault } from "@/hooks/useCreditVault";
@@ -54,15 +53,10 @@ export function ClaimPanel() {
 
   return (
     <section className="card p-4 sm:p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="h3">Cobro</h3>
-          <p className="mt-1 text-[12.5px] text-mid">
-            Lo que la operación ya devolvió y te corresponde por tu aporte.
-          </p>
-        </div>
-        <ArrowDownToLine className="h-4 w-4 shrink-0 text-low" />
-      </div>
+      {/* La línea que decía "lo que la operación ya devolvió y te
+          corresponde por tu aporte" era la lectura en voz alta de las tres
+          filas de abajo, que lo dicen con cifras. */}
+      <h3 className="h3">Cobro</h3>
 
       <div className="mt-3">
         <Row label="Aportado" value={`${formatUsdc(vault.contributed)} USDC`} />
@@ -86,10 +80,9 @@ export function ClaimPanel() {
 
       {done && claimable === 0n ? (
         <div
-          className="mt-4 flex items-center gap-2 text-[12.5px] font-medium"
+          className="mt-4 text-[12.5px] font-medium"
           style={{ color: "var(--positive)" }}
         >
-          <Check className="h-4 w-4" />
           Cobro completado
         </div>
       ) : (

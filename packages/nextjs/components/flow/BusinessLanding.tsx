@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "motion/react";
-import { ArrowRight, Asterisk, Check } from "lucide-react";
+import { Logo } from "@/components/ui/Logo";
 import { fadeUp, T } from "@/lib/motion";
 
 /**
@@ -73,16 +73,7 @@ export function BusinessLanding() {
     <div className="min-h-screen" style={{ backgroundColor: "var(--bg)" }}>
       <header className="flex h-14 items-center justify-between border-b border-border bg-surface px-5 sm:h-[60px] sm:px-8">
         <Link href="/" className="flex items-center gap-2">
-          <span
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px]"
-            style={{ backgroundColor: "var(--brand)" }}
-          >
-            <Asterisk
-              className="h-4 w-4"
-              style={{ color: "var(--brand-ink)" }}
-              strokeWidth={2.6}
-            />
-          </span>
+          <Logo />
           <span className="h2 text-[19px]">Founding</span>
           <span className="ml-1 rounded-[var(--r-pill)] border border-border bg-surface-soft px-2 py-[2px] text-[11px] text-mid">
             Empresas
@@ -113,11 +104,10 @@ export function BusinessLanding() {
 
           <Link
             href="/solicitar"
-            className="focusable mt-7 inline-flex h-11 items-center gap-2 rounded-[var(--r-input)] px-5 text-[14px] font-medium shadow-[var(--shadow-sm)] transition-[filter] hover:brightness-110"
+            className="focusable mt-7 inline-flex h-11 items-center rounded-[var(--r-input)] px-5 text-[14px] font-medium shadow-[var(--shadow-sm)] transition-[filter] hover:brightness-110"
             style={{ backgroundColor: "var(--brand)", color: "var(--brand-ink)" }}
           >
             Empezar mi solicitud
-            <ArrowRight className="h-4 w-4" />
           </Link>
         </motion.div>
 
@@ -132,16 +122,14 @@ export function BusinessLanding() {
         >
           <h2 className="h3">Qué necesitas para calificar</h2>
           <p className="mt-1 text-[12.5px] text-mid">
-            Si te falta alguno de los cuatro, todavía no es el momento — y
-            preferimos decírtelo acá que después de la revisión.
+            Si te falta alguno de los cuatro, todavía no es el momento.
           </p>
           <ul className="mt-4 grid grid-cols-1 gap-x-8 gap-y-3.5 sm:grid-cols-2">
             {REQUISITOS.map((r) => (
+              // El check verde por requisito leía como "ya lo cumples", que
+              // es lo contrario de lo que esta lista pregunta.
               <li key={r.label} className="flex items-start gap-2.5">
-                <Check
-                  className="mt-[3px] h-3.5 w-3.5 shrink-0"
-                  style={{ color: "var(--positive)" }}
-                />
+                <span className="marker mt-[7px]" />
                 <div className="min-w-0">
                   <div className="text-[13px] font-semibold text-hi">
                     {r.label}

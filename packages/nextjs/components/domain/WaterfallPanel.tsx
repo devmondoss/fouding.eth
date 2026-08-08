@@ -1,4 +1,3 @@
-import { CheckCircle2, Circle } from "lucide-react";
 import { formatBps, formatUsdc } from "@/lib/format";
 import { expectedInterest } from "@/lib/opportunity";
 import { DEFAULT_COSTS, waterfallForOpportunity } from "@/lib/underwriting";
@@ -134,30 +133,34 @@ export function WaterfallPanel({ o }: { o: Opportunity }) {
               que el camino feliz. */}
           <div className="mt-3 rounded-[var(--r-panel)] border border-border p-4">
             <h4 className="h3">Qué sigue</h4>
-            <ol className="mt-2.5 flex flex-col gap-2.5">
+            {/* Cuatro pasos, una línea cada uno. La versión anterior tenía
+                dos y tres oraciones por paso explicando el mecanismo legal:
+                quien está mirando un default quiere saber en qué punto va y
+                qué le toca, no cómo funciona la inscripción registral. */}
+            <ol className="mt-3 flex flex-col gap-3">
               <NextStep
                 done
                 title="Se declaró el incumplimiento"
-                detail="El vault quedó cerrado a aportes nuevos. Tu posición sigue existiendo y no se puede diluir."
+                detail="Tu posición sigue existiendo y no se puede diluir."
               />
               <NextStep
                 done={recovered > 0n}
                 title="Ejecución de la garantía"
-                detail="La liquidación del activo ocurre fuera de la cadena, a través del vehículo legal que la tiene inscrita. El contrato no puede ejecutarla por sí solo."
+                detail="La liquidación del activo ocurre fuera de la cadena."
               />
               <NextStep
                 done={recovered > 0n}
                 title="Ingreso del recupero al contrato"
                 detail={
                   recovered > 0n
-                    ? `Ingresaron ${formatUsdc(recovered)} USDC. El reparto de arriba ya se ejecutó onchain con esa cifra.`
-                    : "Cuando el recupero ingrese, el contrato reparte automáticamente según el orden de arriba. Nadie decide el orden en ese momento: ya estaba escrito."
+                    ? `Ingresaron ${formatUsdc(recovered)} USDC y el reparto de arriba ya se ejecutó.`
+                    : "Al ingresar, el contrato reparte según el orden de arriba."
                 }
               />
               <NextStep
                 done={false}
                 title="Cobro de lo que te corresponde"
-                detail="Tu parte queda disponible para reclamar desde el portafolio. Puede ser menor a tu capital: el recupero de una garantía es parcial más veces de lo que es total."
+                detail="Queda disponible en tu portafolio. Puede ser menor a tu capital."
               />
             </ol>
             <p className="mt-3.5 border-t border-border pt-3 text-[11.5px] leading-relaxed text-low">
@@ -172,8 +175,9 @@ export function WaterfallPanel({ o }: { o: Opportunity }) {
   );
 }
 
-/** Un paso de la ejecución, con su estado. El punto lleva ícono, no solo
- *  color: el estado de un cobro no puede depender del tono. */
+/** Un paso de la ejecución, con su estado. El círculo lleno contra el
+ *  círculo vacío era la misma silueta en dos colores; la palabra al lado del
+ *  título dice en qué punto va sin depender del tono. */
 function NextStep({
   done,
   title,
@@ -184,17 +188,18 @@ function NextStep({
   detail: string;
 }) {
   return (
-    <li className="flex gap-2.5">
-      {done ? (
-        <CheckCircle2
-          className="mt-px h-4 w-4 shrink-0"
-          style={{ color: "var(--positive)" }}
-        />
-      ) : (
-        <Circle className="mt-px h-4 w-4 shrink-0 text-low" />
-      )}
+    <li className="flex gap-3">
+      <span className={done ? "marker mt-[7px]" : "marker marker-quiet mt-[7px]"} />
       <div className="min-w-0">
-        <div className="text-[12.5px] font-semibold text-hi">{title}</div>
+        <div className="flex flex-wrap items-baseline gap-2">
+          <span className="text-[12.5px] font-semibold text-hi">{title}</span>
+          <span
+            className="text-[11px] font-medium"
+            style={{ color: done ? "var(--positive)" : "var(--text-low)" }}
+          >
+            {done ? "hecho" : "pendiente"}
+          </span>
+        </div>
         <p className="mt-0.5 text-[12px] leading-relaxed text-mid">{detail}</p>
       </div>
     </li>

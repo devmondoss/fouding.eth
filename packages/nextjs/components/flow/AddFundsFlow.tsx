@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowRight, Check, Info, Loader2, Wallet, X } from "lucide-react";
 import type { Address } from "viem";
 import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
 import { Button } from "@/components/ui/Button";
+import { Waiting } from "@/components/ui/Waiting";
 import { useProtocolToken } from "@/hooks/useProtocolToken";
 import { usePlatform } from "@/lib/data/store";
 import { useSession } from "@/lib/useSession";
@@ -133,10 +133,9 @@ export function AddFundsFlow({ onClose }: { onClose: () => void }) {
           {step === "monto" && (
             <button
               onClick={onClose}
-              className="flex h-7 w-7 items-center justify-center rounded-full border border-border transition-colors hover:bg-surface-soft"
-              aria-label="Cerrar"
+              className="focusable -mr-1 flex h-7 items-center rounded-[var(--r-input)] px-1.5 text-[12px] text-mid transition-colors hover:bg-surface-soft hover:text-hi"
             >
-              <X className="h-3.5 w-3.5 text-mid" />
+              Cerrar
             </button>
           )}
         </div>
@@ -168,33 +167,22 @@ export function AddFundsFlow({ onClose }: { onClose: () => void }) {
                   </div>
                 )}
 
+                {/* Los tres modos tenían dos párrafos cada uno explicando qué
+                    es un faucet, qué es un bridge y qué token es cuál. Queda
+                    la línea que cambia lo que la persona hace después. */}
                 {canFaucet ? (
-                  <>
-                    <p className="mt-5 text-[13px] leading-relaxed text-mid">
-                      El faucet de prueba entrega un monto fijo de {token.symbol} a tu
-                      wallet. Es una transacción real en la red configurada.
-                    </p>
-                    <p className="mt-2 text-[12px] text-low">
-                      {token.symbol} es un token de desarrollo, no el USDC de Circle.
-                    </p>
-                  </>
+                  <p className="mt-5 text-[13px] leading-relaxed text-mid">
+                    {token.symbol} es un token de prueba, no el USDC de Circle.
+                    El monto lo fija el contrato.
+                  </p>
                 ) : canDeposit ? (
                   <>
                     <p className="mt-5 text-[13px] leading-relaxed text-mid">
-                      Esta red usa el USDC de Circle, que no tiene faucet. Envía
-                      USDC a tu dirección desde otro wallet o un bridge; el saldo
-                      se lee directo onchain.
+                      Envía USDC a esta dirección desde otra wallet. El saldo se
+                      lee directo onchain.
                     </p>
-                    <div className="mt-3 break-all rounded-[var(--r-input)] border border-border bg-surface px-3 py-2.5 num text-[12px] text-mid">
+                    <div className="num mt-3 break-all rounded-[var(--r-input)] border border-border bg-surface px-3 py-2.5 text-[12px] text-mid">
                       {session?.address}
-                    </div>
-                    <div
-                      className="mt-3 flex items-start gap-2 rounded-[var(--r-panel)] border px-3 py-2 text-[12px]"
-                      style={{ borderColor: "var(--warning)", color: "var(--warning)" }}
-                    >
-                      <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                      Sin USDC en la wallet, las transacciones de inversión van a
-                      revertir.
                     </div>
                   </>
                 ) : (
@@ -287,13 +275,12 @@ export function AddFundsFlow({ onClose }: { onClose: () => void }) {
                     )}
 
                     <div
-                      className="mt-3 flex items-start gap-2 rounded-[var(--r-panel)] border px-3 py-2 text-[12px]"
+                      className="mt-3 rounded-[var(--r-panel)] border px-3 py-2 text-[12px]"
                       style={{ borderColor: "var(--warning)", color: "var(--warning)" }}
                     >
-                      <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                       {moneda === "pen"
-                        ? "Rampa simulada: no hay proveedor de pagos real conectado. El tipo de cambio es fijo y el saldo se acredita localmente."
-                        : "Saldo de demostración: no hay contrato desplegado en esta red, así que este depósito no toca la cadena."}
+                        ? "Rampa simulada: ningún proveedor de pagos real está conectado."
+                        : "Saldo de demostración: este depósito no toca la cadena."}
                     </div>
                   </>
                 )}
@@ -303,7 +290,6 @@ export function AddFundsFlow({ onClose }: { onClose: () => void }) {
                   size="lg"
                   disabled={!canFaucet && !canDeposit && parsed <= 0}
                   onClick={canDeposit ? onClose : () => setStep("procesando")}
-                  iconRight={canDeposit ? undefined : <ArrowRight className="h-4 w-4" />}
                 >
                   {canFaucet
                     ? `Recibir ${token.symbol} de prueba`
@@ -325,40 +311,34 @@ export function AddFundsFlow({ onClose }: { onClose: () => void }) {
                 transition={T.fast}
                 className="py-2"
               >
-                <div className="flex flex-col gap-3.5">
+                {/* Cada paso era un círculo de 24px con un check o un spinner
+                    dentro. Ahora el estado lo dice la palabra: el paso en
+                    curso lleva la regla que barre, el terminado dice
+                    "listo". Nada depende del glifo ni del color solos. */}
+                <div className="flex flex-col gap-4">
                   {pasos.map((label, i) => {
                     const done = i < progress;
                     const active = i === progress;
                     return (
-                      <div key={label} className="flex items-center gap-3">
-                        <span
-                          className="flex h-6 w-6 items-center justify-center rounded-full border"
-                          style={{
-                            borderColor: done
-                              ? "var(--positive)"
-                              : active
-                                ? "var(--brand-ink)"
-                                : "var(--border)",
-                            backgroundColor: done ? "var(--positive)" : "transparent",
-                          }}
-                        >
-                          {done ? (
-                            <Check className="h-3 w-3 text-white" strokeWidth={3} />
-                          ) : active ? (
-                            <Loader2
-                              className="h-3 w-3 animate-spin"
-                              style={{ color: "var(--brand-ink)" }}
-                            />
-                          ) : null}
-                        </span>
+                      <div key={label} className="flex flex-col gap-1.5">
                         <span
                           className="text-[13.5px]"
                           style={{
                             color: done || active ? "var(--text-hi)" : "var(--text-low)",
+                            fontWeight: active ? 600 : 400,
                           }}
                         >
                           {label}
                         </span>
+                        {active && <Waiting label={label} width={96} />}
+                        {done && (
+                          <span
+                            className="text-[11.5px] font-medium"
+                            style={{ color: "var(--positive)" }}
+                          >
+                            listo
+                          </span>
+                        )}
                       </div>
                     );
                   })}
@@ -374,32 +354,31 @@ export function AddFundsFlow({ onClose }: { onClose: () => void }) {
                 transition={T.base}
                 className="flex flex-col items-center py-3 text-center"
               >
-                <motion.span
-                  initial={{ scale: 0.5, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ ...T.spring, delay: 0.05 }}
-                  className="flex h-11 w-11 items-center justify-center rounded-full border"
-                  style={{ backgroundColor: "var(--surface)", borderColor: "var(--positive)" }}
-                >
-                  <Wallet className="h-5 w-5" style={{ color: "var(--positive)" }} />
-                </motion.span>
-
-                <div className="mt-3 text-[13px] text-mid">
+                {/* La billetera dentro de un círculo verde no agregaba nada
+                    que la cifra no diga. El spring entra con el número. */}
+                <div className="text-[13px] text-mid">
                   {canFaucet ? "Saldo en tu wallet" : "Nuevo saldo"}
                 </div>
-                {canFaucet ? (
-                  <div className="num text-[28px] font-bold text-hi">
-                    {formatUsdc(token.balance ?? 0n)}
-                    <span className="text-[14px] text-low"> {token.symbol}</span>
-                  </div>
-                ) : (
-                  <AnimatedNumber
-                    value={balance}
-                    from={balanceBefore}
-                    className="num text-[28px] font-bold text-hi"
-                    suffix=" USDC"
-                  />
-                )}
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ ...T.spring, delay: 0.05 }}
+                  className="mt-0.5"
+                >
+                  {canFaucet ? (
+                    <div className="num text-[30px] font-bold text-hi">
+                      {formatUsdc(token.balance ?? 0n)}
+                      <span className="text-[14px] text-low"> {token.symbol}</span>
+                    </div>
+                  ) : (
+                    <AnimatedNumber
+                      value={balance}
+                      from={balanceBefore}
+                      className="num text-[30px] font-bold text-hi"
+                      suffix=" USDC"
+                    />
+                  )}
+                </motion.div>
 
                 <Button className="mt-5 w-full" onClick={onClose}>
                   Listo

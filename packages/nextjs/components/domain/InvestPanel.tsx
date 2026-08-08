@@ -3,15 +3,6 @@
 import { useState } from "react";
 import type { Address } from "viem";
 import { motion } from "motion/react";
-import {
-  ArrowRight,
-  Clock,
-  ExternalLink,
-  Lock,
-  ShieldCheck,
-  ShieldEllipsis,
-  ShieldX,
-} from "lucide-react";
 import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
@@ -72,7 +63,6 @@ export function InvestPanel({
   const [busy, setBusy] = useState(false);
   const [receipt, setReceipt] = useState<InvestReceipt | null>(null);
   const [transactionError, setTransactionError] = useState<string | null>(null);
-  const [showInfraDetail, setShowInfraDetail] = useState(false);
 
   const open = isOpenForFunding(o);
   const parsed = Number(amount.replace(/[^0-9.]/g, "")) || 0;
@@ -179,9 +169,8 @@ export function InvestPanel({
           <div className="mt-2.5 flex items-center justify-between text-[12px] text-mid">
             <span>{o.investorCount} inversionistas</span>
             {open && days > 0 && (
-              <span className="flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                {days} días restantes
+              <span>
+                <span className="num">{days}</span> días restantes
               </span>
             )}
           </div>
@@ -189,58 +178,41 @@ export function InvestPanel({
 
         {open ? (
           <div className="p-5">
-            {/* La puerta regulatoria, antes que cualquier campo. "Explorar es
-                libre; comprometer capital no" es un principio del producto:
-                se ve como una puerta con llamador, no como un campo en rojo. */}
+            {/* La puerta regulatoria, antes que cualquier campo. Es un
+                titular y una salida: el párrafo que explicaba por qué
+                explorar es libre y comprometer capital no se fue —quien ve
+                este bloque no necesita la doctrina, necesita el botón. */}
             {accessBlocked && (
               <div className="mb-4 rounded-[var(--r-panel)] border border-border p-4">
-                <div className="flex items-start gap-2.5">
-                  <ShieldEllipsis className="mt-0.5 h-4 w-4 shrink-0 text-mid" />
-                  <div className="min-w-0">
-                    <div className="text-[13px] font-semibold text-hi">
-                      {session?.accessStatus === 1
-                        ? "Tu solicitud de acceso está en revisión"
-                        : "Necesitas acceso aprobado para invertir"}
-                    </div>
-                    <p className="mt-1 text-[12px] leading-relaxed text-mid">
-                      {session?.accessStatus === 1
-                        ? "La solicitud ya está registrada onchain. Puedes seguir revisando la operación mientras se aprueba."
-                        : "Explorar el catálogo es libre. Comprometer capital exige que tu wallet esté en el registro de inversionistas aprobados."}
-                    </p>
-                    {onRequestAccess && session?.accessStatus !== 1 && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="mt-3"
-                        onClick={onRequestAccess}
-                      >
-                        Solicitar acceso
-                      </Button>
-                    )}
-                  </div>
+                <div className="text-[13px] font-semibold text-hi">
+                  {session?.accessStatus === 1
+                    ? "Tu solicitud de acceso está en revisión"
+                    : "Necesitas acceso aprobado para invertir"}
                 </div>
+                {onRequestAccess && session?.accessStatus !== 1 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-3"
+                    onClick={onRequestAccess}
+                  >
+                    Solicitar acceso
+                  </Button>
+                )}
               </div>
             )}
 
-            {/* Infraestructura: una frase, y el detalle técnico para quien
-                lo pida. Antes había cuatro cadenas con la palabra "bóveda"
-                filtrándose al momento de comprometer capital. */}
+            {/* Infraestructura: el hecho y su motivo, sin desplegable. El
+                "Ver detalle técnico" era un control extra para leer una
+                línea que cabía debajo del titular. */}
             {!accessBlocked && infraBlocked && (
               <div className="mb-4 rounded-[var(--r-panel)] border border-border p-4">
                 <div className="text-[13px] font-semibold text-hi">
                   Esta operación todavía no acepta capital
                 </div>
-                <button
-                  onClick={() => setShowInfraDetail((v) => !v)}
-                  className="focusable mt-1.5 text-[11.5px] text-mid underline decoration-dotted"
-                >
-                  {showInfraDetail ? "Ocultar detalle" : "Ver detalle técnico"}
-                </button>
-                {showInfraDetail && (
-                  <p className="mt-1.5 text-[11.5px] leading-relaxed text-low">
-                    {infraDetail}
-                  </p>
-                )}
+                <p className="mt-1 text-[11.5px] leading-relaxed text-low">
+                  {infraDetail}
+                </p>
               </div>
             )}
 
@@ -258,17 +230,17 @@ export function InvestPanel({
               <div className="flex-1 rounded-[var(--r-panel)] border border-border px-3 py-2">
                 <div className="label">Cobertura</div>
                 <div
-                  className="num mt-0.5 flex items-center gap-1 text-[15px] font-semibold"
+                  className="num mt-0.5 text-[15px] font-semibold"
                   style={{
                     color: cov >= 10000 ? "var(--positive)" : "var(--negative)",
                   }}
                 >
-                  {cov >= 10000 ? (
-                    <ShieldCheck className="h-3.5 w-3.5" />
-                  ) : (
-                    <ShieldX className="h-3.5 w-3.5" />
-                  )}
                   {formatRatio(cov)}
+                  {cov < 10000 && (
+                    <span className="ml-1.5 font-sans text-[11px] font-medium">
+                      insuficiente
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -338,13 +310,11 @@ export function InvestPanel({
               size="lg"
               disabled={!canInvest}
               onClick={() => setConfirming(true)}
-              iconRight={<ArrowRight className="h-4 w-4" />}
             >
               Invertir ahora
             </Button>
 
-            <div className="mt-3 flex items-center gap-1.5 text-[11px] text-low">
-              <Lock className="h-3 w-3 shrink-0" />
+            <div className="mt-3 text-[11px] text-low">
               En custodia contractual hasta cumplir cada hito
             </div>
           </div>
@@ -393,17 +363,14 @@ export function InvestPanel({
           accent="var(--positive)"
           strong
         />
-        <div className="mt-4 rounded-[var(--r-panel)] border border-border px-3 py-2.5">
-          <p className="text-[12px] font-medium text-hi">
-            Mercado secundario restringido, no garantizado
-          </p>
-          <p className="mt-1 text-[11.5px] leading-relaxed text-low">
-            Puedes publicar tu posición en el libro de órdenes antes del
-            vencimiento, pero solo otras wallets verificadas pueden comprarla
-            y no hay garantía de encontrar comprador. Sin eso, el capital
-            queda inmovilizado hasta que la operación pague.
-          </p>
-        </div>
+        {/* Advertencia de liquidez, no explicación del mercado secundario:
+            el párrafo de cuatro líneas que describía cómo funciona el libro
+            de órdenes se fue. Lo que hay que saber antes de firmar es que el
+            capital puede quedar inmovilizado, y eso cabe en una línea. */}
+        <p className="mt-4 rounded-[var(--r-panel)] border border-border px-3 py-2.5 text-[11.5px] leading-relaxed text-mid">
+          Sin comprador en el mercado secundario, el capital queda inmovilizado
+          hasta que la operación pague.
+        </p>
       </Modal>
 
       {/* El momento en que se mueve el dinero. Antes terminaba en una frase
@@ -427,7 +394,6 @@ export function InvestPanel({
                   setReceipt(null);
                   onOpenPortfolio();
                 }}
-                iconRight={<ArrowRight className="h-4 w-4" />}
               >
                 Ver mi posición
               </Button>
@@ -437,22 +403,21 @@ export function InvestPanel({
       >
         {receipt && (
           <div className="flex flex-col items-center text-center">
-            <motion.span
-              initial={{ scale: 0.6, opacity: 0 }}
+            {/* El candado dentro de un círculo chartreuse era el gesto de
+                confirmación, y el spring del sistema estaba puesto en él.
+                La cifra es el hecho: ahora el spring entra con el monto, que
+                es lo que la persona vino a ver. */}
+            <motion.div
+              initial={{ scale: 0.88, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={T.spring}
-              className="flex h-12 w-12 items-center justify-center rounded-full"
-              style={{ backgroundColor: "var(--brand)" }}
+              className="num text-[36px] font-bold tracking-[-0.02em] text-hi"
             >
-              <Lock className="h-5 w-5" style={{ color: "var(--brand-ink)" }} />
-            </motion.span>
-
-            <div className="num mt-3.5 text-[30px] font-bold tracking-[-0.02em] text-hi">
               {formatUsdc(receipt.amount)}
               <span className="ml-1 text-[15px] font-semibold text-mid">
                 USDC
               </span>
-            </div>
+            </motion.div>
             <p className="mt-1 text-[12.5px] text-mid">
               retenidos en el contrato, no en la empresa
             </p>
@@ -474,15 +439,11 @@ export function InvestPanel({
               </div>
             </div>
 
-            <p className="mt-4 text-[12px] leading-relaxed text-mid">
-              El capital se libera por tramos, solo cuando un verificador
-              aprueba cada hito. Si la operación incumple, se ejecuta la
-              garantía y el recupero se reparte según la prelación pactada.
-            </p>
-
-            {receipt.hash && (
-              <ExplorerLink hash={receipt.hash} />
-            )}
+            {/* Acá había un párrafo repitiendo cómo funcionan los hitos y la
+                prelación. Es la tercera vez que se lo cuenta a la misma
+                persona —onboarding, pestañas de la ficha, y esto— y ya
+                invirtió: lo que corresponde es la prueba de que pasó. */}
+            {receipt.hash && <ExplorerLink hash={receipt.hash} />}
           </div>
         )}
       </Modal>
@@ -515,11 +476,10 @@ function ExplorerLink({ hash }: { hash: string }) {
       href={url}
       target="_blank"
       rel="noreferrer"
-      className="focusable num mt-4 inline-flex items-center gap-1.5 text-[11.5px] font-medium underline decoration-dotted"
+      className="focusable num mt-4 inline-flex items-center text-[11.5px] font-medium underline decoration-dotted"
       style={{ color: "var(--brand-ink)" }}
     >
       Ver la transacción {short}
-      <ExternalLink className="h-3 w-3" />
     </a>
   );
 }

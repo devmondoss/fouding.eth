@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Check, RefreshCw, ShieldCheck, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Pill } from "@/components/ui/Pill";
 import { shortHash } from "@/lib/format";
@@ -95,25 +94,15 @@ export function AccessRequests({ apiKey }: { apiKey: string }) {
 
   return (
     <section className="card mt-6 p-4">
+      {/* El escudo delante del título y la línea que explicaba el
+          AccessRegistry se fueron: el operador de esta pantalla sabe qué
+          hace aprobar, y el título ya nombra la sección. */}
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="h-4 w-4 text-mid" />
-          <h2 className="h3">Acceso de inversionistas</h2>
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          icon={<RefreshCw className="h-3.5 w-3.5" />}
-          onClick={load}
-          loading={loading}
-        >
+        <h2 className="h3">Acceso de inversionistas</h2>
+        <Button variant="ghost" size="sm" onClick={load} loading={loading}>
           Actualizar
         </Button>
       </div>
-      <p className="mt-1 text-[12px] text-mid">
-        Aprobar habilita la wallet en el AccessRegistry — sin eso no puede
-        invertir.
-      </p>
 
       {error && (
         <div
@@ -164,7 +153,6 @@ export function AccessRequests({ apiKey }: { apiKey: string }) {
                 <>
                   <Button
                     size="sm"
-                    icon={<Check className="h-3.5 w-3.5" />}
                     loading={busy === r.investor}
                     onClick={() => decide(r.investor, true)}
                   >
@@ -173,7 +161,6 @@ export function AccessRequests({ apiKey }: { apiKey: string }) {
                   <Button
                     size="sm"
                     variant="outline"
-                    icon={<X className="h-3.5 w-3.5" />}
                     loading={busy === r.investor}
                     onClick={() => decide(r.investor, false)}
                   >

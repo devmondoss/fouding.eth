@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Address } from "viem";
 import { AnimatePresence, motion } from "motion/react";
-import { CalendarClock, Send, Tag as TagIcon, X } from "lucide-react";
 import { ActivityRow } from "@/components/domain/ActivityRow";
 import { ClaimPanel } from "@/components/domain/ClaimPanel";
 import { initials } from "@/components/domain/OpportunityCard";
@@ -192,10 +191,9 @@ export function PortfolioOverlay({
           </div>
           <button
             onClick={onClose}
-            className="focusable flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border transition-colors hover:bg-surface-soft"
-            aria-label="Cerrar el portafolio"
+            className="focusable -mr-1 flex h-8 shrink-0 items-center rounded-[var(--r-input)] px-2 text-[12.5px] text-mid transition-colors hover:bg-surface-soft hover:text-hi"
           >
-            <X className="h-4 w-4 text-mid" />
+            Cerrar
           </button>
         </div>
 
@@ -302,7 +300,6 @@ export function PortfolioOverlay({
                             key={p.id}
                             className="flex items-center gap-3 rounded-[var(--r-panel)] border border-border px-3.5 py-2.5"
                           >
-                            <CalendarClock className="h-4 w-4 shrink-0 text-low" />
                             <div className="min-w-0 flex-1">
                               <div className="truncate text-[12.5px] font-medium text-hi">
                                 {m!.title}
@@ -396,7 +393,6 @@ export function PortfolioOverlay({
                                   variant="outline"
                                   size="sm"
                                   className="w-full sm:w-auto"
-                                  icon={<TagIcon className="h-3 w-3" />}
                                   onClick={() => {
                                     setListing(p);
                                     setPrice(String(Math.round(Number(p.principal) / 1e6)));
@@ -422,8 +418,8 @@ export function PortfolioOverlay({
                   <section className="card p-4">
                     <h3 className="h3">Interesados en tus publicaciones</h3>
                     <p className="mt-1 text-[12.5px] text-mid">
-                      Marcar interés no mueve fondos — tú ejecutas la
-                      transferencia una vez coordinado el pago.
+                      El pago se coordina fuera de la plataforma; la
+                      transferencia la firmas tú.
                     </p>
                     <div className="mt-3 flex flex-col gap-2">
                       {withInterest.map((l) => {
@@ -519,10 +515,6 @@ function SellModal({
             : undefined
         }
       />
-      <p className="mt-4 text-[12px] leading-relaxed text-low">
-        Al concretarse la operación, el contrato transfiere el instrumento al
-        comprador únicamente si su wallet figura en el registro de acceso.
-      </p>
     </Modal>
   );
 }
@@ -599,7 +591,6 @@ function SellerListingRow({
         </div>
         <Button
           size="sm"
-          icon={<Send className="h-3 w-3" />}
           loading={busy}
           disabled={!opportunity.vaultAddress}
           onClick={transfer}
