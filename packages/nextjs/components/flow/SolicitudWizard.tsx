@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowLeft, ArrowRight, CheckCircle2, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { useSession } from "@/lib/useSession";
@@ -135,10 +134,9 @@ export function SolicitudWizard({
           {!submitting && (
             <button
               onClick={onClose}
-              className="flex h-7 w-7 items-center justify-center rounded-full border border-border transition-colors hover:bg-surface-soft"
-              aria-label="Cerrar"
+              className="focusable -mr-1 flex h-7 items-center rounded-[var(--r-input)] px-1.5 text-[12px] text-mid transition-colors hover:bg-surface-soft hover:text-hi"
             >
-              <X className="h-3.5 w-3.5 text-mid" />
+              Cerrar
             </button>
           )}
         </div>
@@ -146,16 +144,13 @@ export function SolicitudWizard({
         <div className="p-5">
           {done ? (
             <div className="flex flex-col items-center gap-3 py-6 text-center">
-              <span
-                className="flex h-11 w-11 items-center justify-center rounded-full"
-                style={{ backgroundColor: "var(--positive-soft)" }}
-              >
-                <CheckCircle2 className="h-5 w-5" style={{ color: "var(--positive)" }} />
-              </span>
+              {/* El check verde en un círculo era el sello genérico de
+                  "listo". El titular ya afirma que se envió, y el
+                  `positive-soft` de relleno rompía además la regla de no
+                  teñir superficies (§4). */}
               <h3 className="h3">Solicitud enviada</h3>
               <p className="max-w-[360px] text-[13px] leading-relaxed text-mid">
-                Un verificador humano va a revisar tu expediente. Si tu wallet
-                queda habilitada, tu operación se publica en el marketplace.
+                Un verificador va a revisar tu expediente.
               </p>
               <Button size="lg" className="mt-2 w-full" onClick={onSubmitted}>
                 Listo
@@ -213,7 +208,7 @@ export function SolicitudWizard({
                     <Field
                       label="Wallet de la empresa"
                       value={address}
-                      hint="La wallet con la que iniciaste sesión — es la que queda habilitada si se aprueba"
+                      hint="No se puede cambiar"
                       readOnly
                       disabled
                     />
@@ -263,8 +258,7 @@ export function SolicitudWizard({
                         Expediente legal <span className="text-low">(opcional por ahora)</span>
                       </span>
                       <span className="flex items-center justify-between gap-2 rounded-[var(--r-input)] border border-border bg-surface px-3 py-2.5">
-                        <span className="flex items-center gap-2 truncate text-[13px] text-mid">
-                          <Upload className="h-3.5 w-3.5 shrink-0 text-low" />
+                        <span className="truncate text-[13px] text-mid">
                           {file ? file.name : "Ningún archivo seleccionado"}
                         </span>
                         <span
@@ -280,8 +274,8 @@ export function SolicitudWizard({
                         />
                       </span>
                       <span className="text-[12px] text-low">
-                        El documento se guarda en storage privado — a la
-                        plataforma solo llega su hash, nunca el archivo en sí.
+                        Se guarda en storage privado; a la cadena solo va su
+                        huella.
                       </span>
                     </label>
 
@@ -311,7 +305,7 @@ export function SolicitudWizard({
 
               <div className="mt-6 flex items-center gap-2.5">
                 {step > 0 && (
-                  <Button variant="outline" size="lg" onClick={goBack} icon={<ArrowLeft className="h-4 w-4" />}>
+                  <Button variant="outline" size="lg" onClick={goBack}>
                     Atrás
                   </Button>
                 )}
@@ -321,7 +315,6 @@ export function SolicitudWizard({
                     className="flex-1"
                     onClick={goNext}
                     disabled={!stepValid[step]}
-                    iconRight={<ArrowRight className="h-4 w-4" />}
                   >
                     Continuar
                   </Button>

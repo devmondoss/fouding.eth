@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
@@ -212,7 +211,7 @@ export function PublishOpportunityForm({
             inputMode="decimal"
             value={verifiedRevenue}
             onChange={(e) => setVerifiedRevenue(e.target.value)}
-            hint="Lo que respalda el expediente, no lo declarado de palabra"
+            hint="Lo que respalda el expediente"
           />
         </Section>
 
@@ -273,7 +272,6 @@ export function PublishOpportunityForm({
               inputMode="decimal"
               value={haircut}
               onChange={(e) => setHaircut(e.target.value)}
-              hint="El valor neto recuperable se calcula solo"
             />
           </div>
           <Field label="Partida registral (SUNARP)" value={registryEntry} onChange={(e) => setRegistryEntry(e.target.value)} placeholder="Partida 04129877 — SUNARP Arequipa" />
@@ -299,10 +297,7 @@ export function PublishOpportunityForm({
         </Section>
 
         <Section title="Cronograma de desembolsos">
-          <p className="text-[12px] text-low">
-            El capital no se entrega de golpe: cada hito libera un tramo. Deben
-            sumar 100%.
-          </p>
+          <p className="text-[12px] text-low">Los tramos deben sumar 100%.</p>
           {milestones.map((m, i) => (
             <div key={i} className="flex items-end gap-2">
               <div className="flex-1">
@@ -331,13 +326,15 @@ export function PublishOpportunityForm({
                   }
                 />
               </div>
+              {/* El tacho de basura era el único control de esta pantalla
+                  que no decía qué hacía. "Quitar" ocupa lo mismo. */}
               <button
                 type="button"
                 onClick={() => setMilestones((ms) => ms.filter((_, j) => j !== i))}
-                className="mb-[1px] flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--r-input)] border border-border text-mid transition-colors hover:bg-surface-soft"
+                className="focusable mb-[1px] flex h-10 shrink-0 items-center rounded-[var(--r-input)] border border-border px-3 text-[12.5px] text-mid transition-colors hover:bg-surface-soft hover:text-hi"
                 aria-label={`Quitar hito ${i + 1}`}
               >
-                <Trash2 className="h-3.5 w-3.5" />
+                Quitar
               </button>
             </div>
           ))}
@@ -346,7 +343,6 @@ export function PublishOpportunityForm({
             <Button
               variant="outline"
               size="sm"
-              icon={<Plus className="h-3.5 w-3.5" />}
               onClick={() =>
                 setMilestones((ms) => [
                   ...ms,

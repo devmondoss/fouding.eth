@@ -2,22 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
-import {
-  Check,
-  Clock,
-  Copy,
-  FileText,
-  Lock,
-  RefreshCw,
-  Send,
-  ShieldCheck,
-  Upload,
-  X,
-} from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Field, EmptyState } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import { Pill } from "@/components/ui/Pill";
+import { Waiting } from "@/components/ui/Waiting";
 import { AccessRequests } from "@/components/verifier/AccessRequests";
 import { PublishOpportunityForm } from "@/components/verifier/PublishOpportunityForm";
 import { ServicingPanel } from "@/components/verifier/ServicingPanel";
@@ -93,10 +82,7 @@ export default function VerifierPage() {
         style={{ backgroundColor: "var(--bg)" }}
       >
         <div className="card w-full max-w-[380px] p-6">
-          <div className="flex items-center gap-2">
-            <Lock className="h-4 w-4 text-mid" />
-            <h1 className="h2 text-[17px]">Panel del verificador</h1>
-          </div>
+          <h1 className="h2 text-[17px]">Panel del verificador</h1>
           <p className="mt-1.5 text-[12.5px] text-mid">
             Acceso interno — pide la API key al equipo.
           </p>
@@ -258,7 +244,7 @@ function Panel({
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" icon={<RefreshCw className="h-3.5 w-3.5" />} onClick={load}>
+            <Button variant="outline" size="sm" onClick={load}>
               Actualizar
             </Button>
             <Button variant="ghost" size="sm" onClick={onLock}>
@@ -315,10 +301,9 @@ function Panel({
           <>
         {published && (
           <div
-            className="mt-4 flex items-center gap-2 rounded-[var(--r-panel)] border px-4 py-3 text-[13px]"
+            className="mt-4 flex items-center gap-1.5 rounded-[var(--r-panel)] border px-4 py-3 text-[13px]"
             style={{ borderColor: "var(--positive)", color: "var(--positive)" }}
           >
-            <Check className="h-4 w-4 shrink-0" />
             Publicada en el catálogo como <span className="num">{published}</span>
             <button
               onClick={() => setPublished(null)}
@@ -330,9 +315,7 @@ function Panel({
         )}
 
         <div className="flex flex-col gap-3">
-          {loading && !submissions && (
-            <p className="text-[13px] text-low">Cargando…</p>
-          )}
+          {loading && !submissions && <Waiting label="Cargando la cola" />}
 
           {error && (
             <div
@@ -371,10 +354,10 @@ function Panel({
                     {s.legalPackHash && (
                       <button
                         onClick={() => viewDocument(s.legalPackHash)}
-                        className="flex items-center gap-1 font-sans text-[11px] font-medium transition-colors hover:text-hi"
+                        className="focusable font-sans text-[11px] font-medium underline decoration-dotted transition-colors hover:text-hi"
                         style={{ color: "var(--brand-ink)" }}
                       >
-                        <FileText className="h-3 w-3" /> Ver documento
+                        Ver documento
                       </button>
                     )}
                   </p>
@@ -393,9 +376,12 @@ function Panel({
 
               {s.status === "pending" && (
                 <div className="mt-3.5 flex gap-2 border-t border-border pt-3.5">
+                  {/* La línea sobre el honorario fijo era un argumento de
+                      venta al lado de dos botones de decisión: el operador ya
+                      sabe cómo cobra. Vive en /negocios, que es donde
+                      convence a alguien. */}
                   <Button
                     size="sm"
-                    icon={<Check className="h-3.5 w-3.5" />}
                     loading={busyId === s.id}
                     onClick={() => {
                       setDecisionNote("");
@@ -408,7 +394,6 @@ function Panel({
                   <Button
                     size="sm"
                     variant="outline"
-                    icon={<X className="h-3.5 w-3.5" />}
                     loading={busyId === s.id}
                     onClick={() => {
                       setDecisionNote("");
@@ -418,10 +403,6 @@ function Panel({
                   >
                     Rechazar
                   </Button>
-                  <span className="ml-auto flex items-center gap-1.5 text-[11.5px] text-mid">
-                    <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
-                    Tu honorario es fijo: no cambia si apruebas o rechazas
-                  </span>
                 </div>
               )}
 
@@ -429,17 +410,10 @@ function Panel({
                   acto —el underwriting— y es lo que hace que un inversionista
                   llegue a ver esto en el catálogo. */}
               {s.status === "approved" && (
-                <div className="mt-3.5 flex items-center gap-2 border-t border-border pt-3.5">
-                  <Button
-                    size="sm"
-                    icon={<Send className="h-3.5 w-3.5" />}
-                    onClick={() => setPublishing(s)}
-                  >
+                <div className="mt-3.5 border-t border-border pt-3.5">
+                  <Button size="sm" onClick={() => setPublishing(s)}>
                     Publicar oportunidad
                   </Button>
-                  <span className="text-[11px] text-low">
-                    Define plazo, tasa, garantía e hitos
-                  </span>
                 </div>
               )}
             </div>
@@ -480,10 +454,12 @@ function Panel({
           </>
         }
       >
+        {/* Lo que hace falta saber antes de pulsar es que no hay vuelta
+            atrás. Cómo funciona un token soulbound no cambia la decisión. */}
         <p className="text-[13px] leading-relaxed text-mid">
           {deciding?.approve
-            ? "Al aprobar se emite el pasaporte de negocio de esta empresa onchain. Es un token soulbound: no se transfiere y no se revierte."
-            : "El rechazo se le muestra al dueño del negocio, que puede corregir y enviar una solicitud nueva. El motivo es lo único que le dice qué corregir."}
+            ? "Emite el pasaporte de esta empresa onchain. No se revierte."
+            : "El motivo se le muestra al dueño del negocio."}
         </p>
 
         <div className="mt-4">
@@ -506,8 +482,7 @@ function Panel({
             />
             {!deciding?.approve && (
               <span className="text-[11.5px] text-low">
-                Obligatorio, al menos 10 caracteres. Es lo que el dashboard de
-                la empresa muestra como observación.
+                Obligatorio · mínimo 10 caracteres
               </span>
             )}
           </label>
@@ -594,7 +569,6 @@ function UploadWidget({ apiKey }: { apiKey: string }) {
       <Button
         variant="outline"
         size="sm"
-        icon={<Upload className="h-3.5 w-3.5" />}
         loading={uploading}
         onClick={() => inputRef.current?.click()}
       >
@@ -610,9 +584,9 @@ function UploadWidget({ apiKey }: { apiKey: string }) {
               setCopied(true);
               setTimeout(() => setCopied(false), 1600);
             }}
-            className="flex items-center gap-1 font-sans transition-colors hover:text-hi"
+            className="focusable font-sans text-[11.5px] font-medium underline decoration-dotted transition-colors hover:text-hi"
           >
-            {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+            {copied ? "Copiado" : "Copiar"}
           </button>
         </span>
       )}

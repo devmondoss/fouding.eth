@@ -2,10 +2,10 @@
 
 import { Fragment } from "react";
 import { motion } from "motion/react";
-import { FileText, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Pill } from "@/components/ui/Pill";
 import { MetricCard } from "@/components/ui/Stat";
+import { Waiting } from "@/components/ui/Waiting";
 import { BusinessTopBar } from "@/components/flow/BusinessTopBar";
 import { fadeUp, press, stagger } from "@/lib/motion";
 import { formatDate } from "@/lib/format";
@@ -65,28 +65,20 @@ export function BusinessDashboard({
         >
           <div>
             <div className="label">Panel de la empresa</div>
+            {/* El párrafo que explicaba que revisa un humano se fue: cada
+                tarjeta ya muestra el estado y qué sigue. La promesa no hay
+                que enunciarla si el dato está en pantalla. */}
             <h1 className="h1 mt-1.5">Tus solicitudes</h1>
-            <p className="mt-1.5 max-w-[520px] text-[13.5px] leading-relaxed text-mid">
-              Cada expediente lo revisa un verificador humano antes de
-              publicarse — nada se ofrece a inversionistas sin pasar por ahí.
-            </p>
           </div>
 
-          <Button
-            size="lg"
-            onClick={onNewSubmission}
-            icon={<Plus className="h-4 w-4" />}
-          >
+          <Button size="lg" onClick={onNewSubmission}>
             Nueva solicitud
           </Button>
         </motion.div>
 
         {loading ? (
           <div className="mt-16 flex justify-center">
-            <Loader2
-              className="h-5 w-5 animate-spin"
-              style={{ color: "var(--brand-ink)" }}
-            />
+            <Waiting label="Cargando tus solicitudes" showLabel />
           </div>
         ) : list.length === 0 ? (
           <EmptyDashboard onNewSubmission={onNewSubmission} />
@@ -165,14 +157,15 @@ export function BusinessDashboard({
   );
 }
 
-/** Qué sigue, en castellano llano — el dato que faltaba por completo. */
+/**
+ * Qué sigue, en una línea. Eran de dos y tres oraciones narrando el
+ * procedimiento; lo que la empresa vino a saber es en qué punto está y si le
+ * toca hacer algo.
+ */
 const NEXT_STEP: Record<SubmissionStatus, string> = {
-  pending:
-    "Un verificador está revisando el expediente. Te avisamos acá mismo cuando haya decisión — no tienes que hacer nada más por ahora.",
-  approved:
-    "Tu wallet quedó habilitada. La operación se publica en el marketplace para que los inversionistas la financien.",
-  rejected:
-    "El expediente no pasó la revisión. Puedes corregir lo observado y enviar una solicitud nueva.",
+  pending: "En revisión. No tienes que hacer nada.",
+  approved: "Aprobado. La operación sale al catálogo de inversionistas.",
+  rejected: "Rechazado. Corrige lo observado y envía una solicitud nueva.",
 };
 
 const STAGES = ["Enviada", "En revisión", "Resultado"] as const;
@@ -249,17 +242,9 @@ function EmptyDashboard({ onNewSubmission }: { onNewSubmission: () => void }) {
       animate="show"
       className="card mt-7 flex flex-col items-center gap-3 px-6 py-14 text-center"
     >
-      <span
-        className="flex h-11 w-11 items-center justify-center rounded-full"
-        style={{ backgroundColor: "var(--brand-soft)" }}
-      >
-        <FileText className="h-5 w-5" style={{ color: "var(--brand-ink)" }} />
-      </span>
       <h2 className="h3">Todavía no enviaste ninguna solicitud</h2>
       <p className="max-w-[400px] text-[13px] leading-relaxed text-mid">
-        Son tres pasos: los datos de tu empresa, el proyecto que quieres
-        financiar y el expediente legal. Puedes guardarlo y volver cuando
-        quieras.
+        Son tres pasos: tu empresa, el proyecto y el expediente legal.
       </p>
       <motion.button
         {...press}

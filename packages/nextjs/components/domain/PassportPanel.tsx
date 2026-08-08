@@ -1,16 +1,6 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import {
-  BadgeCheck,
-  CircleAlert,
-  ExternalLink,
-  FileCheck2,
-  History,
-  Loader2,
-  Lock,
-  Network,
-} from "lucide-react";
 import { useCompanyEvidence } from "@/hooks/useCompanyEvidence";
 import {
   useCompanyPassport,
@@ -90,22 +80,15 @@ export function PassportPanel({ company }: { company: Company }) {
           <h3 className="h3">La empresa</h3>
           <p className="mt-1 text-[13px] text-mid">{company.name}</p>
         </div>
-        <span className="flex shrink-0 items-center gap-1 rounded-[var(--r-pill)] border border-border bg-surface-soft px-2.5 py-1 text-[11.5px] text-low">
-          <Lock className="h-3 w-3" />
+        <span className="shrink-0 rounded-[var(--r-pill)] border border-border bg-surface-soft px-2.5 py-1 text-[11.5px] text-low">
           Perfil intransferible
         </span>
       </div>
 
-      <SourceSection
-        icon={<Network className="h-4 w-4" />}
-        title="Estado on-chain"
-      >
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <Pill label={statusView.label} tone={statusView.tone} dot />
-          {passport.status === "loading" && (
-            <Loader2 className="h-4 w-4 animate-spin text-low" />
-          )}
-        </div>
+      <SourceSection title="Estado on-chain">
+        {/* El spinner al lado de la píldora era redundante: la píldora dice
+            literalmente "Consultando blockchain…". */}
+        <Pill label={statusView.label} tone={statusView.tone} dot />
 
         {passport.status === "wrong-network" && (
           <Message>
@@ -159,10 +142,7 @@ export function PassportPanel({ company }: { company: Company }) {
         )}
       </SourceSection>
 
-      <SourceSection
-        icon={<FileCheck2 className="h-4 w-4" />}
-        title="Evidencia off-chain"
-      >
+      <SourceSection title="Evidencia off-chain">
         {evidence.isLoading && (
           <Message>Consultando evidencia verificada…</Message>
         )}
@@ -211,10 +191,7 @@ export function PassportPanel({ company }: { company: Company }) {
         )}
       </SourceSection>
 
-      <SourceSection
-        icon={<History className="h-4 w-4" />}
-        title="Historial Fouding"
-      >
+      <SourceSection title="Historial Fouding">
         {company.foudingHistory ? (
           <>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -254,10 +231,12 @@ export function PassportPanel({ company }: { company: Company }) {
                     href={`${explorer}/tx/${transaction.txHash}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex items-center justify-between rounded-[var(--r-panel)] border border-border px-3 py-2 text-[12.5px] text-mid transition-colors hover:border-border-strong hover:text-hi"
+                    className="focusable flex items-center justify-between rounded-[var(--r-panel)] border border-border px-3 py-2 text-[12.5px] text-mid transition-colors hover:border-border-strong hover:text-hi"
                   >
                     {transaction.label}
-                    <ExternalLink className="h-3.5 w-3.5" />
+                    <span className="text-[11.5px] text-low">
+                      Ver en el explorador
+                    </span>
                   </a>
                 ))}
               </div>
@@ -265,8 +244,7 @@ export function PassportPanel({ company }: { company: Company }) {
           </>
         ) : (
           <Message>
-            El historial todavía no está indexado para esta empresa. No se
-            muestran cifras de demostración como actividad real.
+            El historial de esta empresa todavía no está indexado.
           </Message>
         )}
       </SourceSection>
@@ -274,21 +252,22 @@ export function PassportPanel({ company }: { company: Company }) {
   );
 }
 
+/**
+ * Cada sección llevaba un ícono —red, documento, reloj— delante del título.
+ * Tres glifos de librería para tres títulos que ya nombran su fuente:
+ * "Estado on-chain", "Evidencia off-chain", "Historial Fouding". El título
+ * es la etiqueta; el ícono era decoración.
+ */
 function SourceSection({
-  icon,
   title,
   children,
 }: {
-  icon: ReactNode;
   title: string;
   children: ReactNode;
 }) {
   return (
     <div className="mt-4 border-t border-border pt-4 first:border-t-0">
-      <div className="mb-3 flex items-center gap-2 text-[12.5px] font-semibold text-hi">
-        <span className="text-mid">{icon}</span>
-        {title}
-      </div>
+      <div className="mb-3 text-[12.5px] font-semibold text-hi">{title}</div>
       {children}
     </div>
   );
@@ -314,40 +293,29 @@ function ExplorerLink({
       href={href}
       target="_blank"
       rel="noreferrer"
-      className="inline-flex h-8 items-center gap-1.5 rounded-[var(--r-input)] border border-border bg-surface px-3 text-[12.5px] font-medium text-hi transition-colors hover:border-border-strong hover:bg-surface-soft"
+      className="focusable inline-flex h-8 items-center rounded-[var(--r-input)] border border-border bg-surface px-3 text-[12.5px] font-medium text-hi transition-colors hover:border-border-strong hover:bg-surface-soft"
     >
       {children}
-      <ExternalLink className="h-3.5 w-3.5" />
     </a>
   );
 }
 
 function HashResult({ result }: { result: HashCheck }) {
   if (result === "idle") return null;
+  // El resultado ya está escrito: "Coincide con blockchain" no necesita un
+  // sello al lado, y los dos casos negativos usaban el mismo glifo, así que
+  // lo único que los distinguía era la palabra.
   const view = {
-    match: {
-      icon: <BadgeCheck className="h-4 w-4" />,
-      label: "Coincide con blockchain",
-      color: "var(--positive)",
-    },
-    mismatch: {
-      icon: <CircleAlert className="h-4 w-4" />,
-      label: "No coincide",
-      color: "var(--negative)",
-    },
+    match: { label: "Coincide con blockchain", color: "var(--positive)" },
+    mismatch: { label: "No coincide", color: "var(--negative)" },
     unavailable: {
-      icon: <CircleAlert className="h-4 w-4" />,
       label: "Comparación no disponible",
       color: "var(--text-mid)",
     },
   }[result];
 
   return (
-    <span
-      className="flex items-center gap-1 text-[12px] font-medium"
-      style={{ color: view.color }}
-    >
-      {view.icon}
+    <span className="text-[12px] font-medium" style={{ color: view.color }}>
       {view.label}
     </span>
   );
