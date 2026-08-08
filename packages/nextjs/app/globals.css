@@ -16,7 +16,12 @@
   --border-strong: #d0d5dd;
   --text-hi: #00272b; /* Gun Metal — reemplaza el gris casi negro */
   --text-mid: #475467;
-  --text-low: #98a2b3;
+  /* Antes #98a2b3, que medía 2.58:1 sobre blanco y 2.40:1 sobre --bg.
+     Es el color de la clase .label, que titula cada métrica del producto:
+     el token más repetido era el que menos se leía, y PRODUCT.md nombra
+     la legibilidad en proyector como requisito duro. Ahora 4.98:1 sobre
+     --surface y 4.64:1 sobre --bg. */
+  --text-low: #667085;
 
   /* Marca — Chartreuse para relleno, Gun Metal como tinta legible.
      Chartreuse pierde contraste como texto/borde fino sobre blanco:
@@ -27,6 +32,12 @@
   --brand-ink: #00272b;
   --brand-soft: #f8ffdf;
   --brand-border: #d8ef85;
+  /* Chartreuse oscurecido, para cuando la marca tiene que sostenerse sola
+     en una superficie pequeña o delgada: relleno de barra de avance, punto
+     e ícono de estado. #e0ff4f mide 1.10:1 contra --border — la barra de
+     recaudación de cada tarjeta era invisible. Este mide 3.55:1 contra la
+     pista y conserva el tono. No es para texto. */
+  --brand-strong: #6f8000;
 
   /* Semánticos, apagados a propósito */
   --positive: #147a54;
@@ -54,9 +65,17 @@
   --r-input: 8px;
   --r-pill: 999px;
 
-  /* Shell */
+  /* Shell y anchos de contenido.
+     La regla del sistema —los componentes leen tokens, nunca literales— se
+     respetaba para color y se rompía para geometría: había cuatro anchos
+     sueltos (760, 860, 980, 1240) escritos a mano en cinco archivos, que es
+     buena parte de por qué las superficies nuevas parecen otro producto.
+     Son tres medidas, no cuatro. */
   --shell-max: 1240px;
   --shell-min: 1120px;
+  --w-wide: 1240px; /* ficha de operación: la capa más ancha */
+  --w-panel: 980px; /* panel lateral: portafolio, perfil */
+  --w-doc: 860px; /* documento y formulario: negocios, solicitud, verificador */
 
   /* Sombras */
   --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
@@ -79,6 +98,7 @@
   --color-brand: var(--brand);
   --color-brand-ink: var(--brand-ink);
   --color-brand-soft: var(--brand-soft);
+  --color-brand-strong: var(--brand-strong);
   --color-positive: var(--positive);
   --color-warning: var(--warning);
   --color-negative: var(--negative);
@@ -228,20 +248,45 @@ body {
   }
 }
 
-/* Textura sutil para el bloque hero */
-.hero-grid {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(to right, rgba(16, 24, 40, 0.045) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(16, 24, 40, 0.045) 1px, transparent 1px);
-  background-size: 32px 32px;
-  mask-image: radial-gradient(80% 70% at 50% 40%, #000 20%, transparent 85%);
-}
-
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* ============================================================
+   FOCO
+   Antes vivía dentro de Button y en ningún otro lado: tarjetas,
+   pestañas, chips, puntos del paginador y filas de actividad
+   dependían del contorno por defecto del navegador, y en cuatro
+   sitios se anulaba con outline-none. Un usuario de teclado no
+   sabía dónde estaba parado. Esta clase es la misma regla de
+   Button, disponible para cualquier control propio.
+   ============================================================ */
+.focusable:focus-visible {
+  outline: 2px solid var(--brand-ink);
+  outline-offset: 2px;
+  border-radius: inherit;
+}
+
+/* ============================================================
+   MOVIMIENTO REDUCIDO
+   El sistema anima entradas, páginas, pestañas y cifras. Para
+   quien pidió menos movimiento, todo eso se vuelve un corte:
+   el contenido sigue estando, deja de desplazarse.
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .card-hover:hover {
+    transform: none;
+  }
 }

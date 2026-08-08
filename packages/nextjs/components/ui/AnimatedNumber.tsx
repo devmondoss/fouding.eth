@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { animate, useMotionValue, useTransform, motion } from "motion/react";
 import { toNumber } from "@/lib/format";
+import { DUR, EASE } from "@/lib/motion";
 
 /**
  * Cifra que transiciona al cambiar. Es el detalle que más hace sentir que
@@ -39,10 +40,18 @@ export function AnimatedNumber({
   );
 
   useEffect(() => {
-    const controls = animate(mv, target, {
-      duration: 0.7,
-      ease: [0.22, 0.9, 0.3, 1],
-    });
+    // Quien pidió menos movimiento ve la cifra final, no el conteo.
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      mv.set(target);
+      return;
+    }
+    // La cifra tarda más que una transición de UI a propósito: es el único
+    // momento en que el movimiento cuenta algo en vez de orientar. La curva
+    // sigue siendo la única del sistema.
+    const controls = animate(mv, target, { duration: DUR.count, ease: EASE });
     return () => controls.stop();
   }, [target, mv]);
 

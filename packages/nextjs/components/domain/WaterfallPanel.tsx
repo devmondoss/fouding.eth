@@ -1,3 +1,4 @@
+import { CheckCircle2, Circle } from "lucide-react";
 import { formatBps, formatUsdc } from "@/lib/format";
 import { expectedInterest } from "@/lib/opportunity";
 import { DEFAULT_COSTS, waterfallForOpportunity } from "@/lib/underwriting";
@@ -95,7 +96,7 @@ export function WaterfallPanel({ o }: { o: Opportunity }) {
                   className="h-full rounded-full"
                   style={{
                     width: `${Math.min(100, share / 100)}%`,
-                    backgroundColor: mine ? "var(--brand)" : "var(--text-low)",
+                    backgroundColor: mine ? "var(--brand-strong)" : "var(--text-low)",
                     opacity: executed && t.paid === 0n ? 0.3 : 1,
                   }}
                 />
@@ -106,24 +107,96 @@ export function WaterfallPanel({ o }: { o: Opportunity }) {
       </ol>
 
       {executed && (
-        <div
-          className="mt-4 flex items-center justify-between rounded-[var(--r-panel)] border px-4 py-3.5"
-          style={{
-            borderColor: "var(--negative)",
-            backgroundColor: "var(--surface)",
-          }}
-        >
-          <div className="text-[13px] font-semibold text-hi">
-            Recupero de la inversión
-          </div>
-          <span
-            className="num text-[26px] font-bold"
-            style={{ color: "var(--negative)" }}
+        <>
+          <div
+            className="mt-4 flex items-center justify-between rounded-[var(--r-panel)] border px-4 py-3.5"
+            style={{
+              borderColor: "var(--negative)",
+              backgroundColor: "var(--surface)",
+            }}
           >
-            {formatBps(result.investorRecoveryBps, 1)}
-          </span>
-        </div>
+            <div className="text-[13px] font-semibold text-hi">
+              Recupero de la inversión
+            </div>
+            <span
+              className="num text-[26px] font-bold"
+              style={{ color: "var(--negative)" }}
+            >
+              {formatBps(result.investorRecoveryBps, 1)}
+            </span>
+          </div>
+
+          {/* La historia del default terminaba acá, en un porcentaje rojo.
+              El dato estaba completo y la persona quedaba sola: qué pasa
+              ahora, cuánto falta, quién decide, y qué parte de esto la
+              garantiza el contrato y qué parte un tercero. Es el
+              diferenciador declarado del producto; merece el mismo cuidado
+              que el camino feliz. */}
+          <div className="mt-3 rounded-[var(--r-panel)] border border-border p-4">
+            <h4 className="h3">Qué sigue</h4>
+            <ol className="mt-2.5 flex flex-col gap-2.5">
+              <NextStep
+                done
+                title="Se declaró el incumplimiento"
+                detail="El vault quedó cerrado a aportes nuevos. Tu posición sigue existiendo y no se puede diluir."
+              />
+              <NextStep
+                done={recovered > 0n}
+                title="Ejecución de la garantía"
+                detail="La liquidación del activo ocurre fuera de la cadena, a través del vehículo legal que la tiene inscrita. El contrato no puede ejecutarla por sí solo."
+              />
+              <NextStep
+                done={recovered > 0n}
+                title="Ingreso del recupero al contrato"
+                detail={
+                  recovered > 0n
+                    ? `Ingresaron ${formatUsdc(recovered)} USDC. El reparto de arriba ya se ejecutó onchain con esa cifra.`
+                    : "Cuando el recupero ingrese, el contrato reparte automáticamente según el orden de arriba. Nadie decide el orden en ese momento: ya estaba escrito."
+                }
+              />
+              <NextStep
+                done={false}
+                title="Cobro de lo que te corresponde"
+                detail="Tu parte queda disponible para reclamar desde el portafolio. Puede ser menor a tu capital: el recupero de una garantía es parcial más veces de lo que es total."
+              />
+            </ol>
+            <p className="mt-3.5 border-t border-border pt-3 text-[11.5px] leading-relaxed text-low">
+              Los plazos de una ejecución dependen del proceso registral y
+              judicial peruano, no del contrato. No prometemos una fecha
+              porque no la controlamos.
+            </p>
+          </div>
+        </>
       )}
     </section>
+  );
+}
+
+/** Un paso de la ejecución, con su estado. El punto lleva ícono, no solo
+ *  color: el estado de un cobro no puede depender del tono. */
+function NextStep({
+  done,
+  title,
+  detail,
+}: {
+  done: boolean;
+  title: string;
+  detail: string;
+}) {
+  return (
+    <li className="flex gap-2.5">
+      {done ? (
+        <CheckCircle2
+          className="mt-px h-4 w-4 shrink-0"
+          style={{ color: "var(--positive)" }}
+        />
+      ) : (
+        <Circle className="mt-px h-4 w-4 shrink-0 text-low" />
+      )}
+      <div className="min-w-0">
+        <div className="text-[12.5px] font-semibold text-hi">{title}</div>
+        <p className="mt-0.5 text-[12px] leading-relaxed text-mid">{detail}</p>
+      </div>
+    </li>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { CheckCircle2, MapPin, X } from "lucide-react";
 import { CollateralPanel } from "@/components/domain/CollateralPanel";
@@ -14,6 +14,8 @@ import { initials } from "@/components/domain/OpportunityCard";
 import { StatusPill, Tag } from "@/components/ui/Pill";
 import { Metric } from "@/components/ui/Stat";
 import { formatBps, formatUsdc } from "@/lib/format";
+import { useFocusTrap, useLayerKeys } from "@/lib/keyboard";
+import { dialog, scrim, slide, T } from "@/lib/motion";
 import {
   expectedInterest,
   issuerTrackRecord,
@@ -44,24 +46,17 @@ export function DetailOverlay({
   o,
   onClose,
   onOpenFunds,
+  onRequestAccess,
+  onOpenPortfolio,
 }: {
   o: Opportunity;
   onClose: () => void;
   onOpenFunds: () => void;
+  onRequestAccess: () => void;
+  onOpenPortfolio: () => void;
 }) {
   const [step, setStep] = useState<StepKey>("resumen");
   const [dir, setDir] = useState(1);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-      const i = STEPS.findIndex((s) => s.key === step);
-      if (e.key === "ArrowRight" && i < STEPS.length - 1) go(STEPS[i + 1].key);
-      if (e.key === "ArrowLeft" && i > 0) go(STEPS[i - 1].key);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  });
 
   function go(next: StepKey) {
     const from = STEPS.findIndex((s) => s.key === step);
@@ -70,23 +65,38 @@ export function DetailOverlay({
     setStep(next);
   }
 
+  // La ficha solo escucha mientras sea la capa de arriba: si abre el modal
+  // de confirmación encima, Escape cierra ese modal y la ficha se queda.
+  const i = STEPS.findIndex((s) => s.key === step);
+  useLayerKeys({
+    onEscape: onClose,
+    onPrev: () => i > 0 && go(STEPS[i - 1].key),
+    onNext: () => i < STEPS.length - 1 && go(STEPS[i + 1].key),
+  });
+
+  const panelRef = useFocusTrap<HTMLDivElement>(true);
+
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.22 }}
+      variants={scrim}
+      initial="hidden"
+      animate="show"
+      exit="exit"
       className="fixed inset-0 z-50 flex flex-col lg:p-6"
       style={{ backgroundColor: "rgba(16,24,40,0.35)" }}
       onClick={onClose}
     >
       <motion.div
-        initial={{ opacity: 0, scale: 0.97, y: 12 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.98, y: 8 }}
-        transition={{ duration: 0.28, ease: [0.22, 0.9, 0.3, 1] }}
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${o.projectTitle} — ${o.company.name}`}
+        variants={dialog}
+        initial="hidden"
+        animate="show"
+        exit="exit"
         onClick={(e) => e.stopPropagation()}
-        className="m-auto flex h-full w-full flex-col overflow-hidden border-border shadow-[var(--shadow-lg)] lg:h-[calc(100vh-48px)] lg:w-[min(1240px,calc(100vw-48px))] lg:rounded-[var(--r-card)] lg:border"
+        className="m-auto flex h-full w-full flex-col overflow-hidden border-border shadow-[var(--shadow-lg)] lg:h-[calc(100vh-48px)] lg:w-[min(var(--w-wide),calc(100vw-48px))] lg:rounded-[var(--r-card)] lg:border"
         style={{ backgroundColor: "var(--bg)" }}
       >
         {/* Cabecera */}
@@ -119,8 +129,8 @@ export function DetailOverlay({
 
           <button
             onClick={onClose}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border transition-colors hover:bg-surface-soft"
-            aria-label="Cerrar"
+            className="focusable flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border transition-colors hover:bg-surface-soft"
+            aria-label="Cerrar la ficha"
           >
             <X className="h-4 w-4 text-mid" />
           </button>
@@ -132,19 +142,30 @@ export function DetailOverlay({
         <div className="flex flex-1 flex-col overflow-y-auto lg:grid lg:min-h-0 lg:grid-cols-[1fr_320px] lg:overflow-hidden">
           {/* Inversión */}
           <div className="order-1 border-b border-border bg-surface p-4 sm:p-5 lg:order-2 lg:min-h-0 lg:overflow-y-auto lg:border-b-0">
-            <InvestPanel o={o} onOpenFunds={onOpenFunds} />
+            <InvestPanel
+              o={o}
+              onOpenFunds={onOpenFunds}
+              onRequestAccess={onRequestAccess}
+              onOpenPortfolio={onOpenPortfolio}
+            />
           </div>
 
           {/* Pasos */}
           <div className="order-2 flex flex-col lg:order-1 lg:min-h-0 lg:border-r lg:border-border">
-            <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-border bg-surface px-4 sm:px-6">
+            <div
+              role="tablist"
+              aria-label="Secciones de la operación"
+              className="flex shrink-0 gap-1 overflow-x-auto border-b border-border bg-surface px-4 sm:px-6"
+            >
               {STEPS.map((s) => {
                 const on = step === s.key;
                 return (
                   <button
                     key={s.key}
+                    role="tab"
+                    aria-selected={on}
                     onClick={() => go(s.key)}
-                    className="relative shrink-0 whitespace-nowrap px-3 py-3 text-[13px] transition-colors"
+                    className="focusable relative shrink-0 whitespace-nowrap px-3 py-3 text-[13px] transition-colors"
                     style={{
                       color: on ? "var(--brand-ink)" : "var(--text-mid)",
                       fontWeight: on ? 600 : 400,
@@ -154,6 +175,7 @@ export function DetailOverlay({
                     {on && (
                       <motion.span
                         layoutId="step-underline"
+                        transition={T.indicator}
                         className="absolute inset-x-2 -bottom-px h-[2px] rounded-full"
                         style={{ backgroundColor: "var(--brand-ink)" }}
                       />
@@ -167,10 +189,10 @@ export function DetailOverlay({
               <AnimatePresence mode="wait" custom={dir}>
                 <motion.div
                   key={step}
-                  initial={{ opacity: 0, x: dir * 28 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: dir * -28 }}
-                  transition={{ duration: 0.26, ease: [0.22, 0.9, 0.3, 1] }}
+                  variants={slide(dir, 28)}
+                  initial="hidden"
+                  animate="show"
+                  exit="exit"
                   className="px-4 py-4 sm:px-6 sm:py-5 lg:h-full lg:overflow-y-auto"
                 >
                   {step === "resumen" && <Resumen o={o} />}

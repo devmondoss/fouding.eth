@@ -56,7 +56,7 @@ export function BusinessDashboard({
     <div className="flex min-h-screen flex-col">
       <BusinessTopBar address={address} onSignOut={onSignOut} />
 
-      <main className="mx-auto w-full max-w-[860px] flex-1 px-5 py-8 sm:px-6 sm:py-10">
+      <main className="mx-auto w-full max-w-[var(--w-doc)] flex-1 px-5 py-8 sm:px-6 sm:py-10">
         <motion.div
           variants={fadeUp}
           initial="hidden"

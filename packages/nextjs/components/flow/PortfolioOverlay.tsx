@@ -19,6 +19,8 @@ import { Metric } from "@/components/ui/Stat";
 import { useCreditVault } from "@/hooks/useCreditVault";
 import { usePlatform } from "@/lib/data/store";
 import { formatBps, formatDate, formatUsdc, usdc } from "@/lib/format";
+import { useFocusTrap, useLayerKeys } from "@/lib/keyboard";
+import { dialog, scrim, slide, T } from "@/lib/motion";
 import { nextMilestone, projectedReturn } from "@/lib/opportunity";
 import { useSession } from "@/lib/useSession";
 import { waterfallForOpportunity } from "@/lib/underwriting";
@@ -79,11 +81,8 @@ export function PortfolioOverlay({
     (l) => l.status === "interested" && l.interestedWallet,
   );
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  useLayerKeys({ onEscape: onClose });
+  const panelRef = useFocusTrap<HTMLDivElement>(true);
 
   function go(next: StepKey) {
     const from = STEPS.findIndex((s) => s.key === step);
@@ -162,21 +161,25 @@ export function PortfolioOverlay({
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.22 }}
+      variants={scrim}
+      initial="hidden"
+      animate="show"
+      exit="exit"
       className="fixed inset-0 z-50 flex flex-col lg:p-6"
       style={{ backgroundColor: "rgba(16,24,40,0.35)" }}
       onClick={onClose}
     >
       <motion.div
-        initial={{ opacity: 0, scale: 0.97, y: 12 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.98, y: 8 }}
-        transition={{ duration: 0.28, ease: [0.22, 0.9, 0.3, 1] }}
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Mi portafolio"
+        variants={dialog}
+        initial="hidden"
+        animate="show"
+        exit="exit"
         onClick={(e) => e.stopPropagation()}
-        className="m-auto flex h-full w-full flex-col overflow-hidden border-border shadow-[var(--shadow-lg)] lg:h-[calc(100vh-48px)] lg:w-[min(980px,calc(100vw-48px))] lg:rounded-[var(--r-card)] lg:border"
+        className="m-auto flex h-full w-full flex-col overflow-hidden border-border shadow-[var(--shadow-lg)] lg:h-[calc(100vh-48px)] lg:w-[min(var(--w-panel),calc(100vw-48px))] lg:rounded-[var(--r-card)] lg:border"
         style={{ backgroundColor: "var(--bg)" }}
       >
         {/* Cabecera */}
@@ -189,22 +192,28 @@ export function PortfolioOverlay({
           </div>
           <button
             onClick={onClose}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border transition-colors hover:bg-surface-soft"
-            aria-label="Cerrar"
+            className="focusable flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border transition-colors hover:bg-surface-soft"
+            aria-label="Cerrar el portafolio"
           >
             <X className="h-4 w-4 text-mid" />
           </button>
         </div>
 
         {/* Pasos */}
-        <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-border bg-surface px-4 sm:px-6">
+        <div
+          role="tablist"
+          aria-label="Secciones del portafolio"
+          className="flex shrink-0 gap-1 overflow-x-auto border-b border-border bg-surface px-4 sm:px-6"
+        >
           {STEPS.map((s) => {
             const on = step === s.key;
             return (
               <button
                 key={s.key}
+                role="tab"
+                aria-selected={on}
                 onClick={() => go(s.key)}
-                className="relative shrink-0 whitespace-nowrap px-3 py-3 text-[13px] transition-colors"
+                className="focusable relative shrink-0 whitespace-nowrap px-3 py-3 text-[13px] transition-colors"
                 style={{
                   color: on ? "var(--brand-ink)" : "var(--text-mid)",
                   fontWeight: on ? 600 : 400,
@@ -214,8 +223,11 @@ export function PortfolioOverlay({
                 {on && (
                   <motion.span
                     layoutId="portfolio-underline"
+                    transition={T.indicator}
                     className="absolute inset-x-2 -bottom-px h-[2px] rounded-full"
-                    style={{ backgroundColor: "var(--brand)" }}
+                    // Era --brand: chartreuse sobre blanco mide 1.13:1, así que
+                    // el subrayado no existía. La ficha ya usaba la tinta.
+                    style={{ backgroundColor: "var(--brand-ink)" }}
                   />
                 )}
               </button>
@@ -228,10 +240,10 @@ export function PortfolioOverlay({
           <AnimatePresence mode="wait" custom={dir}>
             <motion.div
               key={step}
-              initial={{ opacity: 0, x: dir * 28 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: dir * -28 }}
-              transition={{ duration: 0.26, ease: [0.22, 0.9, 0.3, 1] }}
+              variants={slide(dir, 28)}
+              initial="hidden"
+              animate="show"
+              exit="exit"
               className="h-full overflow-y-auto px-4 py-4 sm:px-6 sm:py-5"
             >
               {step === "resumen" && (
@@ -410,7 +422,7 @@ export function PortfolioOverlay({
                   <section className="card p-4">
                     <h3 className="h3">Interesados en tus publicaciones</h3>
                     <p className="mt-1 text-[12.5px] text-mid">
-                      Marcar interés no mueve fondos — vos ejecutás la
+                      Marcar interés no mueve fondos — tú ejecutas la
                       transferencia una vez coordinado el pago.
                     </p>
                     <div className="mt-3 flex flex-col gap-2">

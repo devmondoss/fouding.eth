@@ -42,11 +42,26 @@ export function Tr({
   children: ReactNode;
   onClick?: () => void;
 }) {
+  // Una fila clicable tiene que ser alcanzable con teclado: sin rol, sin
+  // tabIndex y sin manejador de tecla, `onClick` en un <tr> es un control
+  // que solo existe para quien usa mouse.
   return (
     <tr
       onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
       className={`border-b border-border last:border-b-0 transition-colors ${
-        onClick ? "cursor-pointer hover:bg-surface-soft" : ""
+        onClick ? "focusable cursor-pointer hover:bg-surface-soft" : ""
       }`}
     >
       {children}

@@ -1,7 +1,14 @@
 "use client";
 
 import { motion } from "motion/react";
-import { Asterisk, HelpCircle, Plus, ShieldCheck, Wallet } from "lucide-react";
+import {
+  Asterisk,
+  HelpCircle,
+  Plus,
+  ShieldCheck,
+  ShieldEllipsis,
+  Wallet,
+} from "lucide-react";
 import { usePlatform } from "@/lib/data/store";
 import type { Session } from "@/lib/useSession";
 import { fadeUp, press, T } from "@/lib/motion";
@@ -89,19 +96,32 @@ export function TopBar({
         </motion.button>
 
         {/* Cuenta — abre el perfil, que es el módulo dedicado */}
+        {/* El estado de verificación gobierna si puedes invertir, y se
+            comunicaba con un punto gris de 8px sin etiqueta: el dato más
+            consecuente de la barra era el menos legible. Ahora lleva ícono
+            y palabra, y el nombre del botón lo dice en voz alta. */}
         <motion.button
           {...press}
           onClick={onOpenProfile}
-          className="flex h-9 items-center gap-2 rounded-[var(--r-input)] border border-border px-2.5 transition-colors hover:bg-surface-soft"
-          aria-label="Cuenta"
+          className="focusable flex h-9 items-center gap-2 rounded-[var(--r-input)] border border-border px-2.5 transition-colors hover:bg-surface-soft"
+          aria-label={
+            session.verified
+              ? "Cuenta — acceso de inversionista aprobado"
+              : "Cuenta — acceso de inversionista pendiente"
+          }
         >
           {session.verified ? (
-            <ShieldCheck className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--positive)" }} />
-          ) : (
-            <span
-              className="h-2 w-2 shrink-0 rounded-full"
-              style={{ backgroundColor: "var(--border-strong)" }}
+            <ShieldCheck
+              className="h-3.5 w-3.5 shrink-0"
+              style={{ color: "var(--positive)" }}
             />
+          ) : (
+            <ShieldEllipsis className="h-3.5 w-3.5 shrink-0 text-mid" />
+          )}
+          {!session.verified && (
+            <span className="hidden text-[12px] font-medium text-mid sm:inline">
+              Sin acceso
+            </span>
           )}
           <span className="num hidden text-[12px] text-mid sm:inline">
             {session.address.slice(0, 6)}…{session.address.slice(-4)}

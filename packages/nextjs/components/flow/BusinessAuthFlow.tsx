@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
 import { AlertTriangle, ArrowRight, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { useSession } from "@/lib/useSession";
-import { T } from "@/lib/motion";
+import { fadeUp } from "@/lib/motion";
 
 /**
  * Login del lado empresa — mismo useSession/Privy que AuthFlow (lado
@@ -26,23 +26,29 @@ export function BusinessAuthFlow() {
     resumeSession,
   } = useSession();
   const [showTerms, setShowTerms] = useState(false);
-  const step = connecting || connectError ? "connecting" : "intro";
+
+
+  // Ver AuthFlow: los tres botones comparten `connectWallet` y la bandera
+  // `connecting`, así que sin registrar la intención la espera decía
+  // "Creando tu wallet" incluso al cambiar de cuenta — que es justo cuando
+  // useSession está cerrando la sesión anterior, no creando nada.
+  const [intent, setIntent] = useState<"connect" | "switch">("connect");
+
+  function start(next: "connect" | "switch") {
+    setIntent(next);
+    connectWallet();
+  }
 
   return (
-    <div
+    <main
       className="flex min-h-screen items-center justify-center px-5 py-10 sm:px-8"
       style={{ backgroundColor: "var(--surface)" }}
     >
-      <div className="w-full max-w-[860px]">
-        <AnimatePresence mode="wait">
-          {/* --------------------------------------------------- INTRO */}
-          {step === "intro" && (
+      <div className="w-full max-w-[var(--w-doc)]">
             <motion.div
-              key="intro"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -12 }}
-              transition={T.base}
+              variants={fadeUp}
+              initial="hidden"
+              animate="show"
               className="grid grid-cols-1 gap-10 sm:grid-cols-2 sm:gap-14"
             >
               <div className="max-w-[400px]">
@@ -64,6 +70,7 @@ export function BusinessAuthFlow() {
                       size="lg"
                       className="mt-7 w-full"
                       onClick={resumeSession}
+                      disabled={connecting}
                       iconRight={<ArrowRight className="h-4 w-4" />}
                     >
                       Continuar como {pendingAccount}
@@ -71,8 +78,9 @@ export function BusinessAuthFlow() {
 
                     <p className="mt-3 text-center text-[12.5px] text-mid">
                       <button
-                        onClick={() => connectWallet()}
-                        className="font-medium underline decoration-dotted transition-colors hover:text-hi"
+                        onClick={() => start("switch")}
+                        disabled={connecting}
+                        className="focusable -mx-1.5 inline-flex h-8 items-center px-1.5 font-medium underline decoration-dotted transition-colors hover:text-hi disabled:opacity-50"
                         style={{ color: "var(--brand-ink)" }}
                       >
                         Entrar con otro correo
@@ -84,7 +92,8 @@ export function BusinessAuthFlow() {
                     <Button
                       size="lg"
                       className="mt-7 w-full"
-                      onClick={() => connectWallet()}
+                      loading={connecting}
+                      onClick={() => start("connect")}
                       iconRight={<ArrowRight className="h-4 w-4" />}
                     >
                       Iniciar sesión
@@ -93,8 +102,9 @@ export function BusinessAuthFlow() {
                     <p className="mt-3 text-center text-[12.5px] text-mid">
                       ¿No tienes cuenta?{" "}
                       <button
-                        onClick={() => connectWallet()}
-                        className="font-medium underline decoration-dotted transition-colors hover:text-hi"
+                        onClick={() => start("connect")}
+                        disabled={connecting}
+                        className="focusable -mx-1.5 inline-flex h-8 items-center px-1.5 font-medium underline decoration-dotted transition-colors hover:text-hi disabled:opacity-50"
                         style={{ color: "var(--brand-ink)" }}
                       >
                         Regístrate
@@ -103,11 +113,71 @@ export function BusinessAuthFlow() {
                   </>
                 )}
 
+                {/* Ver AuthFlow: el modal de Privy ya es la pantalla, así
+                    que no montamos otra detrás. Solo agregamos lo que Privy
+                    no puede saber, y una salida. */}
+                {connecting && !connectError && (
+                  <div
+                    role="status"
+                    className="mt-4 flex items-start gap-2.5 rounded-[var(--r-panel)] border border-border px-3.5 py-3"
+                  >
+                    <Loader2
+                      className="mt-px h-3.5 w-3.5 shrink-0 animate-spin"
+                      style={{ color: "var(--brand-ink)" }}
+                    />
+                    <div className="min-w-0 text-[12px] leading-relaxed text-mid">
+                      {intent === "switch"
+                        ? "Cerrando tu sesión actual para pedirte el otro correo. La wallet de tu empresa no se toca, y tus expedientes siguen asociados a ella."
+                        : "Continúa en la ventana que se abrió."}
+                      <button
+                        onClick={cancelConnect}
+                        className="focusable ml-1.5 font-medium underline decoration-dotted transition-colors hover:text-hi"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {connectError && (
+                  <div
+                    role="alert"
+                    className="mt-4 rounded-[var(--r-panel)] border px-3.5 py-3"
+                    style={{ borderColor: "var(--negative)" }}
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <AlertTriangle
+                        className="mt-px h-3.5 w-3.5 shrink-0"
+                        style={{ color: "var(--negative)" }}
+                      />
+                      <div className="min-w-0">
+                        <div
+                          className="text-[12.5px] font-semibold"
+                          style={{ color: "var(--negative)" }}
+                        >
+                          No se pudo conectar
+                        </div>
+                        <p className="mt-0.5 text-[12px] leading-relaxed text-mid">
+                          {connectError}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-3 w-full"
+                      onClick={() => connectWallet()}
+                    >
+                      Reintentar
+                    </Button>
+                  </div>
+                )}
+
                 <p className="mt-3 text-center text-[11.5px] text-low">
                   Al continuar aceptas los{" "}
                   <button
                     onClick={() => setShowTerms(true)}
-                    className="underline decoration-dotted transition-colors hover:text-hi"
+                    className="focusable -mx-1.5 inline-flex h-8 items-center px-1.5 underline decoration-dotted transition-colors hover:text-hi"
                     style={{ color: "var(--text-mid)" }}
                   >
                     Términos y condiciones
@@ -119,7 +189,7 @@ export function BusinessAuthFlow() {
                 <p className="mt-5 text-center text-[12.5px] text-mid">
                   <Link
                     href="/negocios"
-                    className="underline decoration-dotted transition-colors hover:text-hi"
+                    className="focusable -mx-1.5 inline-flex h-8 items-center px-1.5 underline decoration-dotted transition-colors hover:text-hi"
                   >
                     ¿Cómo funciona Founding para empresas?
                   </Link>
@@ -145,67 +215,6 @@ export function BusinessAuthFlow() {
                 ))}
               </div>
             </motion.div>
-          )}
-
-          {/* --------------------------------------------- CONECTANDO */}
-          {step === "connecting" && (
-            <motion.div
-              key="connecting"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={T.fast}
-              className="mx-auto max-w-[400px]"
-            >
-              <h1 className="h1 text-[30px]">
-                {connectError ? "No se pudo conectar" : "Creando tu wallet"}
-              </h1>
-              <p className="mt-2 text-[14px] text-mid">
-                {connectError
-                  ? connectError
-                  : "Ingresa tu correo en la ventana que aparece."}
-              </p>
-
-              <div className="mt-8 flex items-center gap-3">
-                <span
-                  className="flex h-6 w-6 items-center justify-center rounded-full border"
-                  style={{
-                    borderColor: connectError ? "var(--negative)" : "var(--brand-ink)",
-                  }}
-                >
-                  {connectError ? (
-                    <AlertTriangle className="h-3 w-3" style={{ color: "var(--negative)" }} />
-                  ) : (
-                    <Loader2
-                      className="h-3 w-3 animate-spin"
-                      style={{ color: "var(--brand-ink)" }}
-                    />
-                  )}
-                </span>
-                <span className="text-[14px] text-hi">
-                  {connectError ? "Conexión rechazada o fallida" : "Esperando confirmación"}
-                </span>
-              </div>
-
-              {connectError ? (
-                <Button
-                  variant="outline"
-                  className="mt-6 w-full"
-                  onClick={() => connectWallet()}
-                >
-                  Reintentar
-                </Button>
-              ) : (
-                <button
-                  onClick={cancelConnect}
-                  className="mt-6 text-[12.5px] text-mid transition-colors hover:text-hi"
-                >
-                  Cancelar
-                </button>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
 
       <Modal
@@ -234,11 +243,11 @@ export function BusinessAuthFlow() {
             regulado.
           </p>
           <p>
-            Al conectar tu wallet aceptás que este es un entorno de
+            Al conectar tu wallet aceptas que este es un entorno de
             pruebas y que la información mostrada es ilustrativa.
           </p>
         </div>
       </Modal>
-    </div>
+    </main>
   );
 }

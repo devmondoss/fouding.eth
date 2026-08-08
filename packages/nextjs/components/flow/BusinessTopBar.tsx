@@ -25,7 +25,7 @@ export function BusinessTopBar({
       initial={{ y: -60, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ ...T.base, delay: 0.05 }}
-      className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between border-b border-border bg-surface px-4 sm:h-[60px] sm:px-6 lg:px-8"
+      className="frosted sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between border-b border-border px-4 sm:h-[60px] sm:px-6 lg:px-8"
     >
       <motion.div
         variants={fadeUp}

@@ -17,6 +17,9 @@ export const DUR = {
   fast: 0.2,
   base: 0.28,
   slow: 0.4,
+  /** Conteo de una cifra. Más largo que cualquier transición de UI porque
+   *  acá el movimiento *cuenta algo* — es la única excepción. */
+  count: 0.7,
 } as const;
 
 export const T = {

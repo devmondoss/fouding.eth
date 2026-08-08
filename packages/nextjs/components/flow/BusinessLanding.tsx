@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { motion } from "motion/react";
 import { ArrowRight, Asterisk, Check } from "lucide-react";
-import { fadeUp, stagger, T } from "@/lib/motion";
+import { fadeUp, T } from "@/lib/motion";
 
 /**
  * Página pública "Founding para empresas" — vive en /negocios, con URL
@@ -16,28 +16,56 @@ import { fadeUp, stagger, T } from "@/lib/motion";
  * atraviesa (ver conversación de agosto 2026).
  */
 
-const BULLETS = [
+/* Antes acá había tres tarjetas del mismo tamaño con ícono, título y texto
+   —la estructura de página más genérica que existe, y la que el piso de
+   calidad marca como contenedor perezoso— diciendo cosas que el dueño de un
+   negocio no puede accionar ("desembolso en USDC").
+
+   Lo que sí necesita antes de gastar una tarde armando un expediente es
+   saber si califica. Son los criterios reales del producto, no una promesa. */
+const REQUISITOS = [
   {
-    title: "Revisión humana",
-    detail:
-      "Un verificador lee tu expediente. No es un algoritmo que te rechaza sin explicación.",
+    label: "Dos años de operación como mínimo",
+    detail: "Con RUC activo y habido. Se verifica en la consulta pública.",
   },
   {
-    title: "Sin intermediarios bancarios",
+    label: "Ventas que se puedan comprobar",
     detail:
-      "El capital viene directo de inversionistas verificados en la plataforma.",
+      "Comprobantes electrónicos o reporte tributario. Tú los entregas; no accedemos a nada por nuestra cuenta.",
   },
   {
-    title: "Desembolso en USDC",
+    label: "Un activo propio como garantía",
     detail:
-      "Tu wallet queda habilitada en cuanto se aprueba el expediente, sobre Arbitrum.",
+      "Maquinaria, vehículo o inmueble, sin gravámenes previos e inscribible en registro público.",
+  },
+  {
+    label: "Un proyecto concreto, no capital de trabajo general",
+    detail:
+      "Una máquina, una flota, una planta. Con plazo de 8 a 12 meses y un cronograma de hitos.",
   },
 ];
 
 const PASOS = [
-  "Creas tu cuenta con tu correo — te generamos la wallet al instante",
-  "Cuentas tu proyecto y subes el expediente legal",
-  "Un verificador lo revisa y, si aprueba, tu operación se publica",
+  {
+    title: "Creas tu cuenta con tu correo",
+    detail:
+      "Sin contraseñas ni instalar nada. Te generamos la cuenta que recibe el dinero al instante.",
+  },
+  {
+    title: "Cuentas tu proyecto y subes el expediente",
+    detail:
+      "Monto, plazo, para qué es y con qué activo lo respaldas. Los documentos quedan en almacenamiento privado.",
+  },
+  {
+    title: "Un verificador lee tu expediente",
+    detail:
+      "Una persona, no un algoritmo. Cobra un honorario fijo por revisar, igual si aprueba o si rechaza — así nadie tiene incentivo a aprobarte de más.",
+  },
+  {
+    title: "Si aprueba, tu operación sale al catálogo",
+    detail:
+      "Los inversionistas la fondean. El dinero queda retenido en el contrato y te llega por tramos, a medida que cumples cada hito.",
+  },
 ];
 
 export function BusinessLanding() {
@@ -63,58 +91,69 @@ export function BusinessLanding() {
 
         <Link
           href="/solicitar"
-          className="text-[13px] font-medium underline decoration-dotted transition-colors hover:text-hi"
+          className="focusable -mx-2 inline-flex h-9 items-center px-2 text-[13px] font-medium underline decoration-dotted transition-colors hover:text-hi"
           style={{ color: "var(--brand-ink)" }}
         >
           Entrar
         </Link>
       </header>
 
-      <main className="mx-auto max-w-[860px] px-5 py-12 sm:px-8 sm:py-16">
+      <main className="mx-auto max-w-[var(--w-doc)] px-5 py-12 sm:px-8 sm:py-16">
         <motion.div variants={fadeUp} initial="hidden" animate="show">
-          <div className="label">Para empresas</div>
-          <h1 className="h1 mt-2 max-w-[620px] text-[30px] leading-[1.08] sm:text-[38px]">
-            Financia tu próxima etapa con crédito privado
+          <h1 className="h1 max-w-[640px] text-[30px] leading-[1.08] sm:text-[38px]">
+            Tu maquinaria vale. Úsala para financiar
+            <br className="hidden sm:block" /> tu próximo proyecto.
           </h1>
-          <p className="mt-3 max-w-[540px] text-[14.5px] leading-relaxed text-mid">
-            Publica tu proyecto, sube tu expediente legal y conecta con
-            inversionistas que respaldan operaciones con garantía real, en USDC
-            sobre Arbitrum.
+          <p className="mt-3.5 max-w-[560px] text-[14.5px] leading-relaxed text-mid">
+            Si tu empresa ya factura y tiene un activo propio, puedes financiar
+            un proyecto concreto con capital de inversionistas verificados —
+            sin pasar por un banco. Una persona revisa tu expediente y te dice
+            por qué, apruebe o rechace.
           </p>
 
           <Link
             href="/solicitar"
-            className="mt-7 inline-flex h-11 items-center gap-2 rounded-[var(--r-input)] px-5 text-[14px] font-medium shadow-[var(--shadow-sm)] transition-[filter] hover:brightness-110"
+            className="focusable mt-7 inline-flex h-11 items-center gap-2 rounded-[var(--r-input)] px-5 text-[14px] font-medium shadow-[var(--shadow-sm)] transition-[filter] hover:brightness-110"
             style={{ backgroundColor: "var(--brand)", color: "var(--brand-ink)" }}
           >
-            Comenzar
+            Empezar mi solicitud
             <ArrowRight className="h-4 w-4" />
           </Link>
         </motion.div>
 
-        <motion.div
-          variants={stagger()}
+        {/* Antes de gastar una tarde armando un expediente, lo primero que
+            un dueño necesita saber es si califica. */}
+        <motion.section
+          variants={fadeUp}
           initial="hidden"
           animate="show"
-          className="mt-12 grid grid-cols-1 gap-3 sm:grid-cols-3"
+          transition={T.base}
+          className="card mt-11 p-5 sm:p-6"
         >
-          {BULLETS.map((b) => (
-            <motion.div key={b.title} variants={fadeUp} className="card p-4">
-              <div className="flex items-center gap-2">
+          <h2 className="h3">Qué necesitas para calificar</h2>
+          <p className="mt-1 text-[12.5px] text-mid">
+            Si te falta alguno de los cuatro, todavía no es el momento — y
+            preferimos decírtelo acá que después de la revisión.
+          </p>
+          <ul className="mt-4 grid grid-cols-1 gap-x-8 gap-y-3.5 sm:grid-cols-2">
+            {REQUISITOS.map((r) => (
+              <li key={r.label} className="flex items-start gap-2.5">
                 <Check
-                  className="h-4 w-4 shrink-0"
+                  className="mt-[3px] h-3.5 w-3.5 shrink-0"
                   style={{ color: "var(--positive)" }}
                 />
-                <span className="text-[13.5px] font-semibold text-hi">
-                  {b.title}
-                </span>
-              </div>
-              <p className="mt-1.5 text-[12.5px] leading-relaxed text-mid">
-                {b.detail}
-              </p>
-            </motion.div>
-          ))}
-        </motion.div>
+                <div className="min-w-0">
+                  <div className="text-[13px] font-semibold text-hi">
+                    {r.label}
+                  </div>
+                  <p className="mt-0.5 text-[12px] leading-relaxed text-mid">
+                    {r.detail}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </motion.section>
 
         <motion.section
           variants={fadeUp}
@@ -124,29 +163,50 @@ export function BusinessLanding() {
           className="card mt-4 p-5 sm:p-6"
         >
           <h2 className="h3">Cómo funciona</h2>
-          <ol className="mt-3.5 flex flex-col gap-3">
+          {/* La secuencia numerada se queda porque el orden es información:
+              son cuatro pasos que ocurren uno después del otro. El borde iba
+              en --brand-border, que mide 1.26:1 y no se veía. */}
+          <ol className="mt-4 flex flex-col gap-4">
             {PASOS.map((paso, i) => (
-              <li key={paso} className="flex items-start gap-3">
+              <li key={paso.title} className="flex items-start gap-3.5">
                 <span
                   className="num flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[11.5px] font-semibold"
                   style={{
-                    borderColor: "var(--brand-border)",
+                    borderColor: "var(--brand-ink)",
                     color: "var(--brand-ink)",
                   }}
                 >
                   {i + 1}
                 </span>
-                <span className="text-[13.5px] leading-relaxed text-mid">
-                  {paso}
-                </span>
+                <div className="min-w-0">
+                  <div className="text-[13.5px] font-semibold text-hi">
+                    {paso.title}
+                  </div>
+                  <p className="mt-0.5 text-[12.5px] leading-relaxed text-mid">
+                    {paso.detail}
+                  </p>
+                </div>
               </li>
             ))}
           </ol>
         </motion.section>
 
+        <motion.p
+          variants={fadeUp}
+          initial="hidden"
+          animate="show"
+          transition={T.base}
+          className="mt-4 rounded-[var(--r-panel)] border border-border px-5 py-4 text-[12.5px] leading-relaxed text-mid"
+        >
+          Founding está en versión de prueba: opera sobre una red de pruebas y
+          todavía no mueve dinero real. Tus documentos quedan en
+          almacenamiento privado — de la cadena solo queda su huella
+          criptográfica, nunca el archivo.
+        </motion.p>
+
         <Link
           href="/"
-          className="mt-8 inline-block text-[12.5px] text-low transition-colors hover:text-hi"
+          className="focusable -mx-2 mt-7 inline-flex h-9 items-center px-2 text-[12.5px] text-mid transition-colors hover:text-hi"
         >
           ← Volver a Founding
         </Link>

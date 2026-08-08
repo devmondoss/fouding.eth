@@ -58,3 +58,8 @@ next-env.d.ts
 /packages/foundry/broadcast
 /packages/foundry/deployments
 /nitro-devnode/*.log
+
+# tooling de agentes de diseño (Impeccable) — reinstalable con `npx impeccable install`
+/.claude
+/.cursor
+/packages/*/.impeccable

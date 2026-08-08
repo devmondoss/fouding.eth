@@ -38,6 +38,10 @@ export default function App() {
   const [portfolio, setPortfolio] = useState(false);
   const [profile, setProfile] = useState(false);
   const [funds, setFunds] = useState(false);
+  // El panel de cuenta puede abrirse ya en el formulario de acceso, para que
+  // el bloqueo de verificación de InvestPanel tenga una puerta y no solo un
+  // texto rojo.
+  const [profileAskingAccess, setProfileAskingAccess] = useState(false);
 
   // Cada pantalla en su URL: elegir rol vive en /rol, y una wallet de
   // empresa que cayó acá (link viejo, botón "atrás") se va a la suya.
@@ -123,6 +127,16 @@ export default function App() {
             o={selected}
             onClose={() => setSelected(null)}
             onOpenFunds={() => setFunds(true)}
+            onRequestAccess={() => {
+              setProfileAskingAccess(true);
+              setProfile(true);
+            }}
+            // La ficha se cierra: el flujo termina en el portafolio, no
+            // encima de la operación que acabas de fondear.
+            onOpenPortfolio={() => {
+              setSelected(null);
+              setPortfolio(true);
+            }}
           />
         )}
       </AnimatePresence>
@@ -142,7 +156,11 @@ export default function App() {
         {profile && (
           <ProfilePanel
             session={session}
-            onClose={() => setProfile(false)}
+            openAccessRequest={profileAskingAccess}
+            onClose={() => {
+              setProfile(false);
+              setProfileAskingAccess(false);
+            }}
             onSignOut={() => {
               setProfile(false);
               signOut();

@@ -19,17 +19,22 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { formatUsdc } from "@/lib/format";
+import { STATUS_LABEL } from "@/lib/opportunity";
 import type { OpportunityStatus, Position } from "@/lib/types";
 
 /* Paleta de gráfico validada (dataviz skill) — no confundir con los
    tokens de UI: --positive/--warning/--negative están apagados a
    propósito y no pasan el piso de croma como relleno de gráfico. */
+/* Los rótulos salen de STATUS_LABEL, no de literales: acá `funding` decía
+   "Levantando capital" mientras el filtro del catálogo decía "En
+   recaudación" y la píldora de la tarjeta "En fondeo" — tres nombres para
+   un estado, todos alcanzables en dos clics. */
 const STATUS_CHART_CONFIG: ChartConfig = {
-  review: { label: "En revisión", color: "var(--chart-review)" },
-  funding: { label: "Levantando capital", color: "var(--chart-funding)" },
-  active: { label: "Activa", color: "var(--chart-active)" },
-  repaid: { label: "Pagada", color: "var(--chart-repaid)" },
-  defaulted: { label: "En default", color: "var(--chart-defaulted)" },
+  review: { label: STATUS_LABEL.review, color: "var(--chart-review)" },
+  funding: { label: STATUS_LABEL.funding, color: "var(--chart-funding)" },
+  active: { label: STATUS_LABEL.active, color: "var(--chart-active)" },
+  repaid: { label: STATUS_LABEL.repaid, color: "var(--chart-repaid)" },
+  defaulted: { label: STATUS_LABEL.defaulted, color: "var(--chart-defaulted)" },
 };
 
 export function StatusDonutChart({

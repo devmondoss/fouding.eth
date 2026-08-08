@@ -11,6 +11,8 @@ import {
   Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { useLayerKeys } from "@/lib/keyboard";
+import { scrim, slide } from "@/lib/motion";
 
 /**
  * Explicación del producto en pasos. Se muestra UNA sola vez por navegador
@@ -18,28 +20,31 @@ import { Button } from "@/components/ui/Button";
  * funciona no debería volver a leerlo.
  */
 
+/** El nombre de la etapa vive en el riel de pasos, no como antetítulo
+ *  encima del titular: ahí solo repetía en pequeño lo que los puntos ya
+ *  decían, y dejaba la navegación como cuatro puntos sin nombre. */
 const SLIDES = [
   {
     icon: Building2,
-    kicker: "El origen",
+    stage: "El origen",
     title: "Empresas que ya facturan",
     body: "PyMEs peruanas con al menos dos años operando y ventas comprobables piden capital para un proyecto concreto: una máquina, una flota, una planta. No para caja general.",
   },
   {
     icon: FileCheck2,
-    kicker: "El filtro",
+    stage: "El filtro",
     title: "Se verifica antes de publicar",
     body: "Revisamos ventas, titularidad del activo y gravámenes previos. Al valor del activo se le aplica un castigo y solo publicamos si lo que quedaría al liquidarlo cubre el préstamo.",
   },
   {
     icon: Landmark,
-    kicker: "El desembolso",
+    stage: "El desembolso",
     title: "Capital bajo custodia contractual",
     body: "El capital queda en un contrato en Arbitrum y se libera por tramos únicamente cuando la empresa demuestra el cumplimiento verificado de cada hito del proyecto.",
   },
   {
     icon: Wallet,
-    kicker: "El retorno",
+    stage: "El retorno",
     title: "Prelación de pagos definida desde el inicio",
     body: "El inversionista recibe capital e interés según el cronograma pactado. Ante un incumplimiento, se ejecuta la garantía y el monto recuperado se distribuye según un orden de prelación contractual. El recupero puede ser parcial.",
   },
@@ -55,15 +60,21 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     setI(next);
   };
 
-  const slide = SLIDES[i];
-  const Icon = slide.icon;
+  const current = SLIDES[i];
+  const Icon = current.icon;
+
+  // Cuatro pasos con ←/→, sin tocar el catálogo que quedó detrás.
+  useLayerKeys({
+    onPrev: () => i > 0 && go(i - 1),
+    onNext: () => i < SLIDES.length - 1 && go(i + 1),
+  });
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.35 }}
+      variants={scrim}
+      initial="hidden"
+      animate="show"
+      exit="exit"
       className="fixed inset-0 z-[60] flex flex-col"
       style={{ backgroundColor: "var(--surface)" }}
     >
@@ -74,7 +85,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         </span>
         <button
           onClick={onDone}
-          className="text-[13px] text-low transition-colors hover:text-hi"
+          className="focusable text-[13px] text-low transition-colors hover:text-hi"
         >
           Saltar
         </button>
@@ -86,10 +97,10 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           <motion.div
             key={i}
             custom={dir}
-            initial={{ opacity: 0, x: dir * 48 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: dir * -48 }}
-            transition={{ duration: 0.32, ease: [0.22, 0.9, 0.3, 1] }}
+            variants={slide(dir, 48)}
+            initial="hidden"
+            animate="show"
+            exit="exit"
             className="w-full max-w-[640px] text-center"
           >
             <motion.span
@@ -100,14 +111,12 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
               <Icon className="h-6 w-6" style={{ color: "var(--brand-ink)" }} />
             </motion.span>
 
-            <div className="label mt-6" style={{ color: "var(--brand-ink)" }}>
-              {slide.kicker}
-            </div>
-
-            <h2 className="h1 mt-2 text-[24px] sm:text-[34px]">{slide.title}</h2>
+            <h2 className="h1 mt-6 text-[24px] sm:text-[34px]">
+              {current.title}
+            </h2>
 
             <p className="mx-auto mt-4 max-w-[520px] text-[15px] leading-relaxed text-mid">
-              {slide.body}
+              {current.body}
             </p>
           </motion.div>
         </AnimatePresence>
@@ -124,21 +133,47 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           Atrás
         </Button>
 
-        <div className="flex items-center gap-2">
-          {SLIDES.map((_, n) => (
-            <button
-              key={n}
-              onClick={() => go(n)}
-              aria-label={`Paso ${n + 1}`}
-              className="h-1.5 rounded-full transition-all duration-300"
-              style={{
-                width: n === i ? 26 : 6,
-                backgroundColor:
-                  n === i ? "var(--brand)" : "var(--border-strong)",
-              }}
-            />
-          ))}
+        {/* Riel de etapas: cada paso dice su nombre en vez de ser un punto.
+            El activo va en tinta — chartreuse sobre neutro medía 1.30:1 y
+            quedaba más claro que los inactivos. */}
+        <div className="hidden items-end gap-5 sm:flex">
+          {SLIDES.map((s, n) => {
+            const on = n === i;
+            const seen = n <= i;
+            return (
+              <button
+                key={s.stage}
+                onClick={() => go(n)}
+                aria-current={on ? "step" : undefined}
+                className="focusable group flex flex-col items-start gap-1.5"
+              >
+                <span
+                  className="h-1.5 rounded-full transition-all duration-300"
+                  style={{
+                    width: on ? 34 : 20,
+                    backgroundColor: seen
+                      ? "var(--brand-ink)"
+                      : "var(--border-strong)",
+                  }}
+                />
+                <span
+                  className="text-[11.5px] whitespace-nowrap transition-colors"
+                  style={{
+                    color: on ? "var(--text-hi)" : "var(--text-low)",
+                    fontWeight: on ? 600 : 400,
+                  }}
+                >
+                  {s.stage}
+                </span>
+              </button>
+            );
+          })}
         </div>
+
+        {/* En pantallas angostas no cabe el riel: queda el contador. */}
+        <span className="num text-[12px] text-low sm:hidden">
+          {current.stage} · {i + 1}/{SLIDES.length}
+        </span>
 
         <Button
           onClick={() => (last ? onDone() : go(i + 1))}

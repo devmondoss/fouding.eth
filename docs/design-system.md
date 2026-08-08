@@ -33,7 +33,7 @@ Fuente de verdad ejecutable: [packages/nextjs/app/globals.css](packages/nextjs/a
   --border-strong: #D0D5DD;
   --text-hi:       #00272B;   /* Gun Metal — reemplaza el gris casi negro */
   --text-mid:      #475467;
-  --text-low:      #98A2B3;
+  --text-low:      #667085;   /* 4.98:1 sobre --surface, 4.64:1 sobre --bg */
 
   /* Marca — Chartreuse para relleno, Gun Metal como tinta legible.
      Chartreuse pierde contraste como texto/borde fino sobre blanco:
@@ -44,6 +44,7 @@ Fuente de verdad ejecutable: [packages/nextjs/app/globals.css](packages/nextjs/a
   --brand-ink:    #00272B;
   --brand-soft:   #F8FFDF;
   --brand-border: #D8EF85;
+  --brand-strong: #6F8000;   /* chartreuse oscurecido: barras, puntos, íconos */
 
   /* Semánticos, apagados a propósito */
   --positive: #147A54;   --positive-soft: #E7F4EE;
@@ -53,8 +54,11 @@ Fuente de verdad ejecutable: [packages/nextjs/app/globals.css](packages/nextjs/a
   /* Geometría */
   --r-card: 10px;  --r-panel: 8px;  --r-input: 8px;  --r-pill: 999px;
 
-  /* Shell */
+  /* Shell y anchos de contenido — tres medidas, no cuatro literales */
   --shell-max: 1240px;  --shell-min: 1120px;
+  --w-wide:  1240px;   /* ficha de operación: la capa más ancha */
+  --w-panel:  980px;   /* panel lateral: portafolio, perfil */
+  --w-doc:    860px;   /* documento y formulario: negocios, solicitud, verificador */
 
   /* Elevación */
   --shadow-sm: 0 1px 2px rgba(16,24,40,0.05);
@@ -62,6 +66,23 @@ Fuente de verdad ejecutable: [packages/nextjs/app/globals.css](packages/nextjs/a
   --shadow-lg: 0 12px 28px -8px rgba(16,24,40,0.16);
 }
 ```
+
+### Dos correcciones de agosto 2026, con su motivo
+
+**`--text-low` pasó de `#98A2B3` a `#667085`.** El valor viejo medía 2.58:1 sobre blanco y 2.40:1 sobre `--bg` — por debajo incluso del piso de 3:1 para elementos no textuales. Y es el color de la clase `.label`, que titula **cada métrica del producto**: el token más repetido era el que menos se leía. Se usaba 85 veces.
+
+**`--brand-strong` es nuevo, y existe porque `--brand` no puede sostenerse solo en una superficie pequeña o delgada.** Chartreuse sobre la pista `--border` mide 1.10:1: la barra de avance de recaudación —una por tarjeta, más la del panel de inversión— era literalmente invisible. Lo mismo pasaba con el punto activo del paginador, que a 1.30:1 se veía *más claro* que los inactivos.
+
+La regla resultante, que reemplaza la de §4:
+
+| Rol | Token | Por qué |
+| --- | --- | --- |
+| Relleno grande con texto encima | `--brand` | Botón, chip seleccionado, monograma. `--brand-ink` encima da 14:1 |
+| Relleno pequeño o delgado, sin texto | `--brand-strong` | Barra de avance, punto de paginador, ícono de estado |
+| Texto, ícono sobre neutro, borde fino | `--brand-ink` | Subrayado de pestaña, enlaces, borde de silueta |
+| Wash decorativo que no comunica estado | `--brand-soft` | Fondo de `CoverArt`, chip de ícono |
+
+`--brand-border` (1.26:1) queda solo para separadores decorativos. No sirve para nada que haya que ver.
 
 ---
 
@@ -129,7 +150,18 @@ Reglas de esta arquitectura:
 - **Se pagina, no se hace scroll.** El catálogo avanza por páginas (flechas, puntos o teclado ←/→) y la ficha avanza por pasos.
 - **Excepción honesta:** dentro de la ficha y del panel lateral el contenido puede desbordar en pantallas bajas; ahí sí hay scroll interno. Es la válvula de seguridad, no el patrón.
 
-**Alcance:** el producto es exclusivamente el lado del **inversionista**. No hay panel de originador ni flujo de empresa; esas operaciones existen en el dominio pero no se exponen.
+**Alcance:** el sistema cubre **cuatro superficies**, no una. La regla de un módulo sin scroll aplica solo a la primera.
+
+| Superficie | Rutas | Arquitectura |
+| --- | --- | --- |
+| Inversionista | `/`, `/login` | Módulo único, cero scroll de página, capas y paginación |
+| Empresa | `/negocios`, `/solicitar` | Documento normal con scroll; overlay para el asistente de solicitud |
+| Verificador | `/verifier` | Herramienta de trabajo: cabecera fija + secciones, un trabajo a la vez |
+| Puerta de rol | `/rol` | Pantalla de elección, sin chrome |
+
+Las tres últimas **no** heredan el cero-scroll: son documentos y herramientas, y forzarlas a la pantalla única fue lo que las dejó sin diseñar. Lo que sí heredan es todo lo demás — tokens, tipografía, movimiento, componentes y lenguaje.
+
+**El verificador se ordena por secciones, no por apilamiento.** Tenía cuatro herramientas —subir documentos, cola de expedientes, acceso de inversionistas, servicing— apiladas en una columna como hermanas de igual peso, así que la pantalla del operador tenía cuatro trabajos sin jerarquía. Ahora son pestañas con la cola por defecto y el contador de pendientes en la cabecera: un trabajo a la vez.
 
 ---
 
@@ -162,6 +194,43 @@ Dos detalles que hacen la diferencia:
 
 Reglas: una sola curva; nada rebota salvo confirmaciones; las transiciones de entrada y salida siempre son direccionales y coherentes entre sí.
 
+**Agosto 2026 — esta sección describía una intención, no el código.** `slide()`, `sheet` y `T.indicator` estaban exportados y **no se importaban en ningún lado**; la curva estaba escrita a mano como literal `[0.22, 0.9, 0.3, 1]` en ocho archivos, con cinco duraciones ad-hoc donde el sistema define cuatro. Ese es el mecanismo exacto por el que las superficies nuevas se sintieron como otro producto: cada autor reinventaba el movimiento porque nadie estaba obligado a leerlo de acá.
+
+Ahora los ocho consumen `lib/motion.ts`. `DUR.count` (0.7s) se agregó para `AnimatedNumber`: es más largo que cualquier transición de UI a propósito, porque ahí el movimiento **cuenta algo** en vez de orientar. Es la única excepción y está nombrada.
+
+`prefers-reduced-motion: reduce` corta todo a 0.01ms en `globals.css`, y `AnimatedNumber` salta directo a la cifra final.
+
+---
+
+## 7.1 Teclado y capas — `lib/keyboard.ts`
+
+La aplicación es una pantalla con capas encima. Si cada capa engancha su listener a `window`, **todas escuchan a la vez**: Escape cerraba el modal de confirmación *y* la ficha que lo contenía, perdiendo el monto tecleado, y ← movía el cursor dentro del campo de monto mientras paginaba el catálogo de atrás. Había seis listeners de Escape apilados.
+
+Hay una pila. Solo la capa de arriba actúa, y la base solo actúa cuando no hay ninguna capa abierta.
+
+| Hook | Para | Regla |
+| --- | --- | --- |
+| `useLayerKeys({ onEscape, onPrev, onNext, active })` | Ficha, paneles, modales | Se registra en la pila; actúa solo si es la de arriba. Escape hace `stopPropagation` |
+| `useBaseKeys({ onPrev, onNext })` | El catálogo | Actúa solo si `layersOpen() === 0` |
+| `useFocusTrap(active)` | Los seis overlays | Lleva el foco al panel, lo mantiene dentro, lo devuelve al disparador al cerrar |
+| `isTypingTarget(target)` | Interno | Un campo editable se queda con las flechas |
+
+**Ningún componente vuelve a llamar `window.addEventListener("keydown", …)` por su cuenta.** Igual que con los colores y el movimiento: sale de acá.
+
+---
+
+## 7.2 Accesibilidad — el piso
+
+No hay un estándar formal comprometido, pero estas cinco cosas dejaron de ser opcionales:
+
+1. **Contraste medido, no estimado.** Texto ≥4.5:1, elementos de UI ≥3:1. El barrido en vivo sobre estilos computados debe dar cero nodos por debajo del piso en las cuatro rutas.
+2. **Ningún estado depende solo del color.** La cobertura insuficiente cambia el ícono a `ShieldX` *y* dice "insuficiente"; los tramos del inversionista en el waterfall llevan borde de tinta *y* la palabra "te corresponde"; la verificación pendiente en la barra lleva ícono *y* la palabra "Sin acceso".
+3. **`.focusable` en todo control propio.** Es la misma regla de foco que ya tenía `Button`, disponible como clase. Tarjetas, pestañas, chips, puntos de paginador y filas de tabla la llevan. `Field` la resuelve en el envoltorio porque el input anula su propio contorno.
+4. **Los diálogos son diálogos.** `role="dialog"`, `aria-modal`, `aria-labelledby`, trampa de foco y restauración. Las tiras de pestañas son `role="tablist"` con `aria-selected`.
+5. **Los errores se anuncian.** `role="alert"` en el mensaje de `Field` y en los errores de decisión del verificador.
+
+Un objetivo pulsable suelto mide al menos 24px de alto — un enlace en medio de un párrafo está exento, uno que vive solo no.
+
 ---
 
 ## 8. Lenguaje
@@ -183,14 +252,21 @@ Los términos técnicos siguen en el código y en la documentación de producto;
 
 ## 9. Reglas duras
 
-- ✅ Un solo módulo. Se pagina y se navega por capas, nunca por scroll de página.
+- ✅ Un solo módulo **en la superficie del inversionista**. Se pagina y se navega por capas, nunca por scroll de página.
 - ✅ Toda cifra en `.num`.
 - ✅ El color semántico se usa por significado, nunca por decoración.
 - ✅ Diseñar para 1366×768.
-- ❌ Sin degradados salvo el sutil de la textura del hero.
+- ✅ **Los componentes leen tokens, nunca literales.** Vale para color, y desde agosto 2026 también para **geometría** (`--w-wide`/`--w-panel`/`--w-doc`) y **movimiento** (`lib/motion.ts`). Esta era la regla que el proyecto decía tener y solo cumplía para color.
+- ✅ **Un estado, un nombre.** Los cinco estados salen de `STATUS_LABEL`. Llegó a haber tres nombres para `funding` —"En recaudación", "En fondeo", "Levantando capital"— visibles a dos clics de distancia.
+- ✅ **Toda acción irreversible se confirma**, y con el mismo peso: si borrar la cuenta tiene un modal diseñado, declarar un incumplimiento y emitir un pasaporte soulbound también. Nada de `window.confirm`.
+- ✅ **Todo rechazo lleva motivo.** El dashboard de la empresa le promete al dueño que puede "corregir lo observado": si el verificador no tiene dónde escribirlo, esa promesa es mentira.
+- ✅ **Ninguna respuesta no-2xx se traga en silencio.** `if (res.ok) await load()` sin `else` es un bug de diseño, no de red.
+- ❌ Sin degradados.
 - ❌ Sin sombras de color.
-- ❌ Sin `backdrop-filter` en filas de listas largas — solo en la barra fija.
-- ❌ Sin breakpoints responsive por ahora: desktop only.
+- ❌ Sin `backdrop-filter` en filas de listas largas — solo en la barra pegajosa de `/negocios`, que es el único sitio donde algo se superpone a contenido que scrollea.
+- ❌ Sin antetítulos (`label` en 11px encima de un `h1`). El titular se sostiene solo; si el antetítulo tenía información —como las etapas del onboarding— esa información va a la navegación, no encima del título.
+- ❌ Sin tres tarjetas del mismo tamaño con ícono, título y texto como estructura de página. Es el contenedor perezoso y se nota.
+- ❌ Sin breakpoints responsive en la superficie del inversionista: desktop only. Las otras tres sí responden.
 
 ---
 

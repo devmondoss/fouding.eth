@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { Clock, ShieldCheck } from "lucide-react";
+import { Clock, ShieldCheck, ShieldX } from "lucide-react";
 import { CoverArt } from "./CoverArt";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { StatusPill } from "@/components/ui/Pill";
@@ -43,7 +43,7 @@ export function OpportunityCard({
       transition={{ ...T.base, delay: index * 0.06 }}
       whileHover={{ y: -5 }}
       whileTap={{ scale: 0.99 }}
-      className="card card-hover group relative flex h-full w-full flex-col overflow-hidden p-5 text-left"
+      className="focusable card card-hover group relative flex h-full w-full flex-col overflow-hidden p-5 text-left"
     >
       {/* Watermark de portada — esquina, no banner. La marca es el
           patrón + ícono de sector, apenas visible detrás del titular. */}
@@ -82,9 +82,21 @@ export function OpportunityCard({
         </div>
       </div>
 
-      <div className="relative mt-1.5 flex items-center gap-1 text-[11px] font-medium" style={{ color: cov >= 10000 ? "var(--positive)" : "var(--negative)" }}>
-        <ShieldCheck className="h-3 w-3" />
-        <span className="num">{formatRatio(cov)}</span> de cobertura de garantía
+      {/* La cobertura insuficiente cambiaba solo de color manteniendo el
+          mismo escudo con el check: codificación puramente cromática, en la
+          tarjeta principal, contra el requisito explícito de que ningún
+          estado dependa solo del color. El ícono y la palabra lo dicen. */}
+      <div
+        className="relative mt-1.5 flex items-center gap-1 text-[11px] font-medium"
+        style={{ color: cov >= 10000 ? "var(--positive)" : "var(--negative)" }}
+      >
+        {cov >= 10000 ? (
+          <ShieldCheck className="h-3 w-3 shrink-0" />
+        ) : (
+          <ShieldX className="h-3 w-3 shrink-0" />
+        )}
+        <span className="num">{formatRatio(cov)}</span> de cobertura
+        {cov >= 10000 ? " de garantía" : " — insuficiente"}
       </div>
 
       <div className="relative mt-4 flex-1" />
@@ -97,7 +109,7 @@ export function OpportunityCard({
         <ProgressBar
           bps={funding}
           height={3}
-          color={open ? "var(--brand)" : "var(--positive)"}
+          color={open ? "var(--brand-strong)" : "var(--positive)"}
         />
 
         <div className="mt-3 flex items-center justify-between">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion } from "motion/react";
 import {
   AlertTriangle,
@@ -19,6 +19,8 @@ import { Metric } from "@/components/ui/Stat";
 import { Modal } from "@/components/ui/Modal";
 import { usePlatform } from "@/lib/data/store";
 import { formatRelativeTime, formatUsdc } from "@/lib/format";
+import { useFocusTrap, useLayerKeys } from "@/lib/keyboard";
+import { scrim, sheet } from "@/lib/motion";
 import type { Session } from "@/lib/useSession";
 
 /**
@@ -29,6 +31,7 @@ import type { Session } from "@/lib/useSession";
  */
 export function ProfilePanel({
   session,
+  openAccessRequest = false,
   onClose,
   onSignOut,
   onVerify,
@@ -36,6 +39,10 @@ export function ProfilePanel({
   onReplayIntro,
 }: {
   session: Session;
+  /** Abre directo en el formulario de acceso. Lo usa el bloqueo de
+   *  verificación de InvestPanel: llegar acá y tener que buscar el botón
+   *  era la mitad del problema. */
+  openAccessRequest?: boolean;
   onClose: () => void;
   onSignOut: () => void;
   onVerify: (applicant: { fullName: string; documentId: string }) => Promise<void>;
@@ -43,7 +50,9 @@ export function ProfilePanel({
   onReplayIntro: () => void;
 }) {
   const { positions } = usePlatform();
-  const [verifying, setVerifying] = useState(false);
+  const [verifying, setVerifying] = useState(
+    openAccessRequest && !session.verified && session.accessStatus !== 1,
+  );
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState("");
   const [docId, setDocId] = useState("");
@@ -53,11 +62,8 @@ export function ProfilePanel({
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  useLayerKeys({ onEscape: onClose });
+  const panelRef = useFocusTrap<HTMLElement>(true);
 
   const totalInvested = positions.reduce((s, p) => s + p.principal, 0n);
 
@@ -92,20 +98,24 @@ export function ProfilePanel({
   return (
     <>
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.2 }}
+        variants={scrim}
+        initial="hidden"
+        animate="show"
+        exit="exit"
         onClick={onClose}
         className="fixed inset-0 z-40"
         style={{ backgroundColor: "rgba(16,24,40,0.3)" }}
       />
 
       <motion.aside
-        initial={{ x: "100%" }}
-        animate={{ x: 0 }}
-        exit={{ x: "100%" }}
-        transition={{ duration: 0.32, ease: [0.22, 0.9, 0.3, 1] }}
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Cuenta"
+        variants={sheet}
+        initial="hidden"
+        animate="show"
+        exit="exit"
         className="fixed right-0 top-0 z-50 flex h-full w-full flex-col border-l border-border sm:w-[400px]"
         style={{ backgroundColor: "var(--surface)" }}
       >
@@ -113,8 +123,8 @@ export function ProfilePanel({
           <h2 className="h2 text-[16px]">Cuenta</h2>
           <button
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-border transition-colors hover:bg-surface-soft"
-            aria-label="Cerrar"
+            className="focusable flex h-8 w-8 items-center justify-center rounded-full border border-border transition-colors hover:bg-surface-soft"
+            aria-label="Cerrar la cuenta"
           >
             <X className="h-4 w-4 text-mid" />
           </button>

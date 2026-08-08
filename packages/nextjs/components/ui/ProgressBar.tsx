@@ -1,7 +1,13 @@
+/**
+ * Avance de recaudación. El relleno usa --brand-strong, no --brand:
+ * chartreuse contra la pista --border mide 1.10:1, así que la barra más
+ * repetida del producto —una por tarjeta, más la del panel de inversión—
+ * era invisible, incluso de cerca. Ver globals.css §Marca.
+ */
 export function ProgressBar({
   bps,
   height = 6,
-  color = "var(--brand)",
+  color = "var(--brand-strong)",
 }: {
   bps: number;
   height?: number;

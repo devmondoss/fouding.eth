@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
-import { AlertTriangle, ArrowRight, Check, Loader2 } from "lucide-react";
+import { motion } from "motion/react";
+import { AlertTriangle, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { useSession } from "@/lib/useSession";
-import { T } from "@/lib/motion";
+import { fadeUp, T } from "@/lib/motion";
 
 /**
  * Entrada al producto: Privy crea/conecta la wallet embebida al
@@ -27,40 +27,55 @@ export function AuthFlow() {
     resumeSession,
   } = useSession();
   const [showTerms, setShowTerms] = useState(false);
-  // Derivado, no estado propio: "connecting" cubre tanto el spinner como
-  // el error (se queda ahí hasta reintentar o cancelar); cualquier otra
-  // combinación es "intro". Cancelar limpia ambos flags y por eso vuelve
-  // solo al inicio, sin necesitar un efecto que lo empuje.
-  const step = connecting || connectError ? "connecting" : "intro";
+
+  /**
+   * Antes acá había un segundo paso a pantalla completa ("Creando tu
+   * wallet" + spinner) que reemplazaba esta pantalla mientras Privy
+   * conectaba. Estaba mal por dos motivos:
+   *
+   * 1. **El modal de Privy YA es la pantalla.** Dice "Log in or sign up" y
+   *    pide el correo. Montarle detrás otra pantalla que dice lo mismo es
+   *    duplicar la interfaz — y lo que se ve es un texto a medio tapar
+   *    detrás del modal.
+   * 2. **Tapaba el producto.** El orden de prelación desaparecía justo
+   *    cuando la persona tiene medio minuto muerto mirando la pantalla
+   *    mientras escribe su correo.
+   *
+   * Ahora la pantalla no se mueve: el botón entra en carga, y debajo
+   * aparece una línea que dice qué está pasando. Lo único que sigue
+   * mereciendo protagonismo es el error, porque eso sí es nuestro.
+   */
+  const [intent, setIntent] = useState<"connect" | "switch">("connect");
+
+  function start(next: "connect" | "switch") {
+    setIntent(next);
+    connectWallet();
+  }
 
   return (
-    <div
+    <main
       className="flex min-h-screen items-center justify-center px-5 py-10 sm:px-8"
       style={{ backgroundColor: "var(--surface)" }}
     >
-      <div className="w-full max-w-[860px]">
-        <AnimatePresence mode="wait">
-          {/* --------------------------------------------------- INTRO */}
-          {step === "intro" && (
-            <motion.div
-              key="intro"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -12 }}
-              transition={T.base}
-              className="grid grid-cols-1 gap-10 sm:grid-cols-2 sm:gap-14"
-            >
-              <div className="max-w-[400px]">
+      <div className="w-full max-w-[var(--w-wide)]">
+        <motion.div
+          variants={fadeUp}
+          initial="hidden"
+          animate="show"
+          className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] lg:gap-16"
+        >
+          <div>
                 <h1 className="h1 text-[28px] leading-[1.1] sm:text-[34px] sm:leading-[1.05]">
-                  Invierte en empresas
+                  El orden de pago está
                   <br />
-                  que ya facturan
+                  escrito antes de invertir
                 </h1>
 
                 <p className="mt-3 text-[14px] leading-relaxed text-mid">
-                  Crédito privado respaldado por garantía real, en USDC sobre
-                  Arbitrum. Te creamos una wallet al instante con tu correo:
-                  sin contraseñas, sin frase semilla.
+                  Crédito privado a empresas peruanas que ya facturan,
+                  respaldado por garantía real y en USDC sobre Arbitrum. El
+                  capital queda retenido en el contrato, no en la empresa, y
+                  se libera por hitos verificados.
                 </p>
 
                 {/* Con una sesión viva detrás de un "cerrar sesión" reciente
@@ -68,143 +83,131 @@ export function AuthFlow() {
                     en cambio, hay que matar el token. Las dos salidas tienen
                     que estar visibles: ofrecer solo la primera fue el bug de
                     no poder cambiar de cuenta nunca. */}
-                {pendingAccount ? (
-                  <>
-                    <Button
-                      size="lg"
-                      className="mt-7 w-full"
-                      onClick={resumeSession}
-                      iconRight={<ArrowRight className="h-4 w-4" />}
-                    >
-                      Continuar como {pendingAccount}
-                    </Button>
+            {pendingAccount ? (
+              <>
+                <Button
+                  size="lg"
+                  className="mt-7 w-full"
+                  onClick={resumeSession}
+                  disabled={connecting}
+                  iconRight={<ArrowRight className="h-4 w-4" />}
+                >
+                  Continuar como {pendingAccount}
+                </Button>
 
-                    <p className="mt-3 text-center text-[12.5px] text-mid">
-                      <button
-                        onClick={() => connectWallet()}
-                        className="font-medium underline decoration-dotted transition-colors hover:text-hi"
-                        style={{ color: "var(--brand-ink)" }}
-                      >
-                        Entrar con otro correo
-                      </button>
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <Button
-                      size="lg"
-                      className="mt-7 w-full"
-                      onClick={() => connectWallet()}
-                      iconRight={<ArrowRight className="h-4 w-4" />}
-                    >
-                      Iniciar sesión
-                    </Button>
-
-                    <p className="mt-3 text-center text-[12.5px] text-mid">
-                      ¿No tienes cuenta?{" "}
-                      <button
-                        onClick={() => connectWallet()}
-                        className="font-medium underline decoration-dotted transition-colors hover:text-hi"
-                        style={{ color: "var(--brand-ink)" }}
-                      >
-                        Regístrate
-                      </button>
-                    </p>
-                  </>
-                )}
-
-                <p className="mt-3 text-center text-[11.5px] text-low">
-                  Al continuar aceptas los{" "}
+                <p className="mt-3 text-center text-[12.5px] text-mid">
                   <button
-                    onClick={() => setShowTerms(true)}
-                    className="underline decoration-dotted transition-colors hover:text-hi"
-                    style={{ color: "var(--text-mid)" }}
+                    onClick={() => start("switch")}
+                    disabled={connecting}
+                    className="focusable -mx-1.5 inline-flex h-8 items-center px-1.5 font-medium underline decoration-dotted transition-colors hover:text-hi disabled:opacity-50"
+                    style={{ color: "var(--brand-ink)" }}
                   >
-                    Términos y condiciones
+                    Entrar con otro correo
                   </button>
                 </p>
-              </div>
-
-              <div className="flex flex-col justify-center gap-4 sm:border-l sm:pl-14" style={{ borderColor: "var(--border-strong)" }}>
-                {[
-                  "No pedimos datos personales para explorar",
-                  "Ticket mínimo de 1,000 USDC por operación",
-                  "Cada operación muestra su garantía y su cobertura",
-                ].map((t) => (
-                  <div
-                    key={t}
-                    className="flex items-start gap-2.5 text-[13.5px] text-mid"
-                  >
-                    <Check
-                      className="mt-0.5 h-4 w-4 shrink-0"
-                      style={{ color: "var(--positive)" }}
-                    />
-                    {t}
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-
-          {/* --------------------------------------------- CONECTANDO */}
-          {step === "connecting" && (
-            <motion.div
-              key="connecting"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={T.fast}
-              className="mx-auto max-w-[400px]"
-            >
-              <h1 className="h1 text-[30px]">
-                {connectError ? "No se pudo conectar" : "Creando tu wallet"}
-              </h1>
-              <p className="mt-2 text-[14px] text-mid">
-                {connectError
-                  ? connectError
-                  : "Ingresa tu correo en la ventana que aparece."}
-              </p>
-
-              <div className="mt-8 flex items-center gap-3">
-                <span
-                  className="flex h-6 w-6 items-center justify-center rounded-full border"
-                  style={{
-                    borderColor: connectError ? "var(--negative)" : "var(--brand-ink)",
-                  }}
+              </>
+            ) : (
+              <>
+                <Button
+                  size="lg"
+                  className="mt-7 w-full"
+                  loading={connecting}
+                  onClick={() => start("connect")}
+                  iconRight={<ArrowRight className="h-4 w-4" />}
                 >
-                  {connectError ? (
-                    <AlertTriangle className="h-3 w-3" style={{ color: "var(--negative)" }} />
-                  ) : (
-                    <Loader2
-                      className="h-3 w-3 animate-spin"
-                      style={{ color: "var(--brand-ink)" }}
-                    />
-                  )}
-                </span>
-                <span className="text-[14px] text-hi">
-                  {connectError ? "Conexión rechazada o fallida" : "Esperando confirmación"}
-                </span>
-              </div>
+                  Iniciar sesión
+                </Button>
 
-              {connectError ? (
+                <p className="mt-3 text-center text-[12.5px] text-mid">
+                  ¿No tienes cuenta?{" "}
+                  <button
+                    onClick={() => start("connect")}
+                    disabled={connecting}
+                    className="focusable -mx-1.5 inline-flex h-8 items-center px-1.5 font-medium underline decoration-dotted transition-colors hover:text-hi disabled:opacity-50"
+                    style={{ color: "var(--brand-ink)" }}
+                  >
+                    Regístrate
+                  </button>
+                </p>
+              </>
+            )}
+
+            {/* Mientras el modal de Privy está abierto no hace falta
+                repetir lo que ya dice. Lo único que agregamos es lo que
+                Privy no puede saber: que al cambiar de cuenta la wallet
+                anterior no se pierde. Y una salida, por si el modal se
+                cierra sin resolver. */}
+            {connecting && !connectError && (
+              <div
+                role="status"
+                className="mt-4 flex items-start gap-2.5 rounded-[var(--r-panel)] border border-border px-3.5 py-3"
+              >
+                <Loader2
+                  className="mt-px h-3.5 w-3.5 shrink-0 animate-spin"
+                  style={{ color: "var(--brand-ink)" }}
+                />
+                <div className="min-w-0 text-[12px] leading-relaxed text-mid">
+                  {intent === "switch"
+                    ? "Cerrando tu sesión actual para pedirte el otro correo. Tu wallet anterior no se toca: sigue existiendo y puedes volver a ella."
+                    : "Continúa en la ventana que se abrió."}
+                  <button
+                    onClick={cancelConnect}
+                    className="focusable ml-1.5 font-medium underline decoration-dotted transition-colors hover:text-hi"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {connectError && (
+              <div
+                role="alert"
+                className="mt-4 rounded-[var(--r-panel)] border px-3.5 py-3"
+                style={{ borderColor: "var(--negative)" }}
+              >
+                <div className="flex items-start gap-2.5">
+                  <AlertTriangle
+                    className="mt-px h-3.5 w-3.5 shrink-0"
+                    style={{ color: "var(--negative)" }}
+                  />
+                  <div className="min-w-0">
+                    <div
+                      className="text-[12.5px] font-semibold"
+                      style={{ color: "var(--negative)" }}
+                    >
+                      No se pudo conectar
+                    </div>
+                    <p className="mt-0.5 text-[12px] leading-relaxed text-mid">
+                      {connectError}
+                    </p>
+                  </div>
+                </div>
                 <Button
                   variant="outline"
-                  className="mt-6 w-full"
+                  size="sm"
+                  className="mt-3 w-full"
                   onClick={() => connectWallet()}
                 >
                   Reintentar
                 </Button>
-              ) : (
-                <button
-                  onClick={cancelConnect}
-                  className="mt-6 text-[12.5px] text-mid transition-colors hover:text-hi"
-                >
-                  Cancelar
-                </button>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+              </div>
+            )}
+
+            <p className="mt-3 text-center text-[11.5px] text-low">
+              Al continuar aceptas los{" "}
+              <button
+                onClick={() => setShowTerms(true)}
+                className="focusable -mx-1.5 inline-flex h-8 items-center px-1.5 underline decoration-dotted transition-colors hover:text-hi"
+                style={{ color: "var(--text-mid)" }}
+              >
+                Términos y condiciones
+              </button>
+            </p>
+          </div>
+
+          <PaymentOrderPreview />
+        </motion.div>
       </div>
 
       <Modal
@@ -240,11 +243,97 @@ export function AuthFlow() {
             regulado.
           </p>
           <p>
-            Al conectar tu wallet aceptás que este es un entorno de
+            Al conectar tu wallet aceptas que este es un entorno de
             pruebas y que la información mostrada es ilustrativa.
           </p>
         </div>
       </Modal>
-    </div>
+    </main>
+  );
+}
+
+/* ------------------------------------------------------------------------
+   El primer viewport era un login con el 60% de la pantalla vacía: titular,
+   botón y tres checks al otro lado de una línea. No se veía nada del
+   producto, y es lo único que un jurado tiene garantizado ver.
+
+   Acá va la tesis en vez de los checks: el orden de prelación, en la misma
+   gramática que usa WaterfallPanel dentro de la ficha — los tramos del
+   inversionista marcados con borde de tinta y la palabra literal, no con
+   color. Sin cifras: el orden es un hecho estructural del contrato, mientras
+   que cualquier monto acá sería un dato inventado (ver PRODUCT.md,
+   §Evidence on Hand).
+   ------------------------------------------------------------------------ */
+
+/* Cuatro escalones, dos palabras cada uno. La versión anterior tenía
+   título + subtítulo por tramo y dos párrafos alrededor: unas 90 palabras
+   de vocabulario de prospecto. Era correcta y nadie la leía — saturaba en
+   vez de explicar. Acá el mecanismo lo lleva la forma (una escalera que
+   baja) y el texto solo nombra los peldaños. */
+const ORDEN_DE_PAGO = [
+  { label: "Costos de liquidación", mine: false },
+  { label: "Servicing", mine: false },
+  { label: "Tu capital", mine: true },
+  { label: "Tus intereses", mine: true },
+];
+
+function PaymentOrderPreview() {
+  return (
+    <section className="card p-6 sm:p-7">
+      <h2 className="h2 text-[17px]">Si la empresa no paga</h2>
+      <p className="mt-1.5 text-[13px] text-mid">
+        El contrato reparte lo recuperado en este orden.
+      </p>
+
+      {/* La escalera es el argumento: cada peldaño cobra antes que el
+          siguiente. Sin cifras a propósito — el contrato garantiza el
+          orden, y cualquier monto acá sería un dato inventado. */}
+      <ol className="mt-6 flex flex-col gap-1.5">
+        {ORDEN_DE_PAGO.map((t, i) => (
+          <motion.li
+            key={t.label}
+            initial={{ opacity: 0, x: -14 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ ...T.base, delay: 0.15 + i * 0.09 }}
+            style={{ paddingLeft: i * 26 }}
+          >
+            <div
+              className="flex items-center gap-3 rounded-[var(--r-panel)] border px-4 py-3"
+              style={{
+                borderColor: t.mine ? "var(--brand-ink)" : "var(--border)",
+                borderWidth: t.mine ? 1.5 : 1,
+                backgroundColor: t.mine
+                  ? "var(--surface)"
+                  : "var(--surface-soft)",
+              }}
+            >
+              <span
+                className="num flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11.5px] font-semibold"
+                style={{
+                  backgroundColor: t.mine
+                    ? "var(--brand)"
+                    : "var(--surface)",
+                  color: t.mine ? "var(--brand-ink)" : "var(--text-low)",
+                  border: t.mine ? "none" : "1px solid var(--border-strong)",
+                }}
+              >
+                {i + 1}
+              </span>
+              <span
+                className="text-[14px] font-semibold"
+                style={{ color: t.mine ? "var(--text-hi)" : "var(--text-mid)" }}
+              >
+                {t.label}
+              </span>
+            </div>
+          </motion.li>
+        ))}
+      </ol>
+
+      <p className="mt-6 border-t border-border pt-4 text-[12px] leading-relaxed text-mid">
+        Garantiza el orden, no el monto: el recupero de una garantía es
+        parcial más veces de lo que es total.
+      </p>
+    </section>
   );
 }

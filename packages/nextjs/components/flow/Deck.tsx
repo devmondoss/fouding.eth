@@ -1,21 +1,27 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ChevronLeft, ChevronRight, Info } from "lucide-react";
 import { OpportunityCard } from "@/components/domain/OpportunityCard";
 import { usePlatform } from "@/lib/data/store";
 import { formatUsdc } from "@/lib/format";
+import { useBaseKeys } from "@/lib/keyboard";
+import { slide } from "@/lib/motion";
+import { STATUS_LABEL } from "@/lib/opportunity";
 import type { Opportunity, OpportunityStatus } from "@/lib/types";
 
 const PER_PAGE = 3;
 
+/** Un solo estado, un solo nombre. Los rótulos salen de STATUS_LABEL para
+ *  que el filtro, la píldora de la tarjeta y la dona del portafolio no
+ *  puedan volver a llamarle distinto a lo mismo — ver design-system.md §8. */
 const FILTROS: { key: OpportunityStatus | "all"; label: string }[] = [
   { key: "all", label: "Todas" },
-  { key: "funding", label: "En recaudación" },
-  { key: "active", label: "En ejecución" },
-  { key: "repaid", label: "Pagadas" },
-  { key: "defaulted", label: "Incumplidas" },
+  { key: "funding", label: STATUS_LABEL.funding },
+  { key: "active", label: STATUS_LABEL.active },
+  { key: "repaid", label: STATUS_LABEL.repaid },
+  { key: "defaulted", label: STATUS_LABEL.defaulted },
 ];
 
 /**
@@ -47,13 +53,11 @@ export function Deck({ onSelect }: { onSelect: (o: Opportunity) => void }) {
     setPage(n);
   };
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight") go(current + 1);
-      if (e.key === "ArrowLeft") go(current - 1);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+  // Solo cuando no hay ficha ni panel abierto encima, y nunca dentro de un
+  // campo: escribir un monto no debe paginar el catálogo de atrás.
+  useBaseKeys({
+    onPrev: () => go(current - 1),
+    onNext: () => go(current + 1),
   });
 
   const total = opportunities.reduce((s, o) => s + o.raisedAmount, 0n);
@@ -70,11 +74,15 @@ export function Deck({ onSelect }: { onSelect: (o: Opportunity) => void }) {
               setFiltro(f.key);
               setPage(0);
             }}
-            className="shrink-0 rounded-[var(--r-pill)] border px-3 py-1.5 text-[12.5px] font-medium whitespace-nowrap transition-colors"
+            aria-pressed={on}
+            className="focusable shrink-0 rounded-[var(--r-pill)] border px-3 py-1.5 text-[12.5px] font-medium whitespace-nowrap transition-colors"
             style={{
               color: on ? "var(--brand-ink)" : "var(--text-mid)",
               backgroundColor: on ? "var(--brand)" : "var(--surface)",
-              borderColor: on ? "var(--brand)" : "var(--border)",
+              // El relleno chartreuse mide 1.13:1 contra el blanco de la
+              // página: sin un borde de tinta, el chip seleccionado no tiene
+              // silueta. El borde la da sin romper la regla de §4.
+              borderColor: on ? "var(--brand-ink)" : "var(--border)",
             }}
           >
             {f.label}
@@ -132,10 +140,10 @@ export function Deck({ onSelect }: { onSelect: (o: Opportunity) => void }) {
         <AnimatePresence mode="wait" custom={dir}>
           <motion.div
             key={`${filtro}-${current}`}
-            initial={{ opacity: 0, x: dir * 40 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: dir * -40 }}
-            transition={{ duration: 0.3, ease: [0.22, 0.9, 0.3, 1] }}
+            variants={slide(dir)}
+            initial="hidden"
+            animate="show"
+            exit="exit"
             className="grid h-full grid-cols-3 gap-5"
           >
             {slice.map((o, i) => (
@@ -167,12 +175,16 @@ export function Deck({ onSelect }: { onSelect: (o: Opportunity) => void }) {
             <button
               key={n}
               onClick={() => go(n)}
-              aria-label={`Página ${n + 1}`}
-              className="h-1.5 rounded-full transition-all duration-300"
+              aria-label={`Página ${n + 1} de ${pages}`}
+              aria-current={n === current ? "true" : undefined}
+              className="focusable h-1.5 rounded-full transition-all duration-300"
               style={{
                 width: n === current ? 26 : 6,
+                // Chartreuse sobre --border-strong mide 1.30:1 y es *más
+                // claro* que los puntos inactivos: el activo se leía como el
+                // apagado. La tinta lo invierte.
                 backgroundColor:
-                  n === current ? "var(--brand)" : "var(--border-strong)",
+                  n === current ? "var(--brand-ink)" : "var(--border-strong)",
               }}
             />
           ))}
@@ -202,7 +214,8 @@ function PagerButton({
     <button
       onClick={onClick}
       disabled={disabled}
-      className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface transition-all disabled:opacity-30 enabled:hover:border-border-strong enabled:hover:shadow-[var(--shadow-md)]"
+      aria-label={side === "left" ? "Página anterior" : "Página siguiente"}
+      className="focusable flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface transition-all disabled:opacity-30 enabled:hover:border-border-strong enabled:hover:shadow-[var(--shadow-md)]"
     >
       <Icon className="h-4 w-4 text-mid" />
     </button>

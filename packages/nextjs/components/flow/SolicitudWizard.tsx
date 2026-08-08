@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowLeft, ArrowRight, CheckCircle2, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { useSession } from "@/lib/useSession";
+import { useLayerKeys } from "@/lib/keyboard";
 import { T, dialog, scrim } from "@/lib/motion";
 
 const STEPS = [
@@ -40,11 +41,8 @@ export function SolicitudWizard({
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && !submitting && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, submitting]);
+  // Mientras envía no se puede cerrar: el expediente ya está en vuelo.
+  useLayerKeys({ onEscape: () => !submitting && onClose() });
 
   // Cada fase se valida sola — no se puede avanzar sin completar la
   // actual, así el error aparece en el paso donde vive el campo.
