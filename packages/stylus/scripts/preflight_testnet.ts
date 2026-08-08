@@ -5,7 +5,7 @@ import { arbitrumSepolia } from "viem/chains";
 import "./utils/network";
 import { redactSensitiveError } from "./utils/redact";
 
-const REQUIRED_BRANCH = "feat/pr-03-company-passport-testnet";
+const REQUIRED_BRANCH = "main";
 const MINIMUM_BALANCE = parseEther("0.01");
 const PRIVATE_KEY_PATTERN = /^0x[0-9a-fA-F]{64}$/;
 
