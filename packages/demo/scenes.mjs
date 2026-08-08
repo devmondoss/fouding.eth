@@ -21,11 +21,38 @@
 
 export const FPS = 30;
 
-/** Lienzo de salida. La app está calibrada a 1366×768 (PRODUCT.md), así
- *  que se graba a ese tamaño con deviceScaleFactor 2 y se baja a 1080p:
- *  el layout es el real y el pixel llega sobrado, no interpolado. */
-export const VIEWPORT = { width: 1366, height: 768 };
-export const OUTPUT = { width: 1920, height: 1080 };
+/**
+ * Viewport y lienzo son EL MISMO tamaño, a propósito.
+ *
+ * Playwright encaja la página en el lienzo del video escalando solo hacia
+ * ABAJO: grabar el viewport calibrado de 1366×768 dentro de un lienzo de
+ * 1920×1080 no lo agranda, lo pega arriba a la izquierda y rellena el
+ * resto de gris. Y `deviceScaleFactor` no entra en la cuenta — el video
+ * se captura en píxeles CSS. Las dos únicas salidas eran grabar a 1366 y
+ * agrandar en Remotion (que ablanda las etiquetas de 13px del producto,
+ * justo el texto que el jurado tiene que leer en proyector) o grabar
+ * nativo a 1080p. Esto es lo segundo.
+ *
+ * El layout no cambia: 1920 sigue cayendo en el breakpoint `lg` que ya
+ * usan Deck y la ficha, así que es la misma composición con más aire —
+ * y más aire nunca puede romper el cero-scroll.
+ *
+ * Para grabar el viewport exacto de PRODUCT.md: DEMO_VIEWPORT=1366x768.
+ * El video sale a ese tamaño, no a 1080p. El tamaño real usado queda
+ * anotado en el manifest, así que la composición lo toma de ahí y no
+ * puede quedar desalineada con lo que se grabó.
+ *
+ * Este archivo también lo empaqueta Remotion para el navegador, donde no
+ * hay variables de entorno: ahí el guard cae al default y manda el
+ * manifest.
+ */
+const [w, h] = (
+  (typeof process !== "undefined" && process.env?.DEMO_VIEWPORT) || "1920x1080"
+)
+  .split("x")
+  .map(Number);
+export const VIEWPORT = { width: w, height: h };
+export const OUTPUT = VIEWPORT;
 
 /** Solape de las transiciones, en frames. */
 export const TRANSITION_FRAMES = 12;
@@ -84,7 +111,7 @@ export const SCENES = [
     setup: [
       { kind: "click", target: { role: "button", name: "Cerrar", optional: true } },
       { kind: "wait", ms: 600 },
-      { kind: "click", target: { css: "button.card-hover", optional: true } },
+      { kind: "click", target: { css: "button.card-hover" } },
       { kind: "wait", ms: 900 },
     ],
     beats: [
@@ -101,7 +128,7 @@ export const SCENES = [
     setup: [
       { kind: "click", target: { role: "button", name: "Cerrar", optional: true } },
       { kind: "wait", ms: 600 },
-      { kind: "click", target: { css: "button.card-hover", optional: true } },
+      { kind: "click", target: { css: "button.card-hover" } },
       { kind: "wait", ms: 900 },
       { kind: "click", target: { role: "tab", name: "Desembolsos" } },
       { kind: "wait", ms: 800 },
@@ -116,7 +143,7 @@ export const SCENES = [
     setup: [
       { kind: "click", target: { role: "button", name: "Cerrar", optional: true } },
       { kind: "wait", ms: 600 },
-      { kind: "click", target: { css: "button.card-hover", optional: true } },
+      { kind: "click", target: { css: "button.card-hover" } },
       { kind: "wait", ms: 900 },
       { kind: "click", target: { role: "tab", name: "Prelación de pagos" } },
       { kind: "wait", ms: 800 },
@@ -125,15 +152,25 @@ export const SCENES = [
     beats: [{ kind: "wait", ms: 6400 }],
   },
   {
-    id: "portafolio",
-    chapter: "05 — Portafolio",
-    caption: "La posición y su repago, seguidos en vivo.",
+    // Acá iba el portafolio. Se cayó del guion porque la wallet que graba
+    // no tiene posiciones: la pantalla sale en estado vacío ("0 posiciones
+    // en tu cuenta") debajo de un rótulo que promete seguir un repago en
+    // vivo, y eso es una promesa que el cuadro no sostiene. La calificación
+    // muestra dato real del mismo expediente.
+    //
+    // Para recuperar el portafolio: invertir con la wallet del perfil y
+    // volver a poner esta escena. Regrabarla es un comando.
+    id: "calificacion",
+    chapter: "05 — Calificación",
+    caption: "El score sale del expediente verificado, no de una promesa.",
     path: "/",
     setup: [
       { kind: "click", target: { role: "button", name: "Cerrar", optional: true } },
       { kind: "wait", ms: 600 },
-      { kind: "click", target: { role: "button", name: "Portafolio" } },
+      { kind: "click", target: { css: "button.card-hover" } },
       { kind: "wait", ms: 900 },
+      { kind: "click", target: { role: "tab", name: "Calificación crediticia" } },
+      { kind: "wait", ms: 800 },
     ],
     beats: [{ kind: "wait", ms: 4400 }],
   },

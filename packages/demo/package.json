@@ -8,6 +8,7 @@
     "capture": "node capture/capture.mjs",
     "studio": "remotion studio src/index.ts",
     "render": "remotion render src/index.ts Demo out/founding-demo.mp4",
+    "render:light": "remotion render src/index.ts Demo out/founding-demo-light.mp4 --crf=26",
     "render:gif": "remotion render src/index.ts Demo out/founding-demo.gif --codec=gif --every-nth-frame=2 --width=960",
     "duration": "node capture/duration.mjs",
     "build": "node capture/capture.mjs && remotion render src/index.ts Demo out/founding-demo.mp4"

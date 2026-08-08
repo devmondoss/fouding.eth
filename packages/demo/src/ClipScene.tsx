@@ -6,7 +6,7 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
-import { Caption, Wordmark } from "./Chrome";
+import { LowerThird } from "./Chrome";
 import { FONT_FAMILY, TOKENS } from "./theme";
 
 export type Clip = {
@@ -52,8 +52,7 @@ export const ClipScene: React.FC<{
         <MissingClip sceneId={sceneId} />
       )}
 
-      <Wordmark chapter={chapter} />
-      <Caption text={caption} />
+      <LowerThird chapter={chapter} caption={caption} />
     </AbsoluteFill>
   );
 };

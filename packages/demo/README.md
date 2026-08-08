@@ -56,9 +56,15 @@ captura.
 
 ## Detalles que importan
 
-- **Resolución.** La app está calibrada a 1366×768 (PRODUCT.md), así que se
-  graba a ese viewport con `deviceScaleFactor: 2` y Playwright baja el video a
-  1920×1080. El layout es el real y el pixel llega sobrado, no interpolado.
+- **Resolución.** Se graba nativo a 1920×1080: viewport y lienzo del mismo
+  tamaño. Playwright solo escala hacia **abajo**, así que grabar el viewport
+  calibrado de 1366×768 dentro de un lienzo de 1080p no lo agranda — lo pega
+  arriba a la izquierda con el resto en gris. La otra salida era agrandar en
+  Remotion, que ablanda las etiquetas de 13px justo donde el jurado tiene que
+  leer. 1920 cae en el mismo breakpoint `lg` que 1366, así que es la misma
+  composición con más aire. Para grabar el viewport exacto de PRODUCT.md:
+  `DEMO_VIEWPORT=1366x768 yarn capture` — el tamaño queda anotado en el
+  manifest y la composición lo sigue sola.
 - **Recorte.** Cada escena tiene pasos de `setup` (navegar, abrir la ficha) que
   se graban igual porque Playwright graba toda la vida de la página. El
   capturador anota en qué milisegundo terminó el andamiaje y Remotion lo recorta

@@ -1,10 +1,7 @@
 {
-  "clips": [
-    {
-      "id": "negocios",
-      "file": "clips/negocios.webm",
-      "trimMs": 7814,
-      "visibleMs": 4000
-    }
-  ]
+  "size": {
+    "width": 1920,
+    "height": 1080
+  },
+  "clips": []
 }

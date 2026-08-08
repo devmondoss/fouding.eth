@@ -38,8 +38,15 @@ const MANIFEST = path.join(CLIPS_DIR, "manifest.json");
 const BASE_URL = process.env.DEMO_BASE_URL ?? "http://localhost:3000";
 const HEADLESS = process.env.DEMO_HEADLESS !== "0";
 
-/** Selector que solo existe con sesión de inversionista viva. */
-const SIGNED_IN = '[aria-label="Cuenta"]';
+/**
+ * Selector que solo existe con sesión de inversionista viva.
+ *
+ * Tiene que estar en la BARRA, no en un panel: "Cuenta" vive dentro de
+ * ProfilePanel, que es una capa cerrada por defecto, así que esperarlo
+ * era esperar para siempre. El botón de portafolio de TopBar se renderiza
+ * sin condición en cuanto hay sesión de inversionista en `/`.
+ */
+const SIGNED_IN = '[aria-label="Portafolio"]';
 
 const argv = process.argv.slice(2);
 const LOGIN_MODE = argv.includes("--login");
@@ -47,9 +54,17 @@ const only = argv.filter((a) => !a.startsWith("--"));
 
 /* ------------------------------------------------------------------ */
 
-/** Resuelve un target del guion a un locator, en orden de preferencia. */
+/**
+ * Resuelve un target del guion a un locator, en orden de preferencia.
+ *
+ * El `:visible` no es adorno: el Deck pinta cada tarjeta DOS veces — la
+ * lista `lg:hidden` y la grilla `hidden lg:grid` — así que `.first()` sin
+ * filtrar agarraba la copia oculta y el paso se saltaba en silencio. Con
+ * `getByRole` no hace falta: un elemento en `display:none` no entra al
+ * árbol de accesibilidad y Playwright ya no lo ve.
+ */
 function locate(page, target) {
-  if (target.css) return page.locator(target.css).first();
+  if (target.css) return page.locator(`${target.css}:visible`).first();
   if (target.role)
     return page
       .getByRole(target.role, { name: target.name, exact: false })
@@ -105,9 +120,9 @@ async function openContext({ recordVideo }) {
   return chromium.launchPersistentContext(PROFILE_DIR, {
     headless: recordVideo ? HEADLESS : false,
     viewport: VIEWPORT,
-    // Se pinta a 2× y Playwright lo baja al tamaño de salida: 1080p con
-    // pixel de sobra en vez de un 1366 estirado.
-    deviceScaleFactor: 2,
+    // No sirve subirlo: el video se captura en píxeles CSS y Playwright
+    // ignora el deviceScaleFactor para el lienzo (ver scenes.mjs).
+    deviceScaleFactor: 1,
     locale: "es-PE",
     timezoneId: "America/Lima",
     colorScheme: "light",
@@ -212,8 +227,11 @@ async function capture() {
   for (const scene of wanted) byId.set(scene.id, await captureScene(scene));
 
   // El manifest conserva el orden del guion, no el orden de captura.
+  // `size` va anotado porque la composición se dimensiona con lo que se
+  // grabó de verdad: renderizar a 1080p unos clips de 1366 sería un
+  // video con bordes grises y nadie se enteraría hasta verlo.
   const clips = SCENES.map((s) => byId.get(s.id)).filter(Boolean);
-  await fs.writeFile(MANIFEST, `${JSON.stringify({ clips }, null, 2)}\n`);
+  await fs.writeFile(MANIFEST, `${JSON.stringify({ size: OUTPUT, clips }, null, 2)}\n`);
   await fs.rm(RAW_DIR, { recursive: true, force: true });
 
   console.log(`\nListo. ${clips.length} clip(s) en public/clips/`);

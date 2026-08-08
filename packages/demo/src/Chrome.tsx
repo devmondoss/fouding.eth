@@ -2,64 +2,17 @@ import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } fr
 import { brandAlpha, FONT_FAMILY, inkAlpha, TOKENS } from "./theme";
 
 /**
- * Capa fija sobre los clips: marca, capítulo y bajada. Es lo único que
- * separa una grabación de pantalla de un video — y por eso no tapa el
- * producto: banda inferior, nada encima del contenido.
+ * Capa fija sobre los clips. Todo vive en UN bloque abajo a la izquierda,
+ * y no repartido por la pantalla: la app ya trae su propio encabezado con
+ * el logo arriba a la izquierda, así que una marca del video en esa
+ * esquina se le montaba encima y se leía como dos productos. Un solo
+ * lower-third también deja el resto del cuadro libre para lo que importa,
+ * que es el producto.
  */
-
-export const Wordmark: React.FC<{ chapter: string }> = ({ chapter }) => {
-  const frame = useCurrentFrame();
-  const opacity = interpolate(frame, [0, 10], [0, 1], { extrapolateRight: "clamp" });
-
-  return (
-    <div
-      style={{
-        position: "absolute",
-        top: 44,
-        left: 52,
-        display: "flex",
-        alignItems: "center",
-        gap: 14,
-        opacity,
-        fontFamily: FONT_FAMILY,
-      }}
-    >
-      <span
-        style={{
-          width: 34,
-          height: 34,
-          borderRadius: 9,
-          background: TOKENS.brand,
-          color: TOKENS.ink,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 20,
-          fontWeight: 700,
-          lineHeight: 1,
-        }}
-      >
-        ✳
-      </span>
-      <span
-        style={{
-          padding: "7px 14px",
-          borderRadius: 999,
-          background: inkAlpha(0.92),
-          color: TOKENS.brand,
-          fontSize: 16,
-          fontWeight: 600,
-          letterSpacing: "0.04em",
-          textTransform: "uppercase",
-        }}
-      >
-        {chapter}
-      </span>
-    </div>
-  );
-};
-
-export const Caption: React.FC<{ text: string }> = ({ text }) => {
+export const LowerThird: React.FC<{ chapter: string; caption: string }> = ({
+  chapter,
+  caption,
+}) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
@@ -79,22 +32,47 @@ export const Caption: React.FC<{ text: string }> = ({ text }) => {
         fontFamily: FONT_FAMILY,
       }}
     >
-      <div
-        style={{
-          display: "inline-block",
-          maxWidth: 1300,
-          background: inkAlpha(0.94),
-          borderLeft: `5px solid ${TOKENS.brand}`,
-          borderRadius: "6px 14px 14px 6px",
-          padding: "20px 30px 22px",
-          color: TOKENS.surface,
-          fontSize: 38,
-          lineHeight: 1.22,
-          fontWeight: 500,
-          letterSpacing: "-0.015em",
-        }}
-      >
-        {text}
+      {/* El capítulo es un chip de RELLENO chartreuse con tinta encima, no
+          una barra de acento al costado del bloque. Dos motivos: el borde
+          lateral grueso es el tic visual más gastado que hay, y globals.css
+          ya fija que el chartreuse se usa como superficie de relleno con
+          --brand-ink encima. El chip ancla el bloque igual, y lo hace con
+          la gramática que el producto ya tiene. */}
+      {/* inline-block para que el bloque se ajuste al texto: a ancho fijo,
+          un caption corto deja una banda vacía que parece un error. */}
+      <div style={{ display: "inline-block", maxWidth: 1320 }}>
+        <div
+          style={{
+            display: "inline-flex",
+            background: TOKENS.brand,
+            color: TOKENS.ink,
+            borderRadius: "10px 10px 0 0",
+            padding: "7px 16px 6px",
+            fontSize: 17,
+            fontWeight: 700,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+          }}
+        >
+          {chapter}
+        </div>
+
+        <div
+          style={{
+            background: inkAlpha(0.94),
+            // Esquina superior izquierda a cero: el chip se apoya ahí y
+            // los dos leen como una sola pieza, no como dos apilados.
+            borderRadius: "0 14px 14px 14px",
+            padding: "20px 28px 22px",
+            color: TOKENS.surface,
+            fontSize: 38,
+            lineHeight: 1.22,
+            fontWeight: 500,
+            letterSpacing: "-0.015em",
+          }}
+        >
+          {caption}
+        </div>
       </div>
     </div>
   );

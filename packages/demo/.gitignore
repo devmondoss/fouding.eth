@@ -5,6 +5,11 @@
 .raw-video/
 
 # Los clips pesan y se regeneran con `yarn capture`.
+#
+# manifest.json SÍ va versionado, vacío: sin él el bundle de Remotion no
+# compila en un clone limpio. Después de capturar va a figurar como
+# modificado — es estado local, apunta a webm que no están en el repo.
+# Para dejarlo limpio antes de commitear: git checkout -- public/clips/
 public/clips/*.webm
 
 # Render final.
