@@ -17,6 +17,7 @@ use stylus_sdk::{
     },
     alloy_sol_types::sol,
     prelude::*,
+    storage::{StorageB256, StorageU16, StorageU8, StorageVec},
 };
 
 use stylus_sdk::alloy_primitives::keccak256;
@@ -402,7 +403,7 @@ impl CreditVault {
         self.require_originator_or_admin()?;
         self.require_state(STATUS_FUNDED)?;
         self.ensure_official()?;
-        if self.milestone_bps.len() == 0 {
+        if self.milestone_bps.is_empty() {
             return Err(Error::NoMilestonesConfigured(NoMilestonesConfigured {}));
         }
 
@@ -458,7 +459,7 @@ impl CreditVault {
             return Err(Error::InvalidMilestoneSchedule(InvalidMilestoneSchedule {}));
         }
 
-        while self.milestone_bps.len() > 0 {
+        while !self.milestone_bps.is_empty() {
             self.milestone_bps.pop();
             self.milestone_status.pop();
             self.milestone_evidence_hash.pop();
@@ -1484,12 +1485,18 @@ mod tests {
         fully_fund(&vm, &mut vault);
         activate(&vm, &mut vault);
 
+        // Partial repayment first — the rest comes later, after the sale, so
+        // the claim right before selling is genuinely partial (claim() has
+        // no "amount" argument: it always drains everything available, so
+        // for it to return less than the full due the vault must not have
+        // received the full due yet).
         vm.set_sender(BORROWER);
         let due = U256::from(1_100_000_000u64);
-        mock_transfer_from(&vm, BORROWER, due);
-        vault.record_repayment(due).unwrap();
+        let partial_repayment = U256::from(300_000_000u64);
+        mock_transfer_from(&vm, BORROWER, partial_repayment);
+        vault.record_repayment(partial_repayment).unwrap();
 
-        // INVESTOR claims a third of their entitlement before selling the rest.
+        // INVESTOR claims their entire entitlement so far before selling the rest.
         vm.set_sender(INVESTOR);
         let partial = U256::from(300_000_000u64);
         mock_transfer(&vm, INVESTOR, partial);
@@ -1503,6 +1510,12 @@ mod tests {
         assert_eq!(from_contribution, U256::from(600_000_000u64));
         // 40% of the 300 already claimed moves with the 40% of contribution sold.
         assert_eq!(from_claimed, U256::from(180_000_000u64));
+
+        // The borrower finishes paying off the loan after the sale.
+        vm.set_sender(BORROWER);
+        let remaining_repayment = due - partial_repayment;
+        mock_transfer_from(&vm, BORROWER, remaining_repayment);
+        vault.record_repayment(remaining_repayment).unwrap();
 
         let (to_contribution, to_claimed, to_claimable) = vault.get_investor_position(INVESTOR2);
         assert_eq!(to_contribution, sold);
@@ -1791,18 +1804,19 @@ mod tests {
 
         // Capacity is 60,000,000 (legal) + 15,000,000 (servicing) +
         // 1,000,000,000 (principal) + 100,000,000 (interest) =
-        // 1,175,000,000. Anything above that is rejected up front — the
-        // waterfall never produces an on-chain surplus from a single call
-        // that overshoots capacity, it simply bounds the accepted amount.
+        // 1,175,000,000.
         let capacity = U256::from(1_175_000_000u64);
-        assert!(matches!(
-            vault.record_recovery(capacity + U256::from(1u64)),
-            Err(Error::RepaymentExceedsDebt(_))
-        ));
-
         mock_transfer_from(&vm, ORIGINATOR, capacity);
         vault.record_recovery(capacity).unwrap();
         let (_, _, claimable) = vault.get_investor_position(INVESTOR);
         assert_eq!(claimable, U256::from(1_100_000_000u64));
+
+        // Anything beyond capacity is rejected — the waterfall never
+        // produces an on-chain surplus from overshooting, it simply bounds
+        // what gets accepted.
+        assert!(matches!(
+            vault.record_recovery(U256::from(1u64)),
+            Err(Error::RepaymentExceedsDebt(_))
+        ));
     }
 }

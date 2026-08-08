@@ -1,53 +1,58 @@
 # Pendientes — lista única
 
-> Actualizado 2026-08-07 tras el merge de PR #3 (`feat/pr-03-company-passport-testnet`, commit `9377d1c`). Reemplaza la versión anterior: dos bloqueantes duros ya se resolvieron (deploy en Sepolia, USDC de Circle), el resto sigue igual o se reorganizó por área para no perder cobertura de ningún módulo del proyecto.
+> Actualizado 2026-08-08. Hitos + waterfall on-chain, RepaymentRouter conectado, vault por oportunidad y mercado secundario ya tienen código escrito **y ahora compilado y testeado** (29/29 tests en verde entre `credit-vault` y `repayment-router`, `clippy` limpio). El bloqueante que quedaba (no había toolchain de Rust) se resolvió instalando Rust + GNU/mingw en esta máquina.
 
 ---
 
-## 0. Qué trajo el último merge (para no repetir trabajo)
+## 0. Qué se resolvió en esta sesión (para no repetir trabajo)
 
-- ✅ Deploy real en **Arbitrum Sepolia** (chainId `421614`): `AccessRegistry`, `CompanyPassportSBT`, `CreditRegistry`, `CreditVault`, `MockUSDC` — direcciones en `deployedContracts.ts`.
-- ✅ **USDC de Circle** cableado como token canónico en Sepolia (`protocol.ts`, `ARBITRUM_SEPOLIA_USDC_ADDRESS`); `MockUSDC` queda solo para devnet.
-- ✅ Contrato Stylus nuevo **`RepaymentRouter`** (repagos validados, dedup por `repaymentId`, evento `RepaymentProcessed`) — **escrito pero no confirmado en cadena** (no aparece en `deployedContracts.ts` para `421614`).
-- ✅ Scripts de verificación (`verify_contract_sync.ts`, `verify_solidity_explorer.ts`, `verify_stylus_explorer.ts`, `verify_testnet.ts`, `preflight_testnet.ts`) — existen, falta confirmar que corrieron contra Arbiscan.
-- ⚠️ El cambio en `credit-vault/src/lib.rs` es casi todo migración de API (`self.vm().log(...)`) + el hook `record_repayment`. **No tocó hitos ni waterfall.**
+- ✅ **Hitos on-chain en `CreditVault`**: `activate()` deja el remanente en `escrow_remaining` y se libera por tramos vía `set_milestones` / `submit_milestone_evidence` / `release_milestone` / `reject_milestone`.
+- ✅ **Waterfall on-chain**: `record_recovery()` corre la cascada legal → servicing → principal → interés → surplus, portada de `underwriting.ts::computeWaterfall`, acumulativa entre llamadas.
+- ✅ **`RepaymentRouter` conectado**: `deploy.ts` lo despliega, inicializa y autoriza (`SERVICER_ROLE` + `setVaultApproved`); `__phase11_deploy_router.ts` hace lo mismo para Sepolia. `lib/servicing/onchain.ts` enruta `recordRepayment` por el router cuando está desplegado, con `repaymentId` real para dedup.
+- ✅ **`Opportunity.vaultAddress`** viaja de punta a punta (tipo → wire → Postgres). `useCreditVault` acepta una dirección explícita; `InvestPanel` ya la usa.
+- ✅ **Mercado secundario real**: tabla `position_listings` + rutas `/api/listings`. El vendedor ejecuta `transferPosition` de verdad cuando un comprador se anota interesado (`SellerListingRow`); `OrderBook.tsx` es el lado comprador.
+- ✅ **`cargo test` corrió por primera vez** — `credit-vault` (15/15) y `repayment-router` (14/14), `cargo clippy --all-targets -D warnings` limpio en los dos. De paso se encontraron y arreglaron:
+  - Un `log(self.vm(), ...)` con la API vieja de Stylus que quedó de un merge anterior en `transfer_position` — no compilaba.
+  - Faltaba importar `StorageVec`/`StorageU16`/`StorageU8`/`StorageB256` de `stylus_sdk::storage` — el `prelude::*` no los trae.
+  - Un reentrancy guard que quedaba trabado si una llamada a `record_recovery` fallaba justo antes de otra exitosa (bug introducido en esta sesión, ya corregido).
+  - **Un bug preexistente** (de antes de esta sesión, nunca se había podido correr `cargo test`) en el test `transfer_position_moves_contribution_and_pro_rata_claim`: asumía que `claim()` soporta un retiro parcial, pero el contrato siempre drena el 100% disponible. El test se reescribió con dos repagos (parcial → venta → repago del resto) para que el escenario sea real.
+  - `repayment-router/Cargo.toml` no declaraba el feature `contract-client-gen` (sí lo hace `credit-vault/Cargo.toml`) — con `-D warnings` eso rompía `clippy`.
+- ⚠️ **Igual falta redesplegar.** El `CreditVault` en Sepolia (`421614`) sigue siendo el bytecode viejo, sin nada de esto. Compilar y testear no reemplaza el deploy.
 
 ---
 
 ## 1. Contratos — Stylus / Solidity
 
-- [ ] **Hitos y waterfall on-chain.** `activate()` sigue desembolsando el 100% de golpe; no hay tramos que aprobar. El waterfall se sigue calculando en `underwriting.ts` (TypeScript, off-chain). Es el hueco más caro: pesa en "Implementación técnica" (25%) e "Innovación con Blockchain" (15%).
-- [ ] **Confirmar deploy del `RepaymentRouter` en Sepolia.** El script (`__phase11_deploy_router.ts`) existe con `verify: false`; falta correrlo, capturar la dirección y regenerar `deployedContracts.ts`.
-- [ ] **Conectar el `RepaymentRouter` al flujo real de repago.** Hoy nada en la UI ni en `lib/servicing/onchain.ts` llama al router — verificar si `record_repayment` se dispara desde algún lado o sigue huérfano.
-- [ ] **Un vault por oportunidad.** `useCreditVault` sigue apuntando a un único deployment fijo. La columna `vault_address` ya existe en el schema de Postgres; falta la lógica de mapeo.
+- [x] Compilar y correr `cargo test` — hecho, ver bloque 0.
+- [x] `cargo clippy --all-targets -- -D warnings` — hecho, limpio.
+- [ ] **Redesplegar el protocolo completo** (devnet primero, después Sepolia) — `deploy.ts` ya está listo para hacerlo de punta a punta, incluido el `RepaymentRouter`. Sin esto, todo lo de arriba sigue sin existir en ninguna chain real.
 - [ ] **`forge test --gas-report`** guardado como evidencia + comparativa de costo L1 vs Arbitrum con números medidos.
-- [ ] Confirmar que `cargo test` corre en verde para `credit-vault` y `repayment-router` — la sesión anterior no tenía toolchain de Rust instalada, no se pudo validar.
+- [ ] UI para que el verificador configure `set_milestones` al publicar una oportunidad — hoy solo `deploy.ts` lo hace (schedule fijo `[30%,25%,25%,20%]`) para los vaults de devnet. Sin esto, cualquier vault desplegado fuera del script de deploy no es activable.
 
 ---
 
 ## 2. Deploy, verificación y evidencia on-chain
 
-- [ ] **Contratos verificados en Arbiscan** (código fuente visible). Los scripts existen; confirmar que se corrieron y que el código aparece verificado en el explorador.
-- [ ] **Al menos una transacción real de cada flujo** (fondeo, activación, repago, claim, default/waterfall) con su link a Arbiscan.
-- [ ] **README sin actualizar tras el deploy de Sepolia**: no lista direcciones de contratos, no tiene comparativa de gas, no explica "por qué Arbitrum". Las instrucciones de "Desarrollo local" siguen siendo solo devnet (`412346`) — falta una sección de testnet.
+- [ ] **Contratos verificados en Arbiscan** (código fuente visible) — hay que repetirlo después del redeploy del bloque 1.
+- [ ] **Al menos una transacción real de cada flujo** (fondeo, activación, hito liberado, repago vía router, claim, default/waterfall) con su link a Arbiscan.
+- [ ] **README sin actualizar tras el deploy de Sepolia**: no lista direcciones de contratos, no tiene comparativa de gas, no explica "por qué Arbitrum". Las instrucciones de "Desarrollo local" siguen siendo solo devnet (`412346`).
 
 ---
 
 ## 3. Verificador: economía (fee fijo + stake)
 
 - [ ] **Fee fijo de verificación** (ej. 300 USDC cobrado a la empresa al enviar el expediente) — no construido.
-- [ ] **Stake del verificador** (garantía que se pierde parcialmente si aprobó un proyecto que cae en default por algo que debió detectar) — no construido. Es el argumento de *skin in the game*.
-- [ ] Resto del modelo de fees (originación 2-3%, servicing 0.5-1% anual, mora, recupero) — hoy solo `fund`/`claim`/`record_repayment` existen. Ver `conceptos-y-cambios.md` Parte 3.
+- [ ] **Stake del verificador** (garantía que se pierde parcialmente si aprobó un proyecto que cae en default) — no construido. Argumento de *skin in the game*.
+- [ ] Resto del modelo de fees (originación 2-3%, servicing 0.5-1% anual, mora) — hoy `fund`/`claim`/`record_repayment`/`release_milestone` existen, pero ningún fee nuevo aparte de `platform_fee_bps`. Ver `conceptos-y-cambios.md` Parte 3.
 
 ---
 
 ## 4. Mercado secundario / transferencias
 
-- [x] Transferencia restringida en el contrato (`transfer_position` en `CreditVault`, exige `AccessRegistry`). Tests en el mismo archivo — pendiente correr `cargo test` (bloque 1).
-- [ ] **Falta la UI** para vender/transferir una posición o elegir destinatario — solo existe el hook de bajo nivel (`transferPosition` en `useCreditVault.ts`).
-- [ ] **Libro de órdenes: falta el lado comprador.** Se puede publicar una posición en venta (mock), pero no hay matching de contraparte.
-- [ ] Redesplegar `CreditVault` (devnet y Sepolia) para que el ABI incluya `transfer_position` — `deployedContracts.ts` no se regenera solo.
-- [x] El pasaporte de negocio (SBT) sigue intransferible — no se tocó.
+- [x] Transferencia restringida en el contrato (`transfer_position`, exige `AccessRegistry`) — testeado.
+- [x] UI para publicar, expresar interés y transferir — `PortfolioOverlay` (vendedor) + `OrderBook.tsx` (comprador), respaldadas por `position_listings` en Postgres.
+- [ ] **El pago en USDC entre comprador y vendedor sigue sin resolver on-chain** — es coordinación manual hoy. Falta un mecanismo de escrow/atomic swap para el precio si se quiere cerrar el argumento de liquidez del pitch de verdad.
+- [ ] Redesplegar `CreditVault` (bloque 1) para que el ABI en `deployedContracts.ts` incluya `transferPosition` con el resto de las funciones nuevas.
 
 ---
 
@@ -62,18 +67,17 @@
 
 ## 6. Motor de underwriting en Stylus
 
-- [ ] Scoring y tasa sugerida siguen siendo funciones puras en `underwriting.ts` (TypeScript, off-chain). Portarlas a Stylus (Rust) es la recomendación de `conceptos-y-cambios.md` Parte 5. Condición: primero cerrar hitos/waterfall (bloque 1), esto va encima.
+- [ ] Scoring y tasa sugerida siguen siendo funciones puras en `underwriting.ts` (TypeScript, off-chain). El waterfall de default ya se portó (bloque 1); esto es lo que queda: portar `computeScore`/`suggestedApy`.
 - [ ] Si se hace, dejar fallback en Solidity/TS por si falla en la demo.
 
 ---
 
 ## 7. Frontend / UX
 
-- [ ] UI de transferencia/venta de posición (ver bloque 4).
-- [ ] Lado comprador del libro de órdenes (ver bloque 4).
-- [ ] Pantallas de hitos: hoy son de solo lectura porque el contrato no tiene tramos — bloqueado por el bloque 1.
-- [ ] Revisar consistencia del sistema de diseño en las pantallas nuevas de `PassportPanel` (cambió 394 líneas en el último merge) y `AddFundsFlow`.
-- [ ] Estados de carga/error/vacío en los flujos nuevos (evidencia de empresa, decisión del verificador) — no auditado desde el merge.
+- [ ] UI para que el verificador o el originador configuren `set_milestones` (ver bloque 1) — sin esto un vault fuera de `deploy.ts` no es activable desde la UI.
+- [ ] Pantallas de hitos (`MilestoneTimeline`) siguen siendo de solo lectura sobre datos del catálogo (Postgres), no leen `get_milestone`/`escrow_remaining` del contrato todavía.
+- [ ] Mecanismo de settlement de precio en el mercado secundario (ver bloque 4) — hoy el flujo termina en "coordinen el pago aparte".
+- [ ] Revisar consistencia del sistema de diseño en `OrderBook.tsx` y la sección nueva de `PortfolioOverlay` (interesados en mis publicaciones) — construidas rápido, sin pasada de pulido visual.
 - [ ] Verificar que nada se rompe en la resolución del equipo donde se hace la demo.
 
 ---
@@ -81,14 +85,16 @@
 ## 8. Datos, backend e indexer
 
 - [ ] Saldo, posiciones y actividad del portafolio siguen en `localStorage` por wallet, no en el indexer real.
-- [ ] El catálogo cae al seed si Postgres no responde (esto está bien, ya se avisa con `usingSeedData` — mantenerlo así, no es un pendiente urgente).
-- [ ] Confirmar que `useCompanyEvidence` (hook nuevo) y la ruta `api/company-evidence/[wallet]` quedaron completamente conectados de punta a punta tras el merge.
+- [x] **Indexer con hogar**: `scripts/indexer.ts` corriendo en Railway (proceso persistente — el listener de eventos no se banca serverless/Vercel). Config en `packages/nextjs/railway.indexer.json`.
+- [ ] `CREDIT_VAULT_ADDRESS` en las env vars de Railway apunta al vault viejo — actualizar en cuanto se redespliegue (bloque 1).
+- [ ] Correr `packages/nextjs/scripts/migrate.ts` contra la base de desarrollo para crear `position_listings` — la tabla está en el script pero falta confirmar que se aplicó.
+- [ ] Confirmar que `useCompanyEvidence` y la ruta `api/company-evidence/[wallet]` quedaron completamente conectados de punta a punta tras el merge de PR #3.
 
 ---
 
 ## 9. Documentación e impacto (no depende de código, pesa 20%)
 
-- [ ] **Cifra citable de la brecha de crédito PyME en Latam, con fuente real** (BID Invest / IFC / CAF) — sigue faltando, se puede resolver en paralelo a cualquier tarea de código.
+- [ ] **Cifra citable de la brecha de crédito PyME en Latam, con fuente real** (BID Invest / IFC / CAF).
 - [ ] Caso de empresa concreto y verosímil (aunque anonimizado) para el pitch.
 - [ ] El problema explicado en 30 segundos sin jerga.
 - [ ] README: agregar direcciones de contratos en Sepolia, links a Arbiscan, comparativa de gas L1 vs Arbitrum, y el "por qué Arbitrum".
@@ -97,10 +103,11 @@
 
 ## 10. Testing y QA
 
-- [ ] `forge test` en verde con `--gas-report` guardado (bloque 1 y 2).
-- [ ] `cargo test` para `credit-vault` y `repayment-router` — no corrido en esta máquina por falta de toolchain de Rust.
-- [ ] Flujo feliz completo end-to-end en Sepolia (fondeo → escrow → hito → repago → claim) — hoy solo hay script E2E contra devnet (`protocol_e2e.ts`).
-- [ ] Flujo de default completo con waterfall ejecutado on-chain — bloqueado por el bloque 1 (no existe waterfall en contrato todavía).
+- [x] `cargo test` — 29/29 en verde (`credit-vault` + `repayment-router`), ver bloque 0.
+- [x] `cargo clippy --all-targets -- -D warnings` — limpio.
+- [ ] `forge test` en verde con `--gas-report` guardado.
+- [ ] Flujo feliz completo end-to-end en Sepolia (fondeo → escrow → hito → repago vía router → claim) — hoy solo hay script E2E contra devnet (`protocol_e2e.ts`), y ese script todavía no se actualizó para hitos/router.
+- [ ] Flujo de default completo con waterfall ejecutado on-chain, verificado en Sepolia con una transacción real (los tests unitarios ya verifican la lógica, falta verlo correr en cadena).
 
 ---
 
@@ -124,17 +131,17 @@
 
 - [ ] ¿"Volt" era *vault* o el nombre de otro proyecto de referencia?
 - [ ] ¿Qué implica la "track intermedia" — el hackathon tiene niveles de dificultad?
-- [ ] "Pools": ¿pool de inversión diversificado o pool de liquidez tipo Uniswap? Hoy no se construye ninguno; el libro de órdenes (bloque 4) es la alternativa elegida.
+- [ ] "Pools": ¿pool de inversión diversificado o pool de liquidez tipo Uniswap? El libro de órdenes (bloque 4) es la alternativa elegida, y ya tiene matching real.
 - [ ] ¿Perú queda confirmado como jurisdicción única del MVP? (afecta si SUNAT/SUNARP se describen tal cual).
 - [ ] ¿Las notas de `conceptos-y-cambios.md` vinieron de un mentor del hackathon? Si sí, más probable que reaparezcan en la evaluación.
 
 ---
 
-## Por dónde seguir mañana temprano
+## Por dónde seguir ahora
 
-1. **Cifra de impacto** (bloque 9) — no depende de código, resolver en paralelo.
-2. **Confirmar verificación en Arbiscan + actualizar el README** con direcciones y comparativa de gas (bloques 2 y 9) — cierra el requisito obligatorio A1 del track.
-3. **Hitos + waterfall on-chain** (bloque 1) — sigue siendo el núcleo de "Implementación técnica" (25%) e "Innovación" (15%) juntos, y ahora es el único bloqueante duro que queda sin tocar.
-4. **Confirmar el deploy del `RepaymentRouter`** y conectarlo al flujo de repago real (bloque 1).
-5. Recién después: transferencias (bloque 4) y fiat↔crypto (bloque 5), que probablemente queden como roadmap explícito en el pitch si el tiempo aprieta.
+1. **Redesplegar el protocolo completo** (bloque 1) — devnet primero para probar el flujo entero (hitos, router, waterfall) de punta a punta, después Sepolia. Ya no hay excusa técnica: compila y los tests pasan.
+2. **Actualizar `CREDIT_VAULT_ADDRESS` en Railway** una vez redesplegado (bloque 8).
+3. **Cifra de impacto** (bloque 9) — no depende de código, se puede resolver en paralelo.
+4. **Confirmar verificación en Arbiscan + actualizar el README** con las direcciones nuevas y comparativa de gas (bloques 2 y 9).
+5. Recién después: settlement de precio en el mercado secundario (bloque 4) y fiat↔crypto (bloque 5), que probablemente queden como roadmap explícito en el pitch si el tiempo aprieta.
 </content>

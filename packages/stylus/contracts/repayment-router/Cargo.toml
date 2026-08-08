@@ -17,6 +17,7 @@ default = ["mini-alloc"]
 export-abi = ["stylus-sdk/export-abi"]
 debug = ["stylus-sdk/debug"]
 mini-alloc = ["stylus-sdk/mini-alloc"]
+contract-client-gen = []
 
 [[bin]]
 name = "repayment-router"
