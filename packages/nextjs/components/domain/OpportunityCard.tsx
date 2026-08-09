@@ -32,9 +32,14 @@ export function OpportunityCard({
   const days = daysUntil(o.fundingDeadline);
   const open = o.status === "funding";
 
+  // Sin `layout`. Servía cuando el catálogo era una grilla paginada y las
+  // tarjetas se reacomodaban al filtrar; en un riel horizontal no se
+  // reacomoda ninguna, y la prop seguía costando lo mismo: motion remide la
+  // posición de cada tarjeta en cada render. Con nueve montadas a la vez
+  // dentro de un contenedor que se desplaza, eso es trabajo por cuadro para
+  // animar algo que ya no pasa.
   return (
     <motion.button
-      layout
       onClick={onSelect}
       initial={{ opacity: 0, y: 18, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
