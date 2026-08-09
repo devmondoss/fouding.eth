@@ -9,7 +9,7 @@ import { Waiting } from "@/components/ui/Waiting";
 import { BusinessTopBar } from "@/components/flow/BusinessTopBar";
 import { SubmissionDetail } from "@/components/flow/SubmissionDetail";
 import { fadeUp, stagger } from "@/lib/motion";
-import { formatDate } from "@/lib/format";
+import { formatDate, shortHash } from "@/lib/format";
 import {
   MAX_REQUESTED_USDC,
   MIN_REQUESTED_USDC,
@@ -23,6 +23,7 @@ import {
   folio,
   formatUsdcPlain,
 } from "@/lib/verifier/submission";
+import type { Company } from "@/lib/verifier/companies";
 import type { SubmissionWithEvents } from "@/lib/verifier/types";
 
 /**
@@ -35,16 +36,24 @@ import type { SubmissionWithEvents } from "@/lib/verifier/types";
 export function BusinessDashboard({
   address,
   submissions,
+  empresa,
   loading,
   onSignOut,
   onNewSubmission,
+  onAcreditar,
 }: {
   address: string;
   submissions: SubmissionWithEvents[] | null;
+  /** La empresa de esta wallet. `undefined` mientras se resuelve. */
+  empresa: Company | null | undefined;
   loading: boolean;
   onSignOut: () => void;
   onNewSubmission: () => void;
+  onAcreditar: () => void;
 }) {
+  /** Sin empresa acreditada no hay solicitud posible: la API lo rechaza
+   * con 409, así que la pantalla no puede ofrecerlo como si se pudiera. */
+  const acreditada = empresa?.status === "verified";
   const [open, setOpen] = useState<SubmissionWithEvents | null>(null);
   const list = submissions ?? [];
   const totalRequested = list.reduce(
@@ -75,17 +84,34 @@ export function BusinessDashboard({
             <h1 className="h1 mt-1.5">Tus solicitudes</h1>
           </div>
 
-          <Button size="lg" onClick={onNewSubmission}>
-            Nueva solicitud
-          </Button>
+          {/* La acción principal depende de dónde está la empresa: pedir
+              financiamiento sin acreditación termina en un 409, y ofrecer
+              un botón que va a fallar es peor que no ofrecerlo. */}
+          {acreditada ? (
+            <Button size="lg" onClick={onNewSubmission}>
+              Nueva solicitud
+            </Button>
+          ) : empresa === null || empresa?.status === "rejected" ? (
+            <Button size="lg" onClick={onAcreditar}>
+              {empresa === null ? "Acreditar mi empresa" : "Corregir y reenviar"}
+            </Button>
+          ) : null}
         </motion.div>
 
         {loading ? (
           <div className="mt-16 flex justify-center">
-            <Waiting label="Cargando tus expedientes" showLabel />
+            <Waiting label="Cargando tu panel" showLabel />
           </div>
-        ) : list.length === 0 ? (
-          <EmptyDashboard onNewSubmission={onNewSubmission} />
+        ) : (
+          <EstadoEmpresa empresa={empresa} onAcreditar={onAcreditar} />
+        )}
+
+        {!loading && (list.length === 0 ? (
+          <EmptyDashboard
+            acreditada={acreditada}
+            onNewSubmission={onNewSubmission}
+            onAcreditar={onAcreditar}
+          />
         ) : (
           <>
             <motion.div
@@ -174,11 +200,130 @@ export function BusinessDashboard({
               ))}
             </motion.div>
           </>
-        )}
+        ))}
       </main>
 
       {open && <SubmissionDetail submission={open} onClose={() => setOpen(null)} />}
     </div>
+  );
+}
+
+/**
+ * Dónde está la empresa. Es lo primero del panel porque condiciona todo
+ * lo demás: sin acreditación no se puede pedir financiamiento, y antes
+ * eso no se decía en ningún lado — el dueño de negocio solo descubría el
+ * requisito al recibir un error.
+ */
+function EstadoEmpresa({
+  empresa,
+  onAcreditar,
+}: {
+  empresa: Company | null | undefined;
+  onAcreditar: () => void;
+}) {
+  if (empresa === undefined) return null;
+
+  if (empresa === null) {
+    return (
+      <motion.section
+        variants={fadeUp}
+        initial="hidden"
+        animate="show"
+        className="card mt-7 flex flex-wrap items-center justify-between gap-4 p-5"
+      >
+        <div className="min-w-0">
+          <div className="label">Tu empresa</div>
+          <p className="mt-1 max-w-[52ch] text-[13px] leading-relaxed text-mid">
+            Todavía no está acreditada. Es un trámite de una sola vez —seis
+            campos— y sin él no se pueden pedir operaciones.
+          </p>
+        </div>
+        <Button onClick={onAcreditar}>Acreditar mi empresa</Button>
+      </motion.section>
+    );
+  }
+
+  const enRevision = empresa.status === "pending" || empresa.status === "in_review";
+  const color =
+    empresa.status === "verified"
+      ? "var(--positive)"
+      : empresa.status === "rejected"
+        ? "var(--negative)"
+        : "var(--warning)";
+
+  return (
+    <motion.section
+      variants={fadeUp}
+      initial="hidden"
+      animate="show"
+      className="card mt-7 p-5"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="label">Tu empresa</div>
+          <h2 className="h3 mt-1 truncate">{empresa.name}</h2>
+          <div className="mt-1 text-[12.5px] text-mid">
+            RUC {empresa.ruc}
+            {empresa.sector && ` · ${empresa.sector}`}
+            {empresa.city && `, ${empresa.city}`}
+          </div>
+        </div>
+        <Pill
+          label={
+            empresa.status === "verified"
+              ? "Acreditada"
+              : empresa.status === "rejected"
+                ? "No acreditada"
+                : empresa.status === "in_review"
+                  ? "En revisión"
+                  : "En cola"
+          }
+          tone={
+            empresa.status === "verified"
+              ? "positive"
+              : empresa.status === "rejected"
+                ? "negative"
+                : "warning"
+          }
+          dot
+        />
+      </div>
+
+      <div className="mt-3 border-t border-border pt-3">
+        {empresa.status === "verified" ? (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-[12.5px] leading-relaxed text-mid">
+              Acreditada{empresa.decidedBy ? ` por ${empresa.decidedBy}` : ""}
+              {empresa.decidedAt ? ` el ${formatDate(empresa.decidedAt)}` : ""}. Ya
+              puedes pedir financiamiento para tus proyectos.
+            </p>
+            {empresa.passportTxHash && (
+              <span className="num text-[11.5px]" style={{ color }}>
+                Pasaporte onchain {shortHash(empresa.passportTxHash, 6)}
+              </span>
+            )}
+          </div>
+        ) : enRevision ? (
+          <p className="text-[12.5px] leading-relaxed text-mid">
+            {empresa.reviewer
+              ? `La está revisando ${empresa.reviewer}`
+              : `En cola de acreditación`}
+            . Te responden en {REVIEW_SLA_DAYS} días hábiles; mientras tanto no
+            se pueden enviar solicitudes.
+          </p>
+        ) : (
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <p className="max-w-[52ch] text-[12.5px] leading-relaxed text-mid">
+              {empresa.note ?? "No pasó la acreditación."} Corrige lo observado y
+              vuelve a enviarla.
+            </p>
+            <Button size="sm" onClick={onAcreditar}>
+              Corregir y reenviar
+            </Button>
+          </div>
+        )}
+      </div>
+    </motion.section>
   );
 }
 
@@ -281,7 +426,15 @@ function Timeline({ submission }: { submission: SubmissionWithEvents }) {
  * colocados, porque el catálogo es sembrado y decirlo sería fabricar
  * evidencia (PRODUCT.md §Evidence).
  */
-function EmptyDashboard({ onNewSubmission }: { onNewSubmission: () => void }) {
+function EmptyDashboard({
+  acreditada,
+  onNewSubmission,
+  onAcreditar,
+}: {
+  acreditada: boolean;
+  onNewSubmission: () => void;
+  onAcreditar: () => void;
+}) {
   const condiciones = [
     {
       dato: `Desde ${formatUsdcPlain(MIN_REQUESTED_USDC)}`,
@@ -398,13 +551,21 @@ function EmptyDashboard({ onNewSubmission }: { onNewSubmission: () => void }) {
             ))}
           </ul>
 
+          {/* El paso que toca, no el que suena mejor: sin acreditación la
+              solicitud no se puede enviar, así que el botón lleva al
+              trámite que sí desbloquea el resto. */}
           <div className="mt-auto pt-5">
-            <Button size="lg" className="w-full" onClick={onNewSubmission}>
-              Armar mi expediente
+            <Button
+              size="lg"
+              className="w-full"
+              onClick={acreditada ? onNewSubmission : onAcreditar}
+            >
+              {acreditada ? "Armar mi solicitud" : "Acreditar mi empresa"}
             </Button>
             <p className="mt-2 text-[11.5px] leading-snug text-low">
-              Puedes enviarlo sin adjuntar documentos: el verificador te los
-              pide si le faltan.
+              {acreditada
+                ? "Puedes enviarla sin adjuntar documentos: el verificador te los pide si le faltan."
+                : "Primero se acredita la empresa, una sola vez. Después cada proyecto es solo el proyecto."}
             </p>
           </div>
         </motion.section>

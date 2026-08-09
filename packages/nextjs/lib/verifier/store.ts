@@ -17,6 +17,7 @@ type SubmissionRow = {
   company_name: string;
   company_ruc: string;
   company_wallet: string;
+  company_id: string | null;
   sector: string;
   city: string;
   years_operating: number;
@@ -61,6 +62,7 @@ function toSubmission(row: SubmissionRow): VerifierSubmission {
     companyName: row.company_name,
     companyRuc: row.company_ruc,
     companyWallet: row.company_wallet,
+    companyId: row.company_id,
     sector: row.sector ?? "",
     city: row.city ?? "",
     yearsOperating: row.years_operating ?? 0,
@@ -193,12 +195,12 @@ export async function createSubmission(
 ): Promise<VerifierSubmission> {
   const rows = (await sql`
     INSERT INTO verifier_submissions
-      (company_name, company_ruc, company_wallet, sector, city, years_operating,
+      (company_id, company_name, company_ruc, company_wallet, sector, city, years_operating,
        annual_revenue, project_title, project_type, use_of_funds, requested_amount,
        term_months, collateral_kind, collateral_value, collateral_detail,
        legal_pack_hash, legal_pack_name)
     VALUES
-      (${input.companyName}, ${input.companyRuc}, ${input.companyWallet},
+      (${input.companyId}, ${input.companyName}, ${input.companyRuc}, ${input.companyWallet},
        ${input.sector}, ${input.city}, ${input.yearsOperating},
        ${input.annualRevenue}, ${input.projectTitle}, ${input.projectType},
        ${input.useOfFunds}, ${input.requestedAmount}, ${input.termMonths},

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence } from "motion/react";
 import { AddFundsFlow } from "@/components/flow/AddFundsFlow";
 import { SaldoDePrueba } from "@/components/flow/SaldoDePrueba";
+import { RoleConflict } from "@/components/flow/RoleConflict";
 import { StandGate } from "@/components/flow/StandGate";
 import { Deck } from "@/components/flow/Deck";
 import { DetailOverlay } from "@/components/flow/DetailOverlay";
@@ -17,7 +18,7 @@ import { Waiting } from "@/components/ui/Waiting";
 import { usePlatform } from "@/lib/data/store";
 import { clearIntendedRole, readIntendedRole } from "@/lib/intendedRole";
 import { useOnce } from "@/lib/useOnce";
-import { useSession } from "@/lib/useSession";
+import { useSession, type Role } from "@/lib/useSession";
 import type { Opportunity } from "@/lib/types";
 
 /**
@@ -34,7 +35,8 @@ import type { Opportunity } from "@/lib/types";
  *   ProfilePanel        módulo dedicado a la cuenta y su verificación.
  */
 export default function App() {
-  const { session, signOut, verify, deleteAccount, chooseRole } = useSession();
+  const { session, signOut, verify, deleteAccount, chooseRole, switchAccount } =
+    useSession();
   const { seen, markSeen, reset } = useOnce("founding.intro");
   const { getOpportunity } = usePlatform();
   const router = useRouter();
@@ -47,6 +49,9 @@ export default function App() {
   // el bloqueo de verificación de InvestPanel tenga una puerta y no solo un
   // texto rojo.
   const [profileAskingAccess, setProfileAskingAccess] = useState(false);
+  /** El lado que se pidió cuando esta cuenta pertenece al otro. Null =
+   *  sin choque. Ver RoleConflict. */
+  const [choque, setChoque] = useState<Role | null>(null);
 
   // El rol ya se eligió en la puerta, antes de que existiera la wallet
   // (StandGate). Acá solo se aplica: la elección viajó en localStorage
@@ -58,6 +63,7 @@ export default function App() {
   // a la suya.
   useEffect(() => {
     if (!session) return;
+
     if (session.role === null) {
       const intended = readIntendedRole();
       if (intended) {
@@ -68,6 +74,18 @@ export default function App() {
       }
       return;
     }
+
+    // La wallet ya tiene lado. Si además había una intención guardada y
+    // NO coincide, alguien pidió entrar por la puerta equivocada: se le
+    // dice, no se lo redirige y ya (ver RoleConflict).
+    const intended = readIntendedRole();
+    if (intended && intended !== session.role) {
+      clearIntendedRole();
+      setChoque(intended);
+      return;
+    }
+    if (intended) clearIntendedRole();
+
     if (session.role === "business") router.replace("/solicitar");
   }, [session, router, chooseRole]);
 
@@ -78,6 +96,30 @@ export default function App() {
     document.body.classList.add("app-shell");
     return () => document.body.classList.remove("app-shell");
   }, []);
+
+  // Pidió un lado que esta cuenta no puede tomar. Va ANTES de todo lo
+  // demás, incluida la espera: una cuenta de empresa que pidió entrar como
+  // inversionista tiene `role !== "investor"`, o sea que cae en
+  // `stillResolving` — y como el efecto de arriba corta sin redirigir
+  // cuando hay choque, se quedaba en "Entrando" para siempre. El choque no
+  // es un estado intermedio que se vaya a resolver solo; es el final del
+  // camino, y tiene que ganarle a la espera.
+  if (choque && session?.role) {
+    return (
+      <RoleConflict
+        pedido={choque}
+        real={session.role}
+        onContinuar={() => {
+          setChoque(null);
+          if (session.role === "business") router.replace("/solicitar");
+        }}
+        onOtraCuenta={() => {
+          setChoque(null);
+          switchAccount();
+        }}
+      />
+    );
+  }
 
   // Resolviendo si ya había una wallet conectada (Privy). Antes esto era
   // un div en blanco — ahora al menos se ve que algo está pasando.
@@ -116,6 +158,7 @@ export default function App() {
   //
   // La puerta ya no pide una wallet: pide una travesía. Ver StandGate.
   if (session === null) return <StandGate />;
+
 
   // Desde el portafolio: cierra el panel y abre la ficha. Sin esto, dos
   // capas al mismo z-index se pisarían entre sí.

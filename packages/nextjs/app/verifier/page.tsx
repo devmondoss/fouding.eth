@@ -8,6 +8,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Pill } from "@/components/ui/Pill";
 import { Waiting } from "@/components/ui/Waiting";
 import { AccessRequests } from "@/components/verifier/AccessRequests";
+import { CompanyQueue } from "@/components/verifier/CompanyQueue";
 import { PublishOpportunityForm } from "@/components/verifier/PublishOpportunityForm";
 import { ServicingPanel } from "@/components/verifier/ServicingPanel";
 import { shortHash } from "@/lib/format";
@@ -44,9 +45,13 @@ const NAME_STORAGE = "founding.verifier.name";
    propio color, mientras `Pill` ya existía y este mismo directorio la
    importaba en AccessRequests. */
 
-/* Cuatro trabajos distintos que estaban apilados como iguales en una sola
-   columna. Son secciones, no una lista: el operador hace uno a la vez. */
+/* Cinco trabajos distintos que estaban apilados como iguales en una sola
+   columna. Son secciones, no una lista: el operador hace uno a la vez.
+
+   Las empresas van primero porque van primero en el tiempo: sin empresa
+   acreditada no puede existir un expediente que revisar. */
 const SECCIONES = [
+  { key: "empresas", label: "Empresas por acreditar" },
   { key: "cola", label: "Cola de expedientes" },
   { key: "acceso", label: "Acceso de inversionistas" },
   { key: "servicing", label: "Servicing" },
@@ -136,6 +141,10 @@ function Panel({
   const [publishing, setPublishing] = useState<VerifierSubmission | null>(null);
   const [published, setPublished] = useState<string | null>(null);
   const [seccion, setSeccion] = useState<Seccion>("cola");
+  /** Empresas esperando acreditación, contadas por su propia sección. */
+  const [empresasPendientes, setEmpresasPendientes] = useState(0);
+  /** «Actualizar» refresca todo lo que hay en pantalla, no solo la cola. */
+  const [refresh, setRefresh] = useState(0);
   /** Decisión pendiente de confirmar: expediente y sentido. */
   const [deciding, setDeciding] = useState<{
     s: VerifierSubmission;
@@ -173,8 +182,8 @@ function Panel({
   }, [load]);
 
   /**
-   * Aprobar mintea un pasaporte soulbound onchain y rechazar cierra el
-   * expediente: las dos son irreversibles y ninguna pedía confirmación.
+   * Aprobar habilita la publicación y rechazar cierra el expediente: las
+   * dos son irreversibles y ninguna pedía confirmación.
    * Y el rechazo exige motivo — la API ya aceptaba `note` y el dashboard de
    * la empresa le promete al dueño que puede "corregir lo observado", una
    * promesa que nadie podía cumplir porque no había dónde escribirla.
@@ -280,6 +289,15 @@ function Panel({
             <h1 className="h1 text-[20px]">Panel del verificador</h1>
             <p className="mt-0.5 text-[12.5px] text-mid">
               Conectado como {name}
+              {empresasPendientes > 0 && (
+                <>
+                  {" · "}
+                  <span className="num font-medium text-hi">
+                    {empresasPendientes}
+                  </span>{" "}
+                  {empresasPendientes === 1 ? "empresa" : "empresas"} por acreditar
+                </>
+              )}
               {pendientes > 0 && (
                 <>
                   {" · "}
@@ -290,7 +308,14 @@ function Panel({
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={load}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                load();
+                setRefresh((n) => n + 1);
+              }}
+            >
               Actualizar
             </Button>
             <Button variant="ghost" size="sm" onClick={onLock}>
@@ -324,6 +349,11 @@ function Panel({
                     {pendientes}
                   </span>
                 )}
+                {s.key === "empresas" && empresasPendientes > 0 && (
+                  <span className="num ml-1.5 text-[11px]" style={{ color: "var(--warning)" }}>
+                    {empresasPendientes}
+                  </span>
+                )}
                 {on && (
                   <motion.span
                     layoutId="verifier-underline"
@@ -342,6 +372,20 @@ function Panel({
         {seccion === "documentos" && <UploadWidget apiKey={apiKey} />}
         {seccion === "acceso" && <AccessRequests apiKey={apiKey} />}
         {seccion === "servicing" && <ServicingPanel apiKey={apiKey} />}
+
+        {/* Se monta siempre, oculta cuando no toca: es la única que sabe
+            cuántas empresas esperan, y ese número tiene que estar en la
+            pestaña antes de que alguien la abra. Montarla solo al
+            seleccionarla haría que el aviso apareciera después de haber
+            entrado, que es justo cuando ya no sirve. */}
+        <div hidden={seccion !== "empresas"}>
+          <CompanyQueue
+            apiKey={apiKey}
+            name={name}
+            onPending={setEmpresasPendientes}
+            refreshToken={refresh}
+          />
+        </div>
 
         {seccion === "cola" && (
           <>
@@ -480,7 +524,7 @@ function Panel({
                 </div>
               )}
 
-              {/* Aprobar solo acredita a la empresa. Publicar es el segundo
+              {/* Aprobar solo valida el proyecto. Publicar es el segundo
                   acto —el underwriting— y es lo que hace que un inversionista
                   llegue a ver esto en el catálogo. */}
               {s.status === "approved" && (
@@ -550,8 +594,8 @@ function Panel({
         )}
       </main>
 
-      {/* Aprobar mintea un pasaporte soulbound; rechazar cierra el
-          expediente. Las dos eran de un clic y sin vuelta atrás. */}
+      {/* Aprobar habilita a publicar; rechazar cierra el expediente. Las
+          dos eran de un clic y sin vuelta atrás. */}
       <Modal
         open={deciding !== null}
         onClose={() => setDeciding(null)}
@@ -576,16 +620,17 @@ function Panel({
                 decide(deciding.s.id, deciding.approve, decisionNote.trim())
               }
             >
-              {deciding?.approve ? "Aprobar y emitir pasaporte" : "Rechazar"}
+              {deciding?.approve ? "Aprobar el expediente" : "Rechazar"}
             </Button>
           </>
         }
       >
-        {/* Lo que hace falta saber antes de pulsar es que no hay vuelta
-            atrás. Cómo funciona un token soulbound no cambia la decisión. */}
+        {/* Lo que hace falta saber antes de pulsar es qué habilita y que
+            no hay vuelta atrás. El pasaporte ya no se emite acá: es de la
+            empresa y se emitió al acreditarla. */}
         <p className="text-[13px] leading-relaxed text-mid">
           {deciding?.approve
-            ? "Emite el pasaporte de esta empresa onchain. No se revierte."
+            ? "Deja el expediente listo para publicarse como oportunidad. No se revierte."
             : "El motivo se le muestra al dueño del negocio."}
         </p>
 

@@ -166,6 +166,50 @@ async function main() {
     )
   `;
 
+  // La empresa se acredita UNA VEZ y después pide las operaciones que
+  // quiera. Antes las dos cosas ocurrían en el mismo trámite: el primer
+  // expediente aprobado emitía el pasaporte y de paso aprobaba un
+  // proyecto, así que una empresa no tenía ningún estado propio hasta
+  // que le aprobaban un crédito entero — y volvía a declarar RUC, sector
+  // y años en cada solicitud.
+  //
+  // Ahora `companies` lleva su propia revisión (misma máquina de estados
+  // que un expediente) y es la dueña del pasaporte onchain.
+  await sql`
+    ALTER TABLE companies
+      ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'verified',
+      ADD COLUMN IF NOT EXISTS annual_revenue TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS legal_pack_hash TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS legal_pack_name TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS submitted_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      ADD COLUMN IF NOT EXISTS reviewer TEXT,
+      ADD COLUMN IF NOT EXISTS review_started_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS decided_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS decided_by TEXT,
+      ADD COLUMN IF NOT EXISTS note TEXT,
+      ADD COLUMN IF NOT EXISTS passport_tx_hash TEXT,
+      ADD COLUMN IF NOT EXISTS passport_token_id TEXT,
+      ADD COLUMN IF NOT EXISTS passport_chain_id INTEGER,
+      ADD COLUMN IF NOT EXISTS passport_contract_address TEXT,
+      ADD COLUMN IF NOT EXISTS onchain_synced_at TIMESTAMPTZ
+  `;
+
+  // `status` nace en 'verified' a propósito: las empresas que ya existían
+  // llegaron ahí por un expediente aprobado y publicado, así que dejarlas
+  // pendientes sería inventarles una revisión que sí ocurrió.
+  await sql`
+    CREATE INDEX IF NOT EXISTS companies_wallet_idx
+      ON companies (lower(wallet))
+  `;
+
+  // Una solicitud cuelga de una empresa acreditada. Es NULL solo para los
+  // expedientes viejos, que nacieron cuando empresa y proyecto eran el
+  // mismo trámite.
+  await sql`
+    ALTER TABLE verifier_submissions
+      ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id)
+  `;
+
   // El catálogo real. Hasta ahora las oportunidades solo existían en
   // lib/data/seed.ts, así que un expediente aprobado no producía nada:
   // el circuito empresa → verificador → inversionista estaba cortado

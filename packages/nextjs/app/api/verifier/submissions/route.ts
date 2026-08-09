@@ -3,12 +3,11 @@ import { requireVerifierAuth, requirePublicRateLimit } from "@/lib/verifier/auth
 import { getAuthenticatedWallet } from "@/lib/privyServer";
 import { withDbErrors } from "@/lib/verifier/apiError";
 import { createSubmission, listSubmissions } from "@/lib/verifier/store";
+import { getCompanyByWallet } from "@/lib/verifier/companies";
 import {
   COLLATERAL_KINDS,
-  MIN_YEARS_OPERATING,
   PROJECT_TYPES,
   amountError,
-  rucError,
 } from "@/lib/verifier/submission";
 import type { CreateSubmissionInput } from "@/lib/verifier/types";
 
@@ -64,20 +63,33 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Cuerpo inválido" }, { status: 400 });
   }
 
-  const errors: string[] = [];
-
-  if (!body.companyName?.trim()) errors.push("La razón social es obligatoria");
-
-  const ruc = rucError(body.companyRuc ?? "");
-  if (ruc) errors.push(ruc);
-
-  if (!body.sector?.trim()) errors.push("El sector es obligatorio");
-  if (!body.city?.trim()) errors.push("La ciudad es obligatoria");
-  if ((body.yearsOperating ?? 0) < MIN_YEARS_OPERATING) {
-    errors.push(
-      `Founding financia empresas con al menos ${MIN_YEARS_OPERATING} años de operación`,
+  // Una solicitud cuelga de una empresa YA acreditada. Los datos de la
+  // empresa no viajan más en el body: salen de la fila verificada, que es
+  // la que un verificador revisó. Pedirlos otra vez permitía declarar en
+  // cada proyecto un RUC o una antigüedad distintos de los acreditados.
+  const company = await getCompanyByWallet(companyWallet);
+  if (!company) {
+    return NextResponse.json(
+      {
+        error:
+          "Primero acredita tu empresa: sin eso no se puede pedir financiamiento",
+      },
+      { status: 409 },
     );
   }
+  if (company.status !== "verified") {
+    return NextResponse.json(
+      {
+        error:
+          company.status === "rejected"
+            ? "Tu empresa no pasó la acreditación. Corrige lo observado y vuelve a enviarla"
+            : "Tu empresa todavía está en acreditación. Te avisamos cuando haya resultado",
+      },
+      { status: 409 },
+    );
+  }
+
+  const errors: string[] = [];
 
   if (!body.projectTitle?.trim()) errors.push("El título del proyecto es obligatorio");
   if (!body.projectType || !PROJECT_TYPE_KEYS.includes(body.projectType)) {
@@ -117,15 +129,17 @@ export async function POST(req: Request) {
 
   return withDbErrors(async () => {
     const submission = await createSubmission({
-      companyName: body.companyName!.trim(),
-      companyRuc: (body.companyRuc ?? "").replace(/\D/g, ""),
+      // Copiados de la empresa acreditada, no de lo que mande el cliente:
+      // el expediente guarda el retrato de la empresa en el momento de
+      // pedir, y ese retrato tiene que ser el verificado.
+      companyId: company.id,
+      companyName: company.name,
+      companyRuc: company.ruc,
       companyWallet,
-      sector: body.sector!.trim(),
-      city: body.city!.trim(),
-      yearsOperating: body.yearsOperating!,
-      annualRevenue: isPositiveAmount(body.annualRevenue ?? "")
-        ? body.annualRevenue!
-        : "",
+      sector: company.sector,
+      city: company.city,
+      yearsOperating: company.yearsOperating,
+      annualRevenue: company.annualRevenue,
       projectTitle: body.projectTitle!.trim(),
       projectType: body.projectType!,
       useOfFunds: body.useOfFunds!.trim(),

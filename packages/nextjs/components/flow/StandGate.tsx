@@ -5,7 +5,7 @@ import { motion } from "motion/react";
 import { Logo } from "@/components/ui/Logo";
 import { Waiting } from "@/components/ui/Waiting";
 import { shortHash } from "@/lib/format";
-import { setIntendedRole } from "@/lib/intendedRole";
+import { clearIntendedRole, setIntendedRole } from "@/lib/intendedRole";
 import { fadeUp, press, stagger, T } from "@/lib/motion";
 import { useSession, type Role } from "@/lib/useSession";
 import { TOPUP_TOKEN_AMOUNT } from "@/lib/faucet/config";
@@ -191,12 +191,22 @@ export function StandGate() {
 
           {/* La única salida que queda: este teléfono es de otra persona.
               Antes acá convivían dos enlaces, y uno de ellos hacía lo
-              mismo que el botón de la tarjeta. */}
+              mismo que el botón de la tarjeta.
+
+              Y presumía el lado contrario: `setIntendedRole(yaEs ===
+              "investor" ? "business" : "investor")` le asignaba a la
+              cuenta siguiente el opuesto de la anterior. Nadie había
+              elegido eso. Quien entra con otra cuenta puede ser un
+              inversionista más —dos personas del mismo lado compartiendo
+              un teléfono en el stand es el caso normal, no el raro— y el
+              rol no se puede cambiar después de fijado. Se limpia la
+              intención y la puerta vuelve a preguntar, que es lo único
+              que no puede salir mal. */}
           {vuelve && !connecting && (
             <motion.p variants={fadeUp} className="text-[12.5px] text-low">
               <button
                 onClick={() => {
-                  setIntendedRole(yaEs === "investor" ? "business" : "investor");
+                  clearIntendedRole();
                   switchAccount();
                 }}
                 className="focusable underline decoration-dotted underline-offset-4 transition-colors hover:text-hi"

@@ -13,8 +13,13 @@ export type VerifierSubmission = {
   id: string;
   companyName: string;
   companyRuc: string;
-  /** Wallet que recibirá o actualizará su CompanyPassportSBT al aprobarse. */
+  /** Wallet de la empresa que pide. El pasaporte ya no cuelga de acá:
+   * lo emite la acreditación de la empresa (lib/verifier/companies.ts). */
   companyWallet: string;
+  /** Empresa acreditada de la que cuelga esta solicitud. Null solo en los
+   * expedientes viejos, de cuando empresa y proyecto eran un mismo
+   * trámite. */
+  companyId: string | null;
 
   /* Perfil de la empresa — se declara acá y el verificador lo contrasta;
      al publicar viaja tal cual a la tabla `companies`. */

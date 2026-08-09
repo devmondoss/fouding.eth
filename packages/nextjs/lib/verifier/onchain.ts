@@ -50,6 +50,42 @@ function getConfiguration() {
   return { privateKey, chain, rpcUrl, passport };
 }
 
+/**
+ * Emite o actualiza el pasaporte de una EMPRESA.
+ *
+ * Antes solo existía la variante que recibía un expediente, porque
+ * acreditar a la empresa y aprobar una operación eran el mismo acto. El
+ * pasaporte es de la empresa: se emite cuando se la acredita, no cuando
+ * se le aprueba un proyecto.
+ */
+export async function synchronizeCompanyPassport(company: {
+  id: string;
+  wallet: string;
+  ruc: string;
+  name: string;
+  legalPackHash: string;
+}): Promise<PassportSynchronization> {
+  // Sin documento adjunto no hay hash de documento que anclar, y el
+  // contrato rechaza el hash cero. Se ancla la huella de lo declarado,
+  // que es exactamente lo que el verificador revisó.
+  const huella = /^0x[a-fA-F0-9]{64}$/.test(company.legalPackHash)
+    ? company.legalPackHash
+    : keccak256(
+        toBytes(
+          JSON.stringify({ ruc: company.ruc, name: company.name, id: company.id }),
+        ),
+      );
+
+  return synchronizeApprovedPassport({
+    id: company.id,
+    companyWallet: company.wallet,
+    companyRuc: company.ruc,
+    legalPackHash: huella,
+    projectTitle: company.name,
+    requestedAmount: "0",
+  } as VerifierSubmission);
+}
+
 export async function synchronizeApprovedPassport(
   submission: VerifierSubmission,
 ): Promise<PassportSynchronization> {

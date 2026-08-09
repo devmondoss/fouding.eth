@@ -27,6 +27,14 @@ const CASES = [
     why: "armar un expediente exige sesión de empresa",
   },
   {
+    // Acreditar la empresa es el trámite que va antes de todo lo demás, y
+    // también tiene URL propia: se envía una vez y se puede volver a ella.
+    path: "/solicitar/empresa",
+    expectUrl: "/negocios/login",
+    expectText: "Conecta tu empresa",
+    why: "acreditar la empresa exige sesión de empresa",
+  },
+  {
     path: "/rol",
     expectUrl: "/login",
     // Sin sesión, elegir rol manda a la puerta — que ES la pantalla de
@@ -107,9 +115,9 @@ async function main() {
 
     if (problems.length) {
       failures.push({ path: c.path, problems });
-      console.log(`FAIL ${c.path.padEnd(16)} ${problems.join(" · ")}`);
+      console.log(`FAIL ${c.path.padEnd(18)} ${problems.join(" · ")}`);
     } else {
-      console.log(`OK   ${c.path.padEnd(16)} -> ${url.padEnd(16)} ${c.why}`);
+      console.log(`OK   ${c.path.padEnd(18)} -> ${url.padEnd(16)} ${c.why}`);
     }
 
     await page.close();

@@ -20,22 +20,24 @@ import {
   MIN_REQUESTED_USDC,
   PROJECT_TYPES,
   REVIEW_SLA_DAYS,
-  SECTORS,
   TERM_PRESETS,
   amountError,
-  digits,
   formatUsdcPlain,
   parseAmount,
-  rucError,
-  yearsError,
 } from "@/lib/verifier/submission";
 import type { CollateralKind } from "@/lib/types";
+import type { Company } from "@/lib/verifier/companies";
 
+/**
+ * Tres pasos, no cuatro. El de "La empresa" se fue: esos datos —RUC,
+ * sector, ciudad, años de operación— ya los verificó alguien cuando se
+ * acreditó la empresa, y volvían a pedirse en cada proyecto. Ahora la
+ * solicitud es solo la solicitud.
+ */
 const STEPS = [
-  { key: "empresa", label: "La empresa" },
   { key: "proyecto", label: "El proyecto" },
   { key: "condiciones", label: "Lo que pides" },
-  { key: "expediente", label: "Expediente" },
+  { key: "expediente", label: "Documentación" },
 ] as const;
 
 /**
@@ -51,11 +53,13 @@ const STEPS = [
  * que la plataforma todavía NO promete escrito al pie.
  */
 export function SolicitudWizard({
-  address,
+  empresa,
   onClose,
   onSubmitted,
 }: {
-  address: string;
+  /** La empresa ya acreditada que pide. Sus datos no se vuelven a
+   * teclear: se muestran en el comprobante y viajan desde el servidor. */
+  empresa: Company;
   onClose: () => void;
   onSubmitted: () => void;
 }) {
@@ -63,14 +67,7 @@ export function SolicitudWizard({
   const [step, setStep] = useState(0);
   /** Un paso muestra sus errores recién cuando se intentó avanzar: hasta
    * ahí el formulario no le grita a alguien que todavía está tecleando. */
-  const [attempted, setAttempted] = useState<boolean[]>([false, false, false, false]);
-
-  const [companyName, setCompanyName] = useState("");
-  const [companyRuc, setCompanyRuc] = useState("");
-  const [sector, setSector] = useState<string | null>(null);
-  const [city, setCity] = useState("");
-  const [yearsOperating, setYearsOperating] = useState("");
-  const [annualRevenue, setAnnualRevenue] = useState("");
+  const [attempted, setAttempted] = useState<boolean[]>([false, false, false]);
 
   const [projectType, setProjectType] = useState<string | null>(null);
   const [projectTitle, setProjectTitle] = useState("");
@@ -97,11 +94,6 @@ export function SolicitudWizard({
 
   const errors = useMemo(
     () => ({
-      companyName: companyName.trim() ? null : "El nombre legal de la empresa",
-      companyRuc: rucError(companyRuc),
-      sector: sector ? null : "Elige el sector",
-      city: city.trim() ? null : "En qué ciudad opera",
-      yearsOperating: yearsError(yearsOperating),
       projectType: projectType ? null : "Elige para qué es el capital",
       projectTitle: projectTitle.trim() ? null : "Ponle un título al proyecto",
       useOfFunds:
@@ -118,11 +110,6 @@ export function SolicitudWizard({
       })(),
     }),
     [
-      companyName,
-      companyRuc,
-      sector,
-      city,
-      yearsOperating,
       projectType,
       projectTitle,
       useOfFunds,
@@ -134,32 +121,25 @@ export function SolicitudWizard({
   );
 
   const stepErrors: (string | null)[][] = [
-    [
-      errors.companyName,
-      errors.companyRuc,
-      errors.sector,
-      errors.city,
-      errors.yearsOperating,
-    ],
     [errors.projectType, errors.projectTitle, errors.useOfFunds],
     [errors.amount, errors.term, errors.collateralKind, errors.collateralValue],
     [],
   ];
   const stepValid = stepErrors.map((list) => list.every((e) => e === null));
-  const canSubmit = stepValid[0] && stepValid[1] && stepValid[2];
+  const canSubmit = stepValid[0] && stepValid[1];
 
   /** El error solo se pinta si ya se intentó pasar de ese paso. */
   const show = (index: number, message: string | null) =>
     attempted[index] ? message : null;
 
   const receipt: ReceiptModel = {
-    companyName,
-    companyRuc: digits(companyRuc),
-    companyWallet: address,
-    sector: sector ?? "",
-    city,
-    yearsOperating,
-    annualRevenue,
+    companyName: empresa.name,
+    companyRuc: empresa.ruc,
+    companyWallet: empresa.wallet,
+    sector: empresa.sector,
+    city: empresa.city,
+    yearsOperating: empresa.yearsOperating,
+    annualRevenue: empresa.annualRevenue,
     projectTitle,
     projectType: projectType ?? "",
     useOfFunds,
@@ -214,13 +194,10 @@ export function SolicitudWizard({
       const res = await fetch("/api/verifier/submissions", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeader },
+        // Sin datos de empresa: el servidor los toma de la fila acreditada
+        // (ver POST /api/verifier/submissions). Mandarlos desde acá
+        // permitía declarar en cada proyecto un RUC distinto del verificado.
         body: JSON.stringify({
-          companyName: companyName.trim(),
-          companyRuc: digits(companyRuc),
-          sector,
-          city: city.trim(),
-          yearsOperating: Number(digits(yearsOperating)) || 0,
-          annualRevenue: annualRevenue ? String(parseAmount(annualRevenue)) : "",
           projectTitle: projectTitle.trim(),
           projectType,
           useOfFunds: useOfFunds.trim(),
@@ -311,76 +288,8 @@ export function SolicitudWizard({
               </div>
 
               <AnimatePresence mode="wait">
+
                 {step === 0 && (
-                  <Step key="empresa">
-                    <Field
-                      label="Razón social"
-                      placeholder="Textiles del Sur S.A.C."
-                      value={companyName}
-                      onChange={(e) => setCompanyName(e.target.value)}
-                      error={show(0, errors.companyName)}
-                      autoFocus
-                    />
-                    <div className="grid grid-cols-2 gap-3">
-                      <Field
-                        label="RUC"
-                        placeholder="20123456789"
-                        inputMode="numeric"
-                        maxLength={11}
-                        value={companyRuc}
-                        onChange={(e) => setCompanyRuc(digits(e.target.value))}
-                        error={show(0, errors.companyRuc)}
-                        hint="11 dígitos"
-                      />
-                      <Field
-                        label="Ciudad"
-                        placeholder="Arequipa"
-                        value={city}
-                        onChange={(e) => setCity(e.target.value)}
-                        error={show(0, errors.city)}
-                      />
-                    </div>
-
-                    <ChoiceGroup
-                      label="Sector"
-                      columns={2}
-                      options={SECTORS.map((s) => ({ value: s, label: s }))}
-                      value={sector}
-                      onChange={setSector}
-                      error={show(0, errors.sector)}
-                    />
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <Field
-                        label="Años operando"
-                        placeholder="8"
-                        inputMode="numeric"
-                        value={yearsOperating}
-                        onChange={(e) => setYearsOperating(digits(e.target.value))}
-                        error={show(0, errors.yearsOperating)}
-                      />
-                      <Field
-                        label="Ventas del último año"
-                        suffix="USDC"
-                        inputMode="decimal"
-                        placeholder="480000"
-                        value={annualRevenue}
-                        onChange={(e) => setAnnualRevenue(e.target.value)}
-                        hint="Opcional, pero acelera la revisión"
-                      />
-                    </div>
-
-                    <Field
-                      label="Wallet de la empresa"
-                      value={address}
-                      hint="La wallet con la que iniciaste sesión — es la que queda habilitada si se aprueba. No se puede cambiar."
-                      readOnly
-                      disabled
-                    />
-                  </Step>
-                )}
-
-                {step === 1 && (
                   <Step key="proyecto">
                     <ChoiceGroup
                       label="¿Para qué es el capital?"
@@ -391,7 +300,7 @@ export function SolicitudWizard({
                       }))}
                       value={projectType}
                       onChange={setProjectType}
-                      error={show(1, errors.projectType)}
+                      error={show(0, errors.projectType)}
                     />
 
                     <Field
@@ -399,7 +308,7 @@ export function SolicitudWizard({
                       placeholder="Compra de mercadería para temporada alta"
                       value={projectTitle}
                       onChange={(e) => setProjectTitle(e.target.value)}
-                      error={show(1, errors.projectTitle)}
+                      error={show(0, errors.projectTitle)}
                     />
 
                     <TextArea
@@ -408,13 +317,13 @@ export function SolicitudWizard({
                       value={useOfFunds}
                       onChange={setUseOfFunds}
                       placeholder="Dos secadoras industriales cotizadas con un proveedor de Lima, instalación en planta y capital de trabajo para el primer lote. Ya hay orden de compra de dos clientes."
-                      error={show(1, errors.useOfFunds)}
+                      error={show(0, errors.useOfFunds)}
                       hint="En qué se gasta y contra qué pedido"
                     />
                   </Step>
                 )}
 
-                {step === 2 && (
+                {step === 1 && (
                   <Step key="condiciones">
                     <ChipChoice
                       label="Monto solicitado"
@@ -427,7 +336,7 @@ export function SolicitudWizard({
                       ]}
                       value={amountChoice}
                       onChange={setAmountChoice}
-                      error={show(2, errors.amount)}
+                      error={show(1, errors.amount)}
                       hint={`Mínimo ${formatUsdcPlain(MIN_REQUESTED_USDC)} USDC`}
                       footer={
                         amountChoice === "custom" ? (
@@ -454,7 +363,7 @@ export function SolicitudWizard({
                       }))}
                       value={termMonths}
                       onChange={setTermMonths}
-                      error={show(2, errors.term)}
+                      error={show(1, errors.term)}
                       hint="Referencial: el definitivo lo fija el verificador"
                     />
 
@@ -467,7 +376,7 @@ export function SolicitudWizard({
                       }))}
                       value={collateralKind}
                       onChange={setCollateralKind}
-                      error={show(2, errors.collateralKind)}
+                      error={show(1, errors.collateralKind)}
                     />
 
                     <Field
@@ -477,7 +386,7 @@ export function SolicitudWizard({
                       placeholder="90000"
                       value={collateralValue}
                       onChange={(e) => setCollateralValue(e.target.value)}
-                      error={show(2, errors.collateralValue)}
+                      error={show(1, errors.collateralValue)}
                       hint="Tu estimación. El verificador lo tasa y le aplica un castigo por tipo de activo."
                     />
 
@@ -492,7 +401,7 @@ export function SolicitudWizard({
                   </Step>
                 )}
 
-                {step === 3 && (
+                {step === 2 && (
                   <Step key="expediente">
                     <label className="flex flex-col gap-1.5">
                       <span className="text-[12.5px] font-medium text-hi">

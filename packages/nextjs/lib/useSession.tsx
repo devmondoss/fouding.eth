@@ -102,7 +102,11 @@ type Ctx = {
   /** Fija el rol la primera vez que se llama para esta wallet. Llamadas
    * posteriores no hacen nada — el rol no cambia una vez elegido (ver
    * RoleGate). */
-  chooseRole: (role: Role) => void;
+  /** Fija el rol si la wallet todavía no tiene uno y devuelve el que
+   *  quedó en efecto — que puede NO ser el pedido, si esta wallet ya
+   *  pertenece al otro lado. `null` solo si no hay wallet. Comparar el
+   *  devuelto con el pedido es cómo se detecta el choque. */
+  chooseRole: (role: Role) => Role | null;
   /** Borrado real, irreversible: llama al backend, que borra el usuario
    * en Privy. Libera el correo para que pueda registrarse como cuenta
    * nueva — no es solo limpiar datos locales. */
@@ -380,15 +384,31 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [access, address, getAccessToken],
   );
 
+  /**
+   * Fija el rol la primera vez, y **devuelve el que quedó en efecto**.
+   *
+   * Antes esto era `if (roleMap[addr]) return;` — un rechazo mudo. Quien
+   * llamaba no tenía forma de saber si su elección se aplicó o si la
+   * wallet ya pertenecía al otro lado, así que una cuenta registrada como
+   * inversionista que pedía entrar como empresa terminaba, sin una
+   * palabra, en el catálogo del inversionista. Funcionaba —el rol no
+   * cambiaba— pero la persona no se enteraba de por qué había ido a parar
+   * a otro sitio.
+   *
+   * Devolver el rol efectivo permite comparar: si no es el pedido, hubo
+   * un choque y hay que decirlo (ver components/flow/RoleConflict.tsx).
+   */
   const chooseRole = useCallback(
-    (role: Role) => {
-      if (!address) return;
+    (role: Role): Role | null => {
+      if (!address) return null;
       const addr = address.toLowerCase();
       const roleMap = readJSON<Record<string, Role>>(ROLE_KEY, {});
-      if (roleMap[addr]) return; // ya elegido, no se puede cambiar
+      const yaFijado = roleMap[addr];
+      if (yaFijado) return yaFijado; // una wallet pertenece a un solo lado
       roleMap[addr] = role;
       writeJSON(ROLE_KEY, roleMap);
       setSession((s) => (s ? { ...s, role } : s));
+      return role;
     },
     [address],
   );

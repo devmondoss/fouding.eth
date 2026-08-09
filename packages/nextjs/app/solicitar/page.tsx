@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BusinessDashboard } from "@/components/flow/BusinessDashboard";
+import { RoleConflict } from "@/components/flow/RoleConflict";
 import { FullScreenLoader } from "@/components/ui/FullScreenLoader";
 import { useSession } from "@/lib/useSession";
+import type { Company } from "@/lib/verifier/companies";
 import type { SubmissionWithEvents } from "@/lib/verifier/types";
 
 /**
@@ -33,15 +35,28 @@ import type { SubmissionWithEvents } from "@/lib/verifier/types";
  * página nunca los toca.
  */
 export default function SolicitarPage() {
-  const { session, signOut } = useSession();
+  const { session, signOut, switchAccount } = useSession();
   const router = useRouter();
 
   useEffect(() => {
     if (session === undefined) return;
     if (session === null) router.replace("/negocios/login");
     else if (session.role === null) router.replace("/rol");
-    else if (session.role === "investor") router.replace("/");
+    // Una cuenta de inversionista NO se redirige en silencio: se le dice
+    // por qué no puede estar acá. Rebotarla a `/` la dejaba mirando el
+    // catálogo sin saber qué pasó con el enlace que había abierto.
   }, [session, router]);
+
+  if (session?.role === "investor") {
+    return (
+      <RoleConflict
+        pedido="business"
+        real="investor"
+        onContinuar={() => router.replace("/")}
+        onOtraCuenta={switchAccount}
+      />
+    );
+  }
 
   if (session === undefined || session === null || session.role !== "business") {
     return <FullScreenLoader />;
@@ -52,6 +67,8 @@ export default function SolicitarPage() {
 
 function SolicitarHome({ address, onSignOut }: { address: string; onSignOut: () => void }) {
   const [mine, setMine] = useState<SubmissionWithEvents[] | null>(null);
+  const [empresa, setEmpresa] = useState<Company | null | undefined>(undefined);
+  const { getAccessToken } = useSession();
   const router = useRouter();
 
   useEffect(() => {
@@ -66,17 +83,36 @@ function SolicitarHome({ address, onSignOut }: { address: string; onSignOut: () 
     };
   }, [address]);
 
+  // La empresa manda: sin acreditación no hay solicitud que valga, así
+  // que el panel la necesita para saber qué ofrecer.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const token = await getAccessToken();
+      if (!token || !alive) return;
+      const res = await fetch("/api/company", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (alive) setEmpresa(res.ok ? ((await res.json()) as Company | null) : null);
+    })().catch(() => alive && setEmpresa(null));
+    return () => {
+      alive = false;
+    };
+  }, [getAccessToken]);
+
   return (
     <BusinessDashboard
       address={address}
       submissions={mine}
-      loading={mine === null}
+      empresa={empresa}
+      loading={mine === null || empresa === undefined}
       onSignOut={onSignOut}
-      // El asistente ya no se abre encima de esto: tiene su propia ruta
-      // (/solicitar/nueva). Al volver, esta pantalla se monta de nuevo y
-      // vuelve a pedir la lista, así que el expediente recién enviado
-      // aparece sin necesidad de una llave de refresco.
+      // Ninguno de los dos se abre encima de esto: los dos tienen su
+      // propia ruta. Al volver, esta pantalla se monta de nuevo y vuelve a
+      // pedir los datos, así que lo recién enviado aparece sin necesidad
+      // de una llave de refresco.
       onNewSubmission={() => router.push("/solicitar/nueva")}
+      onAcreditar={() => router.push("/solicitar/empresa")}
     />
   );
 }
