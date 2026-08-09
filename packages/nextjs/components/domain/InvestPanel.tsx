@@ -269,7 +269,12 @@ export function InvestPanel({
               disabled={accessBlocked || infraBlocked}
               onChange={(e) => setAmount(e.target.value)}
               error={transactionError ?? amountError}
-              hint={`Disponible onchain: ${formatUsdc(availableBalance)} USDC`}
+              // El símbolo sale del token, no de una constante: lo que hay
+              // en la wallet en esta red es mUSDC, y llamarlo "USDC" a secas
+              // sería presentar el token de prueba como el de Circle
+              // (PRODUCT.md §Evidence). La meta y el ticket sí hablan en
+              // USDC porque son el dinero de la operación, no el saldo.
+              hint={`Disponible onchain: ${formatUsdc(availableBalance)} ${token.symbol}`}
             />
 
             {amountError === "Saldo insuficiente" && onOpenFunds && (

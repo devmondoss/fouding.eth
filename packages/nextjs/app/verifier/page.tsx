@@ -142,6 +142,9 @@ function Panel({
     approve: boolean;
   } | null>(null);
   const [decisionNote, setDecisionNote] = useState("");
+  /** Cuántos expedientes ya decididos se listan. El historial crece sin
+   * techo y no es trabajo pendiente: se muestra recortado. */
+  const [historial, setHistorial] = useState(20);
   const [decisionError, setDecisionError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -261,9 +264,11 @@ function Panel({
   // Trabajo abierto: lo que está en cola más lo que alguien ya tomó y
   // todavía no decidió. Contar solo `pending` escondía los expedientes
   // tomados y olvidados, que son justamente los que se vencen.
-  const pendientes =
-    submissions?.filter((s) => s.status === "pending" || s.status === "in_review")
-      .length ?? 0;
+  const enCola =
+    submissions?.filter((s) => s.status === "pending" || s.status === "in_review") ?? [];
+  const decididos =
+    submissions?.filter((s) => s.status === "approved" || s.status === "rejected") ?? [];
+  const pendientes = enCola.length;
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "var(--bg)" }}>
@@ -374,7 +379,12 @@ function Panel({
             />
           )}
 
-          {submissions?.map((s) => (
+          {/* Lo que hay que hacer primero, y lo ya hecho después.
+              Con dos expedientes el orden daba igual; con ochenta y nueve,
+              la cola abría con ochenta tarjetas ya decididas y los nueve
+              que esperan decisión quedaban enterrados al final. El
+              historial se muestra recortado: es consulta, no trabajo. */}
+          {enCola.map((s) => (
             <div key={s.id} className="card p-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
@@ -482,6 +492,59 @@ function Panel({
               )}
             </div>
           ))}
+
+          {decididos.length > 0 && (
+            <>
+              <div className="mt-4 flex items-baseline justify-between border-t border-border pt-4">
+                <h2 className="label">Ya decididos</h2>
+                <span className="num text-[11.5px] text-low">
+                  {decididos.length}
+                </span>
+              </div>
+
+              {decididos.slice(0, historial).map((s) => (
+                <div
+                  key={s.id}
+                  className="flex items-center justify-between gap-4 rounded-[var(--r-panel)] border border-border px-4 py-2.5"
+                >
+                  <div className="min-w-0">
+                    <div className="truncate text-[13px] font-medium text-hi">
+                      {s.projectTitle}
+                    </div>
+                    <div className="truncate text-[11.5px] text-low">
+                      {folio(s.id)} · {s.companyName}
+                      {s.decidedBy && ` · ${s.decidedBy}`}
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <span className="num text-[12.5px] text-mid">
+                      {formatUsdcPlain(s.requestedAmount)}
+                    </span>
+                    <Pill
+                      label={STATUS_LABEL[s.status]}
+                      tone={STATUS_TONE[s.status]}
+                      dot
+                    />
+                    {s.status === "approved" && (
+                      <Button size="sm" variant="outline" onClick={() => setPublishing(s)}>
+                        Publicar
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {historial < decididos.length && (
+                <button
+                  onClick={() => setHistorial((n) => n + 20)}
+                  className="focusable self-start text-[12.5px] font-medium underline decoration-dotted"
+                  style={{ color: "var(--brand-ink)" }}
+                >
+                  Ver {Math.min(20, decididos.length - historial)} más
+                </button>
+              )}
+            </>
+          )}
         </div>
           </>
         )}
