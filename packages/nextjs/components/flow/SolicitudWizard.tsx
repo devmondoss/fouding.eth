@@ -11,7 +11,7 @@ import {
 } from "@/components/flow/SubmissionReceipt";
 import { useSession } from "@/lib/useSession";
 import { useLayerKeys } from "@/lib/keyboard";
-import { T, dialog, scrim } from "@/lib/motion";
+import { T } from "@/lib/motion";
 import {
   AMOUNT_PRESETS,
   COLLATERAL_DETAIL,
@@ -248,43 +248,38 @@ export function SolicitudWizard({
   }
 
   return (
-    <motion.div
-      variants={scrim}
-      initial="hidden"
-      animate="show"
-      exit="exit"
-      className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6"
-      style={{ backgroundColor: "rgba(16,24,40,0.4)" }}
-      onClick={!submitting ? onClose : undefined}
-    >
-      <motion.div
-        variants={dialog}
-        initial="hidden"
-        animate="show"
-        exit="exit"
-        onClick={(e) => e.stopPropagation()}
-        className="flex max-h-[calc(100vh-32px)] w-full max-w-[580px] flex-col rounded-[var(--r-card)] border border-border bg-surface shadow-[var(--shadow-lg)]"
+    <div className="flex min-h-screen flex-col" style={{ backgroundColor: "var(--bg)" }}>
+      {/* Módulo, no modal. Armar un expediente no es una interrupción de
+          otra cosa: es EL trabajo del dueño de negocio, con cuatro pasos,
+          un legajo entero y un comprobante al final. Encerrado en 580px
+          flotantes obligaba a hacer scroll dentro de una caja mientras el
+          panel de atrás se veía por los bordes —y con Escape se perdía lo
+          tecleado—. Acá tiene su URL (/solicitar/nueva) y su pantalla. */}
+      <header
+        className="sticky top-0 z-10 border-b border-border"
+        style={{ backgroundColor: "var(--surface)" }}
       >
-        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
-          <div>
-            <h2 className="h2 text-[16px]">Nueva solicitud de financiamiento</h2>
+        <div className="mx-auto flex w-full max-w-[var(--w-doc)] items-center justify-between gap-4 px-5 py-3.5 sm:px-6">
+          <div className="min-w-0">
+            <h1 className="h2 text-[16px]">Nueva solicitud de financiamiento</h1>
             {!done && (
               <p className="num mt-0.5 text-[12px] text-low">
                 Paso {step + 1} de {STEPS.length}
               </p>
             )}
           </div>
-          {!submitting && (
+          {!submitting && !done && (
             <button
               onClick={onClose}
-              className="focusable -mr-1 flex h-7 shrink-0 items-center rounded-[var(--r-input)] px-1.5 text-[12px] text-mid transition-colors hover:bg-surface-soft hover:text-hi"
+              className="focusable -mr-1 flex h-8 shrink-0 items-center rounded-[var(--r-input)] px-2 text-[12.5px] text-mid transition-colors hover:bg-surface-soft hover:text-hi"
             >
-              Cerrar
+              Descartar
             </button>
           )}
         </div>
+      </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-5">
+      <main className="mx-auto w-full max-w-[var(--w-doc)] flex-1 px-5 py-6 sm:px-6 sm:py-8">
           {done ? (
             <Submitted onDone={onSubmitted} />
           ) : (
@@ -572,10 +567,16 @@ export function SolicitudWizard({
               </AnimatePresence>
             </>
           )}
-        </div>
+      </main>
 
-        {!done && (
-          <div className="flex shrink-0 items-center gap-2.5 border-t border-border px-5 py-4">
+      {/* Las acciones quedan ancladas abajo: con el legajo entero en
+          pantalla, "Continuar" no puede estar al final de un scroll. */}
+      {!done && (
+        <div
+          className="sticky bottom-0 border-t border-border"
+          style={{ backgroundColor: "var(--surface)" }}
+        >
+          <div className="mx-auto flex w-full max-w-[var(--w-doc)] items-center gap-2.5 px-5 py-3.5 sm:px-6">
             {step > 0 && (
               <Button variant="outline" size="lg" onClick={goBack} disabled={submitting}>
                 Atrás
@@ -597,9 +598,9 @@ export function SolicitudWizard({
               </Button>
             )}
           </div>
-        )}
-      </motion.div>
-    </motion.div>
+        </div>
+      )}
+    </div>
   );
 }
 

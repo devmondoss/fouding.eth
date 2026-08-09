@@ -19,6 +19,14 @@ const CASES = [
     why: "el panel es privado: sin sesión manda al login de empresa",
   },
   {
+    // Armar un expediente es un módulo con URL propia, no un modal: si no
+    // describe lo que muestra, deja de poder enlazarse y recargarse.
+    path: "/solicitar/nueva",
+    expectUrl: "/negocios/login",
+    expectText: "Conecta tu empresa",
+    why: "armar un expediente exige sesión de empresa",
+  },
+  {
     path: "/rol",
     expectUrl: "/login",
     // Sin sesión, elegir rol manda a la puerta — que ES la pantalla de

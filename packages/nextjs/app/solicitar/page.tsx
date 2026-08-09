@@ -2,9 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AnimatePresence } from "motion/react";
 import { BusinessDashboard } from "@/components/flow/BusinessDashboard";
-import { SolicitudWizard } from "@/components/flow/SolicitudWizard";
 import { FullScreenLoader } from "@/components/ui/FullScreenLoader";
 import { useSession } from "@/lib/useSession";
 import type { SubmissionWithEvents } from "@/lib/verifier/types";
@@ -54,8 +52,7 @@ export default function SolicitarPage() {
 
 function SolicitarHome({ address, onSignOut }: { address: string; onSignOut: () => void }) {
   const [mine, setMine] = useState<SubmissionWithEvents[] | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [wizardOpen, setWizardOpen] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     let alive = true;
@@ -67,30 +64,19 @@ function SolicitarHome({ address, onSignOut }: { address: string; onSignOut: () 
     return () => {
       alive = false;
     };
-  }, [address, refreshKey]);
+  }, [address]);
 
   return (
-    <>
-      <BusinessDashboard
-        address={address}
-        submissions={mine}
-        loading={mine === null}
-        onSignOut={onSignOut}
-        onNewSubmission={() => setWizardOpen(true)}
-      />
-
-      <AnimatePresence>
-        {wizardOpen && (
-          <SolicitudWizard
-            address={address}
-            onClose={() => setWizardOpen(false)}
-            onSubmitted={() => {
-              setWizardOpen(false);
-              setRefreshKey((k) => k + 1);
-            }}
-          />
-        )}
-      </AnimatePresence>
-    </>
+    <BusinessDashboard
+      address={address}
+      submissions={mine}
+      loading={mine === null}
+      onSignOut={onSignOut}
+      // El asistente ya no se abre encima de esto: tiene su propia ruta
+      // (/solicitar/nueva). Al volver, esta pantalla se monta de nuevo y
+      // vuelve a pedir la lista, así que el expediente recién enviado
+      // aparece sin necesidad de una llave de refresco.
+      onNewSubmission={() => router.push("/solicitar/nueva")}
+    />
   );
 }
