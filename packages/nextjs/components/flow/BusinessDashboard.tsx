@@ -8,14 +8,18 @@ import { MetricCard } from "@/components/ui/Stat";
 import { Waiting } from "@/components/ui/Waiting";
 import { BusinessTopBar } from "@/components/flow/BusinessTopBar";
 import { SubmissionDetail } from "@/components/flow/SubmissionDetail";
-import { fadeUp, press, stagger } from "@/lib/motion";
+import { fadeUp, stagger } from "@/lib/motion";
 import { formatDate } from "@/lib/format";
 import {
+  MAX_REQUESTED_USDC,
+  MIN_REQUESTED_USDC,
+  MIN_YEARS_OPERATING,
   NEXT_STEP,
   PROJECT_TYPE_LABEL,
   REVIEW_SLA_DAYS,
   STATUS_LABEL,
   STATUS_TONE,
+  TERM_PRESETS,
   folio,
   formatUsdcPlain,
 } from "@/lib/verifier/submission";
@@ -265,28 +269,146 @@ function Timeline({ submission }: { submission: SubmissionWithEvents }) {
   );
 }
 
+/**
+ * Sin expedientes, esta pantalla era una caja centrada con tres líneas y
+ * media pantalla en blanco: el dueño de negocio veía menos producto que
+ * el inversionista, cuando de su lado hay igual de cosas que decir.
+ *
+ * Lo que llena el vacío son las condiciones del programa, el proceso y
+ * los requisitos — todo dato verdadero, sacado de las mismas constantes
+ * que validan el formulario (lib/verifier/submission.ts). Nada de
+ * tracción inventada: no se cuentan empresas financiadas ni montos
+ * colocados, porque el catálogo es sembrado y decirlo sería fabricar
+ * evidencia (PRODUCT.md §Evidence).
+ */
 function EmptyDashboard({ onNewSubmission }: { onNewSubmission: () => void }) {
+  const condiciones = [
+    {
+      dato: `Desde ${formatUsdcPlain(MIN_REQUESTED_USDC)}`,
+      unidad: "USDC",
+      pie: `hasta ${formatUsdcPlain(MAX_REQUESTED_USDC)}`,
+    },
+    {
+      dato: `${TERM_PRESETS[0]} a ${TERM_PRESETS[TERM_PRESETS.length - 1]}`,
+      unidad: "meses",
+      pie: "el plazo lo fija el verificador",
+    },
+    {
+      dato: String(REVIEW_SLA_DAYS),
+      unidad: "días hábiles",
+      pie: "para tener respuesta",
+    },
+    {
+      dato: "Por hitos",
+      unidad: "",
+      pie: "el capital se libera por tramos",
+    },
+  ];
+
+  const pasos = [
+    {
+      titulo: "Envías el expediente",
+      detalle:
+        "Cuatro pasos: tu empresa, el proyecto, lo que pides y la documentación. Antes de enviarlo lo ves completo.",
+    },
+    {
+      titulo: "Un verificador lo toma",
+      detalle:
+        "Ves su nombre y desde cuándo lo revisa. Cobra honorario fijo: gana lo mismo si aprueba que si rechaza.",
+    },
+    {
+      titulo: "Resultado con motivo",
+      detalle:
+        "Si aprueba, tu empresa recibe su pasaporte onchain. Si rechaza, te deja por escrito qué corregir.",
+    },
+    {
+      titulo: "Se publica y se financia",
+      detalle:
+        "El verificador fija plazo, rentabilidad e hitos, y los inversionistas aportan el capital.",
+    },
+  ];
+
+  const requisitos = [
+    `RUC vigente — se contrasta contra SUNAT`,
+    `${MIN_YEARS_OPERATING} años de operación como mínimo`,
+    "Una garantía inscribible: maquinaria, vehículo o inmueble",
+    "Ventas del último año (opcional, acelera la revisión)",
+  ];
+
   return (
-    <motion.div
-      variants={fadeUp}
-      initial="hidden"
-      animate="show"
-      className="card mt-7 flex flex-col items-center gap-3 px-6 py-14 text-center"
-    >
-      <h2 className="h3">Todavía no enviaste ningún expediente</h2>
-      <p className="max-w-[420px] text-[13px] leading-relaxed text-mid">
-        Son cuatro pasos: tu empresa, el proyecto, lo que pides y la
-        documentación. Al final ves el expediente completo antes de enviarlo, y un
-        verificador te responde en {REVIEW_SLA_DAYS} días hábiles.
-      </p>
-      <motion.button
-        {...press}
-        onClick={onNewSubmission}
-        className="mt-2 text-[13px] font-medium underline decoration-dotted"
-        style={{ color: "var(--brand-ink)" }}
+    <motion.div variants={stagger()} initial="hidden" animate="show" className="mt-7">
+      {/* Las condiciones primero: es lo que un dueño de negocio necesita
+          para saber si esto le sirve, antes de invertir media hora en un
+          formulario. */}
+      <motion.div
+        variants={fadeUp}
+        className="grid grid-cols-2 gap-3 sm:grid-cols-4"
       >
-        Empezar el primero
-      </motion.button>
+        {condiciones.map((c) => (
+          <div key={c.dato} className="card p-4">
+            <div className="num text-[18px] font-semibold leading-none text-hi">
+              {c.dato}
+              {c.unidad && (
+                <span className="ml-1 text-[12px] font-medium text-mid">{c.unidad}</span>
+              )}
+            </div>
+            <div className="mt-1.5 text-[11.5px] leading-snug text-low">{c.pie}</div>
+          </div>
+        ))}
+      </motion.div>
+
+      <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-[1.35fr_1fr]">
+        <motion.section variants={fadeUp} className="card p-5">
+          <h2 className="label">Cómo funciona</h2>
+          <ol className="mt-3 flex flex-col gap-3">
+            {pasos.map((p, i) => (
+              <li key={p.titulo} className="flex gap-3">
+                <span
+                  className="num mt-[2px] flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold"
+                  style={{
+                    backgroundColor: "var(--brand-soft)",
+                    color: "var(--brand-ink)",
+                  }}
+                >
+                  {i + 1}
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[13px] font-medium text-hi">
+                    {p.titulo}
+                  </span>
+                  <span className="mt-0.5 block text-[12.5px] leading-relaxed text-mid">
+                    {p.detalle}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ol>
+        </motion.section>
+
+        <motion.section variants={fadeUp} className="card flex flex-col p-5">
+          <h2 className="label">Qué necesitas</h2>
+          <ul className="mt-3 flex flex-col gap-2.5">
+            {requisitos.map((r) => (
+              <li
+                key={r}
+                className="border-b border-border pb-2.5 text-[12.5px] leading-relaxed text-mid last:border-b-0 last:pb-0"
+              >
+                {r}
+              </li>
+            ))}
+          </ul>
+
+          <div className="mt-auto pt-5">
+            <Button size="lg" className="w-full" onClick={onNewSubmission}>
+              Armar mi expediente
+            </Button>
+            <p className="mt-2 text-[11.5px] leading-snug text-low">
+              Puedes enviarlo sin adjuntar documentos: el verificador te los
+              pide si le faltan.
+            </p>
+          </div>
+        </motion.section>
+      </div>
     </motion.div>
   );
 }

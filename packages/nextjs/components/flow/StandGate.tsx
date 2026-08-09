@@ -111,11 +111,26 @@ export function StandGate() {
         className="mx-auto grid w-full max-w-[620px] flex-1 grid-cols-1 items-center gap-8 py-7 sm:py-10 lg:max-w-[980px] lg:grid-cols-[1fr_minmax(380px,440px)] lg:gap-14"
       >
         <div>
+          {/* El titular nombra el intercambio, porque el intercambio ES el
+              negocio: entra capital, sale un proyecto financiado, y hay un
+              retorno pactado de por medio.
+
+              Decía "Crédito privado para empresas que ya facturan", y eso
+              no es el negocio: es un **requisito para calificar**. Vive en
+              la tarjeta del dueño de negocio, junto al resto de lo que se
+              le va a pedir, no encima de todo. Puesto acá, la primera cosa
+              que leía alguien que no sabe qué es crédito privado era una
+              condición de algo que todavía no le habían dicho qué era —
+              como abrir con la letra chica.
+
+              El mecanismo (garantía y orden de pago en el contrato) se
+              queda abajo, de apoyo. Diferencia, pero no explica: solo
+              significa algo para quien ya entendió qué se está financiando. */}
           <motion.h1
             variants={fadeUp}
             className="h1 text-[26px] leading-[1.1] text-balance sm:text-[34px] lg:text-[42px]"
           >
-            Crédito privado para empresas que ya facturan.
+            Capital para un proyecto concreto, con retorno pactado.
           </motion.h1>
 
           {/* Una línea, no un párrafo. Lo que cada travesía implica ya lo
