@@ -7,6 +7,8 @@ import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
 import { Button } from "@/components/ui/Button";
 import { Waiting } from "@/components/ui/Waiting";
 import { useProtocolToken } from "@/hooks/useProtocolToken";
+import { useAutoTopUp } from "@/hooks/useAutoTopUp";
+import { TOPUP_TOKEN_AMOUNT } from "@/lib/faucet/config";
 import { usePlatform } from "@/lib/data/store";
 import { useSession } from "@/lib/useSession";
 import { formatPen, formatUsdc, MOCK_PEN_PER_USD, penToUsdc, usdc } from "@/lib/format";
@@ -30,12 +32,13 @@ const METODOS: { key: MetodoPago; label: string }[] = [
  * Módulo dedicado para conseguir saldo. Siempre dice en cuál de los
  * modos está:
  *
- *   faucet       MockUSDC desplegado en la red configurada (devnet):
- *                transacción real, monto fijo del contrato, se espera el
- *                receipt.
- *   depósito     token real canónico (Circle USDC en Arbitrum Sepolia):
- *                no hay faucet, se muestra la dirección para depositar y
- *                el saldo se lee directo onchain.
+ *   recarga      MockUSDC desplegado en la red configurada (devnet o
+ *                Arbitrum Sepolia): la dispensadora del servidor manda
+ *                gas y token a la wallet. Es gratis y no se firma nada,
+ *                porque una wallet recién creada no tiene con qué firmar.
+ *   depósito     la dispensadora no está disponible (sin llave, sin gas o
+ *                sin fondos): queda mostrar la dirección para depositar
+ *                desde otra wallet, con el motivo dicho.
  *   simulación   sin contrato al que llamar: suma el saldo local. Dentro de
  *                este modo se puede simular además la rampa fiat (PEN vía
  *                Yape/Plin/Tarjeta, docs/pendientes.md bloque 5): no hay
@@ -47,8 +50,13 @@ export function AddFundsFlow({ onClose }: { onClose: () => void }) {
   const { balance, addFunds } = usePlatform();
   const { session } = useSession();
   const token = useProtocolToken(session?.address as Address | undefined);
-  const canFaucet = Boolean(token.faucetCapable && token.address && session?.address);
-  const canDeposit = Boolean(!token.faucetCapable && token.address && session?.address);
+  // `auto: false`: el goteo automático ya lo hace Arranque al
+  // entrar. Acá solo se pide el estado y se ofrece el botón.
+  const topUp = useAutoTopUp({ auto: false });
+
+  const onChain = Boolean(token.address && session?.address);
+  const canTopUp = onChain && token.faucetCapable && topUp.status?.available !== false;
+  const canDeposit = onChain && !canTopUp;
 
   const [step, setStep] = useState<Step>("monto");
   const [amount, setAmount] = useState("1000");
@@ -62,8 +70,8 @@ export function AddFundsFlow({ onClose }: { onClose: () => void }) {
   const value = moneda === "pen" ? penToUsdc(parsed) : usdc(parsed);
 
   const metodoLabel = METODOS.find((m) => m.key === metodo)?.label ?? "";
-  const pasos = canFaucet
-    ? ["Firmando la transacción", "Esperando confirmación en la red"]
+  const pasos = canTopUp
+    ? ["Enviando gas a tu wallet", "Acreditando el token de prueba"]
     : moneda === "pen"
       ? [`Confirmando el pago con ${metodoLabel} (simulado)`, "Acreditando USDC"]
       : ["Actualizando saldo de demostración"];
@@ -78,10 +86,13 @@ export function AddFundsFlow({ onClose }: { onClose: () => void }) {
 
     (async () => {
       try {
-        if (canFaucet) {
+        if (canTopUp) {
+          // El servidor manda gas y token: acá no se firma nada, porque
+          // una wallet vacía no puede firmar. El monto lo fija
+          // lib/faucet/config.ts, no esta pantalla.
           setProgress(1);
-          // Monto fijo: lo define el contrato, no esta pantalla.
-          await token.faucet();
+          const dripped = await topUp.topUp();
+          if (!dripped) throw new Error(topUp.error ?? "No se pudo recargar");
         } else if (moneda === "pen") {
           // Dos pasos simulados para que no se sienta instantáneo: "pago
           // confirmado" y luego "acreditado" son eventos distintos en
@@ -152,9 +163,9 @@ export function AddFundsFlow({ onClose }: { onClose: () => void }) {
               >
                 <div className="label">Saldo actual</div>
                 <div className="num mt-1 text-[22px] font-bold text-hi">
-                  {formatUsdc(canFaucet || canDeposit ? (token.balance ?? 0n) : balance)}{" "}
+                  {formatUsdc(onChain ? (token.balance ?? 0n) : balance)}{" "}
                   <span className="text-[13px] text-low">
-                    {canFaucet || canDeposit ? token.symbol : "USDC"}
+                    {onChain ? token.symbol : "USDC"}
                   </span>
                 </div>
 
@@ -170,16 +181,26 @@ export function AddFundsFlow({ onClose }: { onClose: () => void }) {
                 {/* Los tres modos tenían dos párrafos cada uno explicando qué
                     es un faucet, qué es un bridge y qué token es cuál. Queda
                     la línea que cambia lo que la persona hace después. */}
-                {canFaucet ? (
-                  <p className="mt-5 text-[13px] leading-relaxed text-mid">
-                    {token.symbol} es un token de prueba, no el USDC de Circle.
-                    El monto lo fija el contrato.
-                  </p>
+                {canTopUp ? (
+                  <>
+                    <p className="mt-5 text-[13px] leading-relaxed text-mid">
+                      Recibe {TOPUP_TOKEN_AMOUNT.toLocaleString("es-PE")}{" "}
+                      {token.symbol} y el gas para operar, sin costo. Es un token
+                      de prueba en Arbitrum Sepolia, no el USDC de Circle.
+                    </p>
+                    {topUp.status?.balance && (
+                      <p className="num mt-2 text-[11.5px] text-low">
+                        Gas disponible: {Number(topUp.status.balance.eth).toFixed(4)} ETH
+                      </p>
+                    )}
+                  </>
                 ) : canDeposit ? (
                   <>
                     <p className="mt-5 text-[13px] leading-relaxed text-mid">
-                      Envía USDC a esta dirección desde otra wallet. El saldo se
-                      lee directo onchain.
+                      {topUp.status?.reason ??
+                        "La recarga automática no está disponible"}
+                      . Mientras tanto, envía {token.symbol} a esta dirección desde
+                      otra wallet.
                     </p>
                     <div className="num mt-3 break-all rounded-[var(--r-input)] border border-border bg-surface px-3 py-2.5 text-[12px] text-mid">
                       {session?.address}
@@ -288,11 +309,11 @@ export function AddFundsFlow({ onClose }: { onClose: () => void }) {
                 <Button
                   className="mt-5 w-full"
                   size="lg"
-                  disabled={!canFaucet && !canDeposit && parsed <= 0}
+                  disabled={!canTopUp && !canDeposit && parsed <= 0}
                   onClick={canDeposit ? onClose : () => setStep("procesando")}
                 >
-                  {canFaucet
-                    ? `Recibir ${token.symbol} de prueba`
+                  {canTopUp
+                    ? `Recibir ${TOPUP_TOKEN_AMOUNT.toLocaleString("es-PE")} ${token.symbol}`
                     : canDeposit
                       ? "Listo"
                       : moneda === "pen"
@@ -357,7 +378,7 @@ export function AddFundsFlow({ onClose }: { onClose: () => void }) {
                 {/* La billetera dentro de un círculo verde no agregaba nada
                     que la cifra no diga. El spring entra con el número. */}
                 <div className="text-[13px] text-mid">
-                  {canFaucet ? "Saldo en tu wallet" : "Nuevo saldo"}
+                  {canTopUp ? "Saldo en tu wallet" : "Nuevo saldo"}
                 </div>
                 <motion.div
                   initial={{ scale: 0.9, opacity: 0 }}
@@ -365,9 +386,15 @@ export function AddFundsFlow({ onClose }: { onClose: () => void }) {
                   transition={{ ...T.spring, delay: 0.05 }}
                   className="mt-0.5"
                 >
-                  {canFaucet ? (
+                  {canTopUp ? (
+                    // El saldo sale de lo que devolvió la dispensadora, no de
+                    // la lectura de wagmi: el receipt ya confirmó, pero el
+                    // hook todavía puede estar sirviendo el valor viejo.
                     <div className="num text-[30px] font-bold text-hi">
-                      {formatUsdc(token.balance ?? 0n)}
+                      {(
+                        topUp.result?.balance.token ??
+                        Number((token.balance ?? 0n) / 1_000_000n)
+                      ).toLocaleString("es-PE")}
                       <span className="text-[14px] text-low"> {token.symbol}</span>
                     </div>
                   ) : (

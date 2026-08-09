@@ -19,8 +19,20 @@ type ProtocolDeployment = {
 };
 
 /**
- * Token de pago canónico del protocolo por red. En Arbitrum Sepolia es el
- * USDC de Circle (sin faucet); en devnet cae al MockUSDC desplegado.
+ * Token de pago canónico del protocolo por red: el MockUSDC desplegado,
+ * en devnet y en Arbitrum Sepolia por igual.
+ *
+ * Antes en Arbitrum Sepolia se apuntaba al USDC de Circle, y eso dejaba
+ * la app en un callejón: ese token no tiene faucet, así que la única
+ * forma de tener saldo era conseguir USDC de testnet por fuera y
+ * mandarlo a mano. Nadie que abriera el producto por primera vez podía
+ * llegar a invertir. El CreditVault de esa red además está desplegado
+ * SIN inicializar (`payment_token` = 0x0), así que nada ataba la app a
+ * Circle: era una elección, no una restricción del contrato.
+ *
+ * MockUSDC es exclusivamente de desarrollo y JAMÁS debe presentarse como
+ * USDC oficial (PRODUCT.md §Evidence). Por eso el símbolo es "mUSDC" en
+ * las dos redes: el nombre en pantalla no miente sobre qué es.
  */
 export const ARBITRUM_SEPOLIA_USDC_ADDRESS =
   "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d";
@@ -75,7 +87,16 @@ export type ProtocolToken = {
 
 export function getProtocolToken(chainId?: number): ProtocolToken {
   const id = chainId ?? protocolChain.id;
-  if (id === arbitrumSepolia.id) {
+  const deployments = deployedContracts as unknown as Record<
+    string,
+    Record<string, ProtocolDeployment> | undefined
+  >;
+  const mockUsdc = deployments[String(id)]?.["MockUSDC"];
+
+  // Sin MockUSDC desplegado en esta red no hay token de pago que valga:
+  // se cae al USDC de Circle solo para que la lectura de saldo no
+  // reviente, y el faucet queda apagado (lo dice `faucetCapable`).
+  if (!mockUsdc && id === arbitrumSepolia.id) {
     return {
       address: ARBITRUM_SEPOLIA_USDC_ADDRESS as Address,
       abi: usdcAbi,
@@ -83,16 +104,12 @@ export function getProtocolToken(chainId?: number): ProtocolToken {
       faucetCapable: false,
     };
   }
-  const deployments = deployedContracts as unknown as Record<
-    string,
-    Record<string, ProtocolDeployment> | undefined
-  >;
-  const mockUsdc = deployments[String(id)]?.["MockUSDC"];
+
   return {
     address: mockUsdc?.address,
     abi: mockUsdc?.abi ?? mockUsdcAbi,
     symbol: "mUSDC",
-    faucetCapable: true,
+    faucetCapable: Boolean(mockUsdc?.address),
   };
 }
 

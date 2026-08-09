@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence } from "motion/react";
 import { AddFundsFlow } from "@/components/flow/AddFundsFlow";
-import { AuthFlow } from "@/components/flow/AuthFlow";
+import { SaldoDePrueba } from "@/components/flow/SaldoDePrueba";
+import { StandGate } from "@/components/flow/StandGate";
 import { Deck } from "@/components/flow/Deck";
 import { DetailOverlay } from "@/components/flow/DetailOverlay";
 import { Onboarding } from "@/components/flow/Onboarding";
@@ -14,6 +15,7 @@ import { TopBar } from "@/components/flow/TopBar";
 import { Logo } from "@/components/ui/Logo";
 import { Waiting } from "@/components/ui/Waiting";
 import { usePlatform } from "@/lib/data/store";
+import { clearIntendedRole, readIntendedRole } from "@/lib/intendedRole";
 import { useOnce } from "@/lib/useOnce";
 import { useSession } from "@/lib/useSession";
 import type { Opportunity } from "@/lib/types";
@@ -22,7 +24,9 @@ import type { Opportunity } from "@/lib/types";
  * Módulo único. No hay rutas ni scroll de página: todo ocurre en esta
  * pantalla mediante capas y transiciones.
  *
- *   AuthFlow          primer contacto: conexión real de wallet (wagmi). Sin chrome.
+ *   StandGate          primer contacto: se elige travesía y la wallet se crea
+ *                      como consecuencia. Sin chrome.
+ *   SaldoDePrueba      acreditación del saldo, en una franja que no detiene nada.
  *   Onboarding         explicación en pasos, UNA sola vez por navegador.
  *   Deck                catálogo paginado.
  *   DetailOverlay      ficha de la operación, en pasos.
@@ -30,7 +34,7 @@ import type { Opportunity } from "@/lib/types";
  *   ProfilePanel        módulo dedicado a la cuenta y su verificación.
  */
 export default function App() {
-  const { session, signOut, verify, deleteAccount } = useSession();
+  const { session, signOut, verify, deleteAccount, chooseRole } = useSession();
   const { seen, markSeen, reset } = useOnce("founding.intro");
   const { getOpportunity } = usePlatform();
   const router = useRouter();
@@ -44,13 +48,28 @@ export default function App() {
   // texto rojo.
   const [profileAskingAccess, setProfileAskingAccess] = useState(false);
 
-  // Cada pantalla en su URL: elegir rol vive en /rol, y una wallet de
-  // empresa que cayó acá (link viejo, botón "atrás") se va a la suya.
+  // El rol ya se eligió en la puerta, antes de que existiera la wallet
+  // (StandGate). Acá solo se aplica: la elección viajó en localStorage
+  // porque en el medio hubo un modal de Privy. Quien llegó sin elección
+  // guardada —link directo, sesión vieja de antes de este cambio— sí va a
+  // /rol, que sigue siendo la pantalla de la pregunta.
+  //
+  // Una wallet de empresa que cayó acá (link viejo, botón "atrás") se va
+  // a la suya.
   useEffect(() => {
     if (!session) return;
-    if (session.role === null) router.replace("/rol");
-    else if (session.role === "business") router.replace("/solicitar");
-  }, [session, router]);
+    if (session.role === null) {
+      const intended = readIntendedRole();
+      if (intended) {
+        clearIntendedRole();
+        chooseRole(intended);
+      } else {
+        router.replace("/rol");
+      }
+      return;
+    }
+    if (session.role === "business") router.replace("/solicitar");
+  }, [session, router, chooseRole]);
 
   // Este es el único módulo sin scroll de página (ver globals.css) — la
   // clase se agrega/quita con el ciclo de vida de esta pantalla para que
@@ -94,7 +113,9 @@ export default function App() {
   // Sin pantalla de confirmación extra: si Privy ya reconectó la wallet
   // (recarga de página, nueva pestaña), se entra directo — la fricción
   // de "wallet instantánea" era justamente lo que este paso rompía.
-  if (session === null) return <AuthFlow />;
+  //
+  // La puerta ya no pide una wallet: pide una travesía. Ver StandGate.
+  if (session === null) return <StandGate />;
 
   // Desde el portafolio: cierra el panel y abre la ficha. Sin esto, dos
   // capas al mismo z-index se pisarían entre sí.
@@ -105,7 +126,10 @@ export default function App() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col lg:h-screen lg:overflow-hidden">
+    // El shell es una sola pantalla en los dos tamaños. En el teléfono
+    // usa svh y no vh: con vh, la barra de direcciones del navegador se
+    // come el pie de la pila y la última carta queda cortada.
+    <div className="flex h-[100svh] flex-col overflow-hidden">
       <TopBar
         session={session}
         onOpenPortfolio={() => setPortfolio(true)}
@@ -114,7 +138,7 @@ export default function App() {
         onReplayIntro={reset}
       />
 
-      <main className="flex-1 lg:min-h-0">
+      <main className="min-h-0 flex-1">
         <Deck onSelect={setSelected} />
       </main>
 
@@ -140,6 +164,9 @@ export default function App() {
       </AnimatePresence>
 
       <AnimatePresence>{funds && <AddFundsFlow onClose={() => setFunds(false)} />}</AnimatePresence>
+      {/* La acreditación del saldo corre detrás del catálogo, no delante:
+          entrar no puede depender de que la red confirme. Ver SaldoDePrueba. */}
+      <SaldoDePrueba />
 
       <AnimatePresence>
         {portfolio && (
