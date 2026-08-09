@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion } from "motion/react";
 import { Logo } from "@/components/ui/Logo";
 import { Waiting } from "@/components/ui/Waiting";
+import { shortHash } from "@/lib/format";
 import { setIntendedRole } from "@/lib/intendedRole";
 import { fadeUp, press, stagger, T } from "@/lib/motion";
 import { useSession, type Role } from "@/lib/useSession";
@@ -54,10 +55,29 @@ export function StandGate() {
    */
   const yaEs = session?.role ?? knownRole;
 
+  /**
+   * Con quién volvemos: el correo si Privy lo tiene, y si no la wallet.
+   *
+   * Cuando esto existe junto con `yaEs`, la pantalla deja de ser una
+   * elección. Mostrar la tarjeta del lado Y un "continuar como…" era
+   * ofrecer dos controles para exactamente la misma acción: tocar
+   * cualquiera de los dos reanudaba la misma sesión. Ya no se pregunta lo
+   * que ya está respondido — se confirma quién entra.
+   */
+  const identidad = pendingAccount ?? (session ? shortHash(session.address, 6) : null);
+  const vuelve = Boolean(yaEs && identidad);
+
   function choose(role: Role) {
     setChosen(role);
     setIntendedRole(role);
     connectWallet();
+  }
+
+  /** Entrar con la sesión que ya existe: la de siempre, sin código. */
+  function volver() {
+    setChosen(yaEs);
+    if (pendingAccount) resumeSession();
+    else connectWallet();
   }
 
   return (
@@ -105,67 +125,69 @@ export function StandGate() {
             variants={fadeUp}
             className="mt-3 max-w-[42ch] text-[14px] leading-relaxed text-mid sm:mt-4 sm:text-[15px]"
           >
-            {yaEs
-              ? "Tu wallet ya está de este lado."
+            {vuelve
+              ? `Vuelves como ${yaEs === "investor" ? "inversionista" : "dueño de negocio"}.`
               : "La garantía y el orden de pago se ejecutan en el contrato."}
           </motion.p>
         </div>
 
         <div className="flex flex-col gap-3">
-          {/* Una tarjeta o dos, según lo que esta wallet pueda elegir de
-              verdad. Mostrar las dos y rechazar una al tocarla es pedir una
-              decisión ya tomada para después corregirla. */}
-          {yaEs !== "business" && (
+          {/* Quien vuelve no elige: entra. La tarjeta muestra CON QUÉ
+              cuenta —que es el único dato que aún no está decidido— y el
+              lado baja a ser un dato más de esa cuenta. */}
+          {vuelve ? (
             <TravesiaCard
-              title="Soy inversionista"
-              detail="Pongo capital en una operación y sigo cómo se libera por hitos hasta el repago."
-              aside={`Entras con ${TOPUP_TOKEN_AMOUNT.toLocaleString("es-PE")} USDC de prueba ya acreditados.`}
-              busy={connecting && chosen === "investor"}
-              disabled={connecting && chosen !== "investor"}
-              onClick={() => choose("investor")}
+              title={identidad!}
+              detail={
+                yaEs === "investor"
+                  ? "Sigues donde estabas: el catálogo y las operaciones que ya miraste."
+                  : "Sigues donde estabas: tus expedientes y su estado de revisión."
+              }
+              aside={
+                yaEs === "investor"
+                  ? `${TOPUP_TOKEN_AMOUNT.toLocaleString("es-PE")} USDC de prueba en tu wallet.`
+                  : "Tu expediente, donde lo dejaste."
+              }
+              busy={connecting}
+              disabled={false}
+              action="Entrar"
+              onClick={volver}
             />
-          )}
-          {yaEs !== "investor" && (
-            <TravesiaCard
-              title="Soy dueño de negocio"
-              detail="Armo el expediente de mi empresa —ventas, garantía, proyecto— y lo envío a revisión."
-              aside="Entras con un expediente por armar, no con saldo."
-              busy={connecting && chosen === "business"}
-              disabled={connecting && chosen !== "business"}
-              onClick={() => choose("business")}
-            />
+          ) : (
+            <>
+              <TravesiaCard
+                title="Soy inversionista"
+                detail="Pongo capital en una operación y sigo cómo se libera por hitos hasta el repago."
+                aside={`Entras con ${TOPUP_TOKEN_AMOUNT.toLocaleString("es-PE")} USDC de prueba ya acreditados.`}
+                busy={connecting && chosen === "investor"}
+                disabled={connecting && chosen !== "investor"}
+                onClick={() => choose("investor")}
+              />
+              <TravesiaCard
+                title="Soy dueño de negocio"
+                detail="Armo el expediente de mi empresa —ventas, garantía, proyecto— y lo envío a revisión."
+                aside="Entras con un expediente por armar, no con saldo."
+                busy={connecting && chosen === "business"}
+                disabled={connecting && chosen !== "business"}
+                onClick={() => choose("business")}
+              />
+            </>
           )}
 
-          {/* Las dos salidas secundarias en un solo renglón: reanudar la
-              sesión de quien acaba de cerrarla, y ceder el teléfono a la
-              siguiente persona. Antes eran dos frases completas, una
-              debajo de la otra, compitiendo con la decisión. */}
-          {!connecting && (pendingAccount || yaEs) && (
-            <motion.p
-              variants={fadeUp}
-              className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-low"
-            >
-              {pendingAccount && (
-                <button
-                  onClick={resumeSession}
-                  className="focusable font-medium underline decoration-dotted underline-offset-4"
-                  style={{ color: "var(--brand-ink)" }}
-                >
-                  Continuar como {pendingAccount}
-                </button>
-              )}
-              {pendingAccount && yaEs && <span aria-hidden>·</span>}
-              {yaEs && (
-                <button
-                  onClick={() => {
-                    setIntendedRole(yaEs === "investor" ? "business" : "investor");
-                    switchAccount();
-                  }}
-                  className="focusable underline decoration-dotted underline-offset-4 transition-colors hover:text-hi"
-                >
-                  Entrar con otra cuenta
-                </button>
-              )}
+          {/* La única salida que queda: este teléfono es de otra persona.
+              Antes acá convivían dos enlaces, y uno de ellos hacía lo
+              mismo que el botón de la tarjeta. */}
+          {vuelve && !connecting && (
+            <motion.p variants={fadeUp} className="text-[12.5px] text-low">
+              <button
+                onClick={() => {
+                  setIntendedRole(yaEs === "investor" ? "business" : "investor");
+                  switchAccount();
+                }}
+                className="focusable underline decoration-dotted underline-offset-4 transition-colors hover:text-hi"
+              >
+                No soy yo — entrar con otra cuenta
+              </button>
             </motion.p>
           )}
 
@@ -204,6 +226,7 @@ function TravesiaCard({
   aside,
   busy,
   disabled,
+  action = "Entrar",
   onClick,
 }: {
   title: string;
@@ -211,6 +234,8 @@ function TravesiaCard({
   aside: string;
   busy: boolean;
   disabled: boolean;
+  /** Palabra de la acción. Quien vuelve no elige un lado: entra. */
+  action?: string;
   onClick: () => void;
 }) {
   return (
@@ -223,7 +248,7 @@ function TravesiaCard({
       transition={T.fast}
       className="focusable card card-hover group flex min-h-[118px] flex-col items-start gap-1.5 p-4 text-left disabled:opacity-45 sm:min-h-[150px] sm:gap-2 sm:p-6"
     >
-      <span className="h2 text-[18px] sm:text-[20px]">{title}</span>
+      <span className="h2 w-full truncate text-[18px] sm:text-[20px]">{title}</span>
       <span className="text-[13.5px] leading-relaxed text-mid">{detail}</span>
 
       <span className="mt-auto flex w-full items-center justify-between gap-3 pt-3">
@@ -235,7 +260,7 @@ function TravesiaCard({
             className="shrink-0 text-[12.5px] font-semibold underline decoration-transparent underline-offset-4 transition-colors group-hover:decoration-current"
             style={{ color: "var(--brand-ink)" }}
           >
-            Entrar
+            {action}
           </span>
         )}
       </span>
