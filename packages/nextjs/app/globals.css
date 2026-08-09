@@ -137,15 +137,26 @@ body {
   overflow-x: hidden; /* nunca scroll horizontal, ni en mobile */
 }
 
+/* Solo el módulo único del inversionista (app/page.tsx) es una sola
+   pantalla sin scroll de página — otras rutas (ej. /solicitar) son
+   documentos normales y sí necesitan poder scrollear.
+
+   Desde agosto 2026 esto vale TAMBIÉN en el teléfono. El cero-scroll no
+   se abandonó en móvil: cambió de forma. El catálogo pasa a una pila que
+   se desliza —una operación por pantalla, con anclaje obligatorio— que
+   es el mismo principio de "se pagina, no se hace scroll" dicho en el
+   gesto que un pulgar ya conoce. Lo que scrollea es la pila por dentro,
+   carta a carta; la página nunca. */
+body.app-shell {
+  overflow: hidden;
+  /* La barra de direcciones de un navegador móvil aparece y desaparece:
+     100vh mide la pantalla sin ella y deja la última carta cortada. */
+  height: 100svh;
+}
+
 @media (min-width: 1024px) {
   body {
     min-width: var(--shell-min);
-  }
-  /* Solo el módulo único del inversionista (app/page.tsx) es una sola
-     pantalla sin scroll de página — otras rutas (ej. /solicitar) son
-     documentos normales y sí necesitan poder scrollear. */
-  body.app-shell {
-    overflow: hidden;
   }
 }
 

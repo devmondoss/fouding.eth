@@ -21,13 +21,15 @@ const CASES = [
   {
     path: "/rol",
     expectUrl: "/login",
-    expectText: "Invierte en empresas",
+    // Sin sesión, elegir rol manda a la puerta — que ES la pantalla de
+    // elegir rol, solo que antes de la wallet en vez de después.
+    expectText: "Soy inversionista",
     why: "elegir rol exige sesión",
   },
   {
     path: "/negocios",
     expectUrl: "/negocios",
-    expectText: "Financia tu próxima etapa",
+    expectText: "Tu maquinaria vale",
     why: "página pública de venta, nunca un interstitial",
   },
   {
@@ -39,8 +41,10 @@ const CASES = [
   {
     path: "/login",
     expectUrl: "/login",
-    expectText: "Invierte en empresas",
-    why: "login de inversionista",
+    // La puerta ya no pide una wallet, pide una travesía: es la misma
+    // StandGate que sirve `/`. Ver app/login/page.tsx.
+    expectText: "Soy inversionista",
+    why: "puerta de entrada con URL propia, enlazable desde el QR",
   },
 ];
 

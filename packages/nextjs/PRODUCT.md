@@ -36,7 +36,8 @@ Lo que un producto vecino no puede copiar sin cambiar su modelo:
 
 Doble contexto confirmado por el usuario: **demo ahora, piloto después**. Ninguna decisión debe optimizar la demo de forma que haya que deshacerla en el piloto.
 
-- **Demo de hackathon** — track Arbitrum, categoría RWA. Se juzga en ~3 minutos, en proyector, ante jurado, sin usuarios reales. Criterios y pesos: implementación técnica 25%, uso de Arbitrum 20%, impacto del problema 20%, innovación 15%, **experiencia de usuario 15%**, presentación 5%. El guion de demo recorre: problema → publicación de la oportunidad → inversión con capital visible en escrow → aprobación de hito → **default con waterfall** → cierre con gas medido.
+- **Demo de hackathon** — track Arbitrum, categoría RWA. Criterios y pesos: implementación técnica 25%, uso de Arbitrum 20%, impacto del problema 20%, innovación 15%, **experiencia de usuario 15%**, presentación 5%. El guion recorre: problema → publicación de la oportunidad → inversión con capital visible en escrow → aprobación de hito → **default con waterfall** → cierre con gas medido.
+- **Stand con público general** — confirmado el 2026-08-08, y es el escenario que manda sobre el de proyector. No es un jurado evaluando tres minutos: es gente que pasa, escanea un QR y entra **en su propio teléfono**, con 60 a 180 segundos de atención y sin saber qué es private credit. Consecuencias que no son de estética: móvil es la superficie primaria, varias personas recorren a la vez sobre el mismo catálogo, la sesión se la llevan puesta al irse, y cada travesía tiene que cerrar sola sin depender de que haya alguien del equipo libre. El wifi de evento hace de la espera de red un estado protagonista, no un detalle.
 - **Piloto en Perú** — jurisdicción del MVP. La verificación de ventas se apoya en consulta RUC pública y en comprobantes electrónicos que la empresa delega; la garantía se inscribe en registro público (garantía mobiliaria o hipoteca) y su número de inscripción es mostrable en la ficha. Uso repetido, densidad de dato y estados de error importan tanto como el impacto inicial.
 - **Documentos y datos personales viven fuera de cadena.** Onchain solo van identificadores y hashes `bytes32` verificables. Esto es una restricción operativa, no un detalle técnico.
 
@@ -47,10 +48,10 @@ Doble contexto confirmado por el usuario: **demo ahora, piloto después**. Ningu
 **Arquitectura de aplicación — se conserva sin cambios** (decisión explícita del usuario en este rediseño):
 
 - Un solo módulo, cero scroll de página en la app del inversionista; todo lo demás son capas y transiciones sobre él.
-- Se pagina, no se hace scroll (flechas, puntos, teclado ←/→); la ficha avanza por pasos.
+- Se pagina, no se hace scroll. **El gesto cambia con el dispositivo, la regla no**: en escritorio son tres por página con flechas y ←/→; en teléfono es una operación por pantalla en una pila con anclaje obligatorio. La ficha avanza por pasos en los dos.
 - Excepción honesta: dentro de la ficha y del panel lateral hay scroll interno en pantallas bajas. Rutas como `/solicitar` son documentos normales y sí scrollean.
-- Desktop-only, calibrado a **1366×768**. Sin breakpoints responsive por ahora.
-- El primer contacto no tiene chrome ni formulario: un botón crea la wallet y entras. Lo ya explicado no se repite (onboarding marcado en `localStorage`).
+- Calibrado a **390×844 y 1366×768**, en las cuatro superficies. El verificador es la única que no baja a 390: es la herramienta del operador, responde desde 768.
+- El primer contacto no pide una wallet, pide una travesía: se elige inversionista o dueño de negocio y la wallet se crea como consecuencia. Al inversionista se le acredita saldo de prueba solo, en una pantalla dedicada; al dueño de negocio no, y esa asimetría se dice. Lo ya explicado no se repite (onboarding marcado en `localStorage`).
 
 **Stack y restricciones técnicas:** Next.js 16 / React 19 con Tailwind v4; Privy como fuente de sesión y wallet; wagmi/viem para lectura, simulación, firma y receipts; Neon para datos fuera de cadena; recharts para gráficos; `motion` para animación. Build de producción en Webpack (Turbopack 16.3.0 entra en panic con PostCSS/local fonts en WSL). Contratos: Solidity/Foundry para identidad y registro, Rust Stylus para la máquina financiera. Arbitrum Sepolia con USDC de Circle como token canónico.
 

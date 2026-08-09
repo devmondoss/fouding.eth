@@ -73,6 +73,24 @@ export const sheet: Variants = {
   exit: { x: "100%", transition: { duration: DUR.fast, ease: EASE } },
 };
 
+/** Hoja que sube desde abajo. Es la forma que toma `dialog` en un
+ *  teléfono: una capa que crece desde el centro no tiene de dónde crecer
+ *  cuando ocupa el viewport entero, y el borde inferior es el único que
+ *  la mano alcanza. Misma curva, mismo rol — otra dirección. */
+export const sheetUp: Variants = {
+  hidden: { y: "100%" },
+  show: { y: 0, transition: { duration: DUR.base, ease: EASE } },
+  exit: { y: "100%", transition: { duration: DUR.fast, ease: EASE } },
+};
+
+/** Carta del deck en móvil: entra desde el lado por el que se deslizó.
+ *  El eje es vertical porque el pulgar recorre la pila hacia arriba. */
+export const card = (dir: number, distance = 40): Variants => ({
+  hidden: { opacity: 0, y: dir * distance },
+  show: { opacity: 1, y: 0, transition: T.base },
+  exit: { opacity: 0, y: dir * -distance, transition: T.fast },
+});
+
 /** Respuesta táctil compartida por todo lo pulsable. */
 export const press = {
   whileHover: { y: -1 },

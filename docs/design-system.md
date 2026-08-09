@@ -15,7 +15,7 @@ Fuente de verdad ejecutable: [packages/nextjs/app/globals.css](packages/nextjs/a
 3. **El color semántico solo aparece cuando el dato lo exige**: verde para lo que va bien, ámbar para lo que espera decisión, rojo para pérdida e incumplimiento.
 4. **Una sola familia tipográfica.** Mona Sans en todo el producto; la jerarquía la marca el peso, no la fuente.
 5. **El copy es institucional, no de consumo.** Esto mueve capital real de terceros. Nada de "si algo sale mal" ni frases coloquiales como título — ver §8.
-6. **Calibrado para 1366×768.** Una pantalla de trabajo debe entregar lo esencial sin scroll.
+6. **Calibrado para 390×844 y 1366×768.** Una pantalla debe entregar lo esencial sin scroll de página, en el teléfono y en el escritorio. Ver §6.1.
 
 ---
 
@@ -218,6 +218,26 @@ Las tres últimas **no** heredan el cero-scroll: son documentos y herramientas, 
 
 ---
 
+## 6.1 El teléfono — agosto 2026
+
+**El cero-scroll no se abandonó en móvil: cambió de eje.** Hasta este cambio, debajo de `lg` el catálogo era una lista vertical corriente y `body.app-shell` solo bloqueaba el scroll desde 1024px. O sea que el principio 1 del sistema solo existía en escritorio, y en el teléfono —donde ahora entra la mayoría de la gente— el producto se leía como un feed.
+
+| | Escritorio | Teléfono |
+| --- | --- | --- |
+| Catálogo | Tres por página, flechas y ←/→ | **Una por pantalla**, pila con anclaje obligatorio |
+| Ficha | Diálogo que crece desde el centro | **Hoja que sube** desde el borde de abajo (`sheetUp`) |
+| Scroll de página | Nunca | Nunca |
+
+Tres reglas que sostienen esto:
+
+- **El gesto sale del navegador, no de una librería.** La pila es `snap-y snap-mandatory` sobre un contenedor con `overflow-y`. Un arrastre interpretado a mano da lo mismo en pantalla y cuesta el teclado, el lector de pantalla, el orden del documento y el impulso nativo.
+- **`svh`, nunca `vh`.** La barra de direcciones de un navegador móvil aparece y desaparece; con `vh` la última carta de la pila queda cortada bajo ella.
+- **Objetivo táctil ≥44px.** El piso de 24px de §7.2 es de puntero. Un dedo en un stand, de pie, con el teléfono en la otra mano, necesita 44.
+
+**Qué se pliega y qué no.** En la barra superior el saldo es lo único que no se achica: es el dato que dice si puedes hacer algo. Lo que se va es la dirección de la wallet —cuatro caracteres de un hash no le dicen nada a nadie— y lo que se queda en su lugar es el estado que gobierna la inversión: "Con acceso" / "Sin acceso".
+
+---
+
 ## 7. Movimiento
 
 El movimiento es parte del sistema, no del componente. Todo sale de [packages/nextjs/lib/motion.ts](packages/nextjs/lib/motion.ts).
@@ -308,7 +328,7 @@ Los términos técnicos siguen en el código y en la documentación de producto;
 - ✅ Un solo módulo **en la superficie del inversionista**. Se pagina y se navega por capas, nunca por scroll de página.
 - ✅ Toda cifra en `.num`.
 - ✅ El color semántico se usa por significado, nunca por decoración.
-- ✅ Diseñar para 1366×768.
+- ✅ Diseñar para 390×844 **y** 1366×768.
 - ✅ **Los componentes leen tokens, nunca literales.** Vale para color, y desde agosto 2026 también para **geometría** (`--w-wide`/`--w-panel`/`--w-doc`) y **movimiento** (`lib/motion.ts`). Esta era la regla que el proyecto decía tener y solo cumplía para color.
 - ✅ **Un estado, un nombre.** Los cinco estados salen de `STATUS_LABEL`. Llegó a haber tres nombres para `funding` —"En recaudación", "En fondeo", "Levantando capital"— visibles a dos clics de distancia.
 - ✅ **Toda acción irreversible se confirma**, y con el mismo peso: si borrar la cuenta tiene un modal diseñado, declarar un incumplimiento y emitir un pasaporte soulbound también. Nada de `window.confirm`.
@@ -321,7 +341,7 @@ Los términos técnicos siguen en el código y en la documentación de producto;
 - ❌ Sin `backdrop-filter` en filas de listas largas — solo en la barra pegajosa de `/negocios`, que es el único sitio donde algo se superpone a contenido que scrollea.
 - ❌ Sin antetítulos (`label` en 11px encima de un `h1`). El titular se sostiene solo; si el antetítulo tenía información —como las etapas del onboarding— esa información va a la navegación, no encima del título.
 - ❌ Sin tres tarjetas del mismo tamaño con ícono, título y texto como estructura de página. Es el contenedor perezoso y se nota.
-- ❌ Sin breakpoints responsive en la superficie del inversionista: desktop only. Las otras tres sí responden.
+- ❌ Sin gestos reimplementados a mano donde el navegador ya tiene uno. La pila del catálogo usa anclaje de scroll de CSS y no un arrastre interpretado: un arrastre propio se lleva puestos el teclado, el lector de pantalla y el impulso nativo, y hay que reconstruir los tres.
 
 ---
 

@@ -14,7 +14,8 @@ import { StatusPill, Tag } from "@/components/ui/Pill";
 import { Metric } from "@/components/ui/Stat";
 import { formatBps, formatUsdc } from "@/lib/format";
 import { useFocusTrap, useLayerKeys } from "@/lib/keyboard";
-import { dialog, scrim, slide, T } from "@/lib/motion";
+import { dialog, scrim, sheetUp, slide, T } from "@/lib/motion";
+import { useEsHoja } from "@/lib/useViewport";
 import { expectedInterest, issuerTrackRecord } from "@/lib/opportunity";
 import type { Opportunity } from "@/lib/types";
 
@@ -70,6 +71,7 @@ export function DetailOverlay({
   });
 
   const panelRef = useFocusTrap<HTMLDivElement>(true);
+  const esHoja = useEsHoja();
 
   return (
     <motion.div
@@ -86,12 +88,17 @@ export function DetailOverlay({
         role="dialog"
         aria-modal="true"
         aria-label={`${o.projectTitle} — ${o.company.name}`}
-        variants={dialog}
+        // Una capa que crece desde el centro no tiene de dónde crecer
+        // cuando ya ocupa el viewport entero: en el teléfono el gesto se
+        // perdía y la ficha simplemente aparecía. Sube desde el borde de
+        // abajo, que además es el único que el pulgar alcanza para
+        // devolverla. Misma curva, mismo rol, otra dirección.
+        variants={esHoja ? sheetUp : dialog}
         initial="hidden"
         animate="show"
         exit="exit"
         onClick={(e) => e.stopPropagation()}
-        className="m-auto flex h-full w-full flex-col overflow-hidden border-border shadow-[var(--shadow-lg)] lg:h-[calc(100vh-48px)] lg:w-[min(var(--w-wide),calc(100vw-48px))] lg:rounded-[var(--r-card)] lg:border"
+        className="mt-auto flex h-[92svh] w-full flex-col overflow-hidden rounded-t-[var(--r-card)] border-border shadow-[var(--shadow-lg)] lg:m-auto lg:h-[calc(100vh-48px)] lg:w-[min(var(--w-wide),calc(100vw-48px))] lg:rounded-[var(--r-card)] lg:border"
         style={{ backgroundColor: "var(--bg)" }}
       >
         {/* Cabecera */}

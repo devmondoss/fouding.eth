@@ -1,6 +1,6 @@
 # Pendientes — lista única
 
-> Actualizado 2026-08-08. Hitos + waterfall on-chain, RepaymentRouter conectado, vault por oportunidad y mercado secundario ya tienen código escrito **y ahora compilado y testeado** (29/29 tests en verde entre `credit-vault` y `repayment-router`, `clippy` limpio). El bloqueante que quedaba (no había toolchain de Rust) se resolvió instalando Rust + GNU/mingw en esta máquina.
+> Actualizado 2026-08-08 (noche). WSL2 se instaló y el `CreditVault` con hitos ya está **desplegado de verdad en Arbitrum Sepolia**, no solo compilado. Sigue pendiente únicamente `RepaymentRouter`, bloqueado por un problema no resuelto de `cargo-stylus` específico de ese contrato.
 
 ---
 
@@ -20,8 +20,17 @@
 - ⚠️ **Igual falta redesplegar.** El `CreditVault` en Sepolia (`421614`) sigue siendo el bytecode viejo, sin nada de esto. Compilar y testear no reemplaza el deploy.
 - ✅ **Mojibake arreglado en `seed.ts`** — el archivo tenía texto guardado con doble encoding (UTF-8 decodificado como Latin-1/Windows-1252 y regrabado): "MetalmecÃ¡nica", "RenovaciÃ³n", etc. Confirmado que no aparece en ningún otro archivo del repo.
 - ✅ **Fiat↔crypto simulado** (bloque 5) — `AddFundsFlow.tsx` ahora tiene un modo PEN dentro de la simulación: monto en soles, tipo de cambio fijo (`lib/format.ts::MOCK_PEN_PER_USD`), selector de método (Yape/Plin/Tarjeta, todo mock) y acredita el saldo automáticamente vía el `addFunds()` que ya existía. Declarado como simulado en la UI, igual que `usingSeedData`.
-- ⚠️ **`cargo-stylus` no compila en Windows nativo** (usa `std::os::unix::net`, exclusivo de Linux/macOS) — confirmado al intentar instalarlo. La ruta estándar es WSL2, pero el `wsl.exe` de este equipo dice que el subsistema no está habilitado y pide `wsl --install` con una PowerShell **como Administrador** — algo que no se puede aprobar desde una sesión sin privilegios elevados. Falta que alguien con acceso admin corra eso (ver "Por dónde seguir").
 - ✅ **Wallet deployer fondeada en Arbitrum Sepolia** (0.04 ETH) — el faucet solo daba Sepolia L1, así que se depositó a L2 llamando `depositEth()` directo en el Delayed Inbox de Arbitrum Sepolia (`0xaAe29B0366299461418F5324a79Afc425BE5ae21`, verificado contra el paquete oficial `@arbitrum/sdk`), sin pasar por la UI del bridge. La private key vive en `packages/stylus/.env` (gitignored).
+- ✅ **WSL2 instalado y funcionando** — `cargo-stylus` no compila en Windows nativo (usa `std::os::unix::net`), así que se instaló Ubuntu vía `wsl --install` (necesitó PowerShell como administrador — lo corrió el usuario), y ahí adentro Rust + `cargo-stylus` + `forge` + Node, todo nativo Linux.
+- ✅ **Deploy real en Arbitrum Sepolia** (commit `921ca62`), corrido desde un `git worktree` separado apuntando a `main` (para no pisar el trabajo del rediseño de UI en curso en otra rama):
+  - `AccessRegistry`: `0x03f4770018c262fa703ce905698e88a47d52ddc1`
+  - `CompanyPassportSBT`: `0xc2457ea101c89884323eca7178df210826372bcc`
+  - `CreditRegistry`: `0x2e568d07783fa2152d3b42e49c5fa9f51a818ce8`
+  - `CreditVault`: `0x2ff9d0da4040be9cb243bca4857a33ea0ba70848` — **con hitos seteados** (30/25/25/20 bps), inicializado, registrado. Reemplaza el bytecode viejo sin hitos/waterfall.
+  - Registry configurado (passport/access registry/payment token), passport de demo emitido, acceso del inversionista aprobado.
+  - `deployedContracts.ts` regenerado — **con cuidado de no perder la entrada de devnet (`412346`)**: `generateTsAbi` sobreescribe el archivo entero según lo que haya en `deployments/` local, así que se fusionó a mano el bloque `412346` viejo con el `421614` nuevo antes de commitear.
+- ❌ **`RepaymentRouter` sigue sin desplegar.** `cargo stylus deploy`/`check`/`--estimate-gas` para este contrato específico salen con exit 0 y **cero output**, sin compilar siquiera (el `.wasm` no se regenera). `credit-vault` con el comando idéntico funciona perfecto. Se descartaron: TERM/NO_COLOR, `--deployer-salt` distinto, la sección `[contract]` del `Cargo.toml`, tamaño del WASM (58KB, más chico que `credit-vault`), estructura de `main.rs`, buffering de stdout (`stdbuf -o0`). Razón real sin identificar — puede ser un bug de `cargo-stylus 0.10.8`. **No bloquea el resto**: `lib/servicing/onchain.ts` ya cae al llamado directo a `vault.recordRepayment` cuando el router no está desplegado, así que el flujo de repago funciona igual sin él.
+- ⚠️ **`deploy.ts` no es idempotente en los pasos de configuración.** El deploy corrido dos veces con `--resume` reintentó `issuePassport` (ya emitido) y revirtió — sin daño porque viem simula antes de mandar la tx y no gastó gas, pero si se vuelve a correr el script completo hay que saltear manualmente los pasos ya hechos o vaciar la wallet del passport primero.
 
 ---
 
@@ -29,17 +38,18 @@
 
 - [x] Compilar y correr `cargo test` — hecho, ver bloque 0.
 - [x] `cargo clippy --all-targets -- -D warnings` — hecho, limpio.
-- [ ] **Redesplegar el protocolo completo** (devnet primero, después Sepolia) — `deploy.ts` ya está listo para hacerlo de punta a punta, incluido el `RepaymentRouter`. Sin esto, todo lo de arriba sigue sin existir en ninguna chain real.
+- [x] **Desplegar `AccessRegistry`, `CompanyPassportSBT`, `CreditRegistry`, `CreditVault` en Sepolia** — hecho, ver bloque 0. Direcciones en `deployedContracts.ts` (commit `921ca62`).
+- [ ] **Desplegar `RepaymentRouter`** — bloqueado, ver el ⚠️ del bloque 0. Requiere diagnosticar por qué `cargo-stylus` no compila/despliega este contrato puntual (probar otra versión de `cargo-stylus`, o abrir un issue upstream con un repro mínimo).
 - [ ] **`forge test --gas-report`** guardado como evidencia + comparativa de costo L1 vs Arbitrum con números medidos.
-- [ ] UI para que el verificador configure `set_milestones` al publicar una oportunidad — hoy solo `deploy.ts` lo hace (schedule fijo `[30%,25%,25%,20%]`) para los vaults de devnet. Sin esto, cualquier vault desplegado fuera del script de deploy no es activable.
+- [ ] UI para que el verificador configure `set_milestones` al publicar una oportunidad — hoy solo `deploy.ts` lo hace (schedule fijo `[30%,25%,25%,20%]`). El vault de Sepolia ya tiene el schedule seteado por el script; cualquier vault desplegado fuera de `deploy.ts` no sería activable sin esto.
 
 ---
 
 ## 2. Deploy, verificación y evidencia on-chain
 
-- [ ] **Contratos verificados en Arbiscan** (código fuente visible) — hay que repetirlo después del redeploy del bloque 1.
-- [ ] **Al menos una transacción real de cada flujo** (fondeo, activación, hito liberado, repago vía router, claim, default/waterfall) con su link a Arbiscan.
-- [ ] **README sin actualizar tras el deploy de Sepolia**: no lista direcciones de contratos, no tiene comparativa de gas, no explica "por qué Arbitrum". Las instrucciones de "Desarrollo local" siguen siendo solo devnet (`412346`).
+- [ ] **Contratos verificados en Arbiscan** (código fuente visible) — los 4 contratos ya están en Sepolia, falta correr `verify_solidity_explorer.ts`/`verify_stylus_explorer.ts` contra las direcciones nuevas.
+- [ ] **Al menos una transacción real de cada flujo** con su link a Arbiscan — ya hay varias (activación de registry, passport, acceso, `setMilestones`), falta armar la lista curada: fondeo, hito liberado, repago, claim, default/waterfall.
+- [ ] **README sin actualizar tras el deploy de Sepolia**: no lista las direcciones nuevas, no tiene comparativa de gas, no explica "por qué Arbitrum". Las instrucciones de "Desarrollo local" siguen siendo solo devnet (`412346`).
 
 ---
 
@@ -143,10 +153,10 @@
 
 ## Por dónde seguir ahora
 
-1. **Habilitar WSL2 (necesita un humano con permisos de administrador)** — abrir PowerShell **como Administrador** y correr `wsl --install`, aceptar el UAC, reiniciar Windows cuando lo pida. Sin esto, `cargo-stylus` no tiene dónde correr en esta máquina y el redeploy queda frenado.
-2. **Instalar Rust + cargo-stylus dentro de WSL2** una vez habilitado (mismo procedimiento que ya se hizo en Windows, pero ahí sí compila nativo) y correr `deploy.ts` contra Arbitrum Sepolia — la wallet deployer ya está fondeada (`packages/stylus/.env`, gitignored).
-3. **Actualizar `CREDIT_VAULT_ADDRESS` en Railway** una vez redesplegado (bloque 8).
-4. **Cifra de impacto** (bloque 9) — no depende de código, se puede resolver en paralelo mientras se resuelve lo de WSL2.
-5. **Confirmar verificación en Arbiscan + actualizar el README** con las direcciones nuevas y comparativa de gas (bloques 2 y 9).
+1. **Diagnosticar el silencio de `cargo-stylus` con `RepaymentRouter`** — probar `cargo install cargo-stylus --version <otra>` (0.9.x o una más nueva que 0.10.8), o pedir ayuda en el Discord/GitHub de Offchain Labs con un repro mínimo. No es urgente: el protocolo funciona sin el router (fallback ya construido).
+2. **Actualizar `CREDIT_VAULT_ADDRESS` en Railway** con `0x2ff9d0da4040be9cb243bca4857a33ea0ba70848` (bloque 0) — pendiente de que el usuario lo pegue en el raw editor.
+3. **Cifra de impacto** (bloque 9) — no depende de código, se puede resolver en paralelo.
+4. **Verificar los 4 contratos en Arbiscan + actualizar el README** con las direcciones de Sepolia y comparativa de gas (bloques 2 y 9) — cierra el requisito obligatorio A1 del track.
+5. **Probar el flujo completo en la UI** contra las direcciones nuevas: fondear, activar, liberar un hito, repagar, cobrar — nunca se probó de punta a punta contra Sepolia real, solo se verificó cada paso por transacción individual.
 6. El on-ramp fiat del lado empresa (bloque 5) y el settlement de precio del mercado secundario (bloque 4) quedan como roadmap explícito en el pitch si el tiempo aprieta — el lado inversionista del on-ramp ya tiene un mock presentable.
 </content>

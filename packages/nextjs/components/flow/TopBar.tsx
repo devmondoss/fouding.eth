@@ -50,17 +50,24 @@ export function TopBar({
 
         {/* El saldo y su recarga son un solo objetivo: la cifra es el dato y
             "Agregar" es la acción. El más y la billetera decían lo mismo dos
-            veces y ninguna de las dos con palabras. */}
+            veces y ninguna de las dos con palabras.
+
+            En el teléfono este es el control que manda y no se pliega: es
+            lo que dice si puedes hacer algo. La cifra crece y el rótulo
+            "USDC" se queda —sin él, un número suelto de cuatro dígitos al
+            lado de otro de un dígito no se distingue del contador del
+            portafolio. */}
         <motion.button
           {...press}
           onClick={onOpenFunds}
-          className="focusable flex h-9 items-center gap-2 rounded-[var(--r-input)] border border-border px-2.5 transition-colors hover:bg-surface-soft"
+          aria-label="Saldo disponible — agregar fondos"
+          className="focusable flex h-11 items-center gap-1.5 rounded-[var(--r-input)] border border-border px-2.5 transition-colors hover:bg-surface-soft sm:h-9 sm:gap-2"
         >
           <AnimatedNumber
             value={balance}
-            className="num text-[12.5px] font-semibold text-hi sm:text-[13px]"
+            className="num text-[14px] font-semibold text-hi sm:text-[13px]"
           />
-          <span className="hidden text-[11.5px] text-low sm:inline">USDC</span>
+          <span className="text-[11px] text-low sm:text-[11.5px]">USDC</span>
           <span
             className="hidden border-l border-border pl-2 text-[12px] font-medium sm:inline"
             style={{ color: "var(--brand-ink)" }}
@@ -72,7 +79,7 @@ export function TopBar({
         <motion.button
           {...press}
           onClick={onOpenPortfolio}
-          className="focusable flex h-9 items-center gap-2 rounded-[var(--r-input)] border border-border py-1.5 pl-2 pr-2 transition-colors hover:bg-surface-soft sm:pr-3"
+          className="focusable flex h-11 items-center gap-2 rounded-[var(--r-input)] border border-border py-1.5 pl-2 pr-2 transition-colors hover:bg-surface-soft sm:h-9 sm:pr-3"
           aria-label="Portafolio"
         >
           <span
@@ -91,22 +98,27 @@ export function TopBar({
         <motion.button
           {...press}
           onClick={onOpenProfile}
-          className="focusable flex h-9 items-center gap-2 rounded-[var(--r-input)] border border-border px-2.5 transition-colors hover:bg-surface-soft"
+          className="focusable flex h-11 items-center gap-2 rounded-[var(--r-input)] border border-border px-2.5 transition-colors hover:bg-surface-soft sm:h-9"
           aria-label={
             session.verified
               ? "Cuenta — acceso de inversionista aprobado"
               : "Cuenta — acceso de inversionista pendiente"
           }
         >
+          {/* Lo que se pliega en el teléfono es la dirección, no el estado.
+              Estaba al revés: quedaban cuatro caracteres de un hash —que
+              no le dicen nada a nadie parado en un stand— y desaparecía
+              justo lo que gobierna si se puede invertir. La dirección
+              completa vive en el panel de cuenta, que es donde se copia. */}
           <span
-            className="hidden text-[12px] font-medium sm:inline"
+            className="text-[12px] font-medium"
             style={{
               color: session.verified ? "var(--positive)" : "var(--text-mid)",
             }}
           >
             {session.verified ? "Con acceso" : "Sin acceso"}
           </span>
-          <span className="num text-[12px] text-mid">
+          <span className="num hidden text-[12px] text-mid sm:inline">
             {session.address.slice(0, 6)}…{session.address.slice(-4)}
           </span>
         </motion.button>
