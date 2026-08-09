@@ -226,10 +226,20 @@ Las tres últimas **no** heredan el cero-scroll: son documentos y herramientas, 
 
 | Gesto | Qué mueve |
 | --- | --- |
-| Rueda o trackpad vertical | Una tarjeta, con cierre temporal para que un gesto no cruce el catálogo entero |
+| Rueda o trackpad vertical | **1:1** — el riel va exactamente donde va el dedo |
 | Trackpad horizontal, Shift+rueda | Libre y nativo — no se intercepta |
 | ←/→ | Una pantalla entera: tres tarjetas en escritorio, una en teléfono |
 | Dedo | Deslizamiento nativo con anclaje |
+
+**Un desplazamiento continuo no se anima, se sigue.** La primera versión del riel se sentía trabada por tres frenos que hay que saber reconocer, porque ninguno era del navegador:
+
+1. **Descartar eventos.** Un cierre temporal que ignoraba las muescas del medio para que un gesto no cruzara el catálogo. Mover algo y que ignore la mitad de lo que hacés *es* el lag.
+2. **`behavior: "smooth"` por evento.** Una animación de duración fija que arranca de nuevo con cada muesca y pelea contra la anterior. `smooth` es para un salto que viene de una tecla o un botón, nunca para un gesto continuo.
+3. **Medir y renderizar por cuadro.** El indicador leía `offsetLeft` —que fuerza recálculo de layout— y llamaba a `setState` en cada evento de scroll. La medida se cachea y se rehace con un `ResizeObserver`; el estado solo cambia cuando el índice cambia de verdad.
+
+Y el anclaje obligatorio se **suelta mientras dura el gesto** y se devuelve al soltar: con `snap-mandatory` puesto, cada posición se corregía en el acto y el riel tiraba hacia atrás en mitad del movimiento. Al devolverlo, el navegador acomoda a la tarjeta más cercana con su propia física.
+
+Corolario para cualquier lista larga: `layout` de `motion` remide cada elemento en cada render. En un contenedor que se desplaza con muchos hijos montados, se quita salvo que algo se reacomode de verdad.
 
 **El riel no lleva botones de "Anterior" y "Siguiente".** Duplicaban con dos controles lo que la rueda, el dedo y el teclado ya hacen con un gesto, y ocupaban la barra inferior entera para eso. Queda solo la cifra —"3 de 9"— porque dice algo que ningún gesto dice: cuántas hay y cuánto falta. El teclado no se pierde: ←/→ siguen moviendo una pantalla, y como cada tarjeta es un botón, el tabulador las recorre y el navegador las trae a la vista solo. **Un control que solo repite un gesto disponible es peso muerto, no accesibilidad** — lo segundo se comprueba con el tabulador y el teclado, no con un par de flechas.
 
