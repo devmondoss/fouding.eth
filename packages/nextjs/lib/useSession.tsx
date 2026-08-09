@@ -77,6 +77,10 @@ type Ctx = {
   connectWallet: () => void;
   /** Entrar con otra cuenta: cierra la sesión viva y pide correo. */
   switchAccount: () => void;
+  /** Lado ya fijado para la wallet conectada, aunque la sesión esté
+   * oculta por un "cerrar sesión" reciente. La puerta lo usa para no
+   * ofrecer una elección que ya está tomada. */
+  knownRole: Role | null;
   /** Correo de la sesión que sigue viva detrás de un "cerrar sesión"
    * reciente, o null. Cuando no es null la pantalla de login puede
    * ofrecer reanudar sin código — ver `resumeSession`. */
@@ -207,6 +211,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // el login — con una referencia fresca de `login`, no la capturada
   // antes del logout.
   const [awaitingLogoutForLogin, setAwaitingLogoutForLogin] = useState(false);
+
+  /**
+   * El lado de esta dirección, leído del mapa aunque la sesión esté
+   * oculta: durante el "cerrar sesión" suave Privy sigue autenticado y
+   * sabemos de quién es la wallet, así que la puerta puede reconocerla y
+   * no ofrecer una elección que ya está tomada.
+   */
+  const knownRole = useMemo<Role | null>(() => {
+    if (!address) return null;
+    const roleMap = readJSON<Record<string, Role>>(ROLE_KEY, {});
+    return roleMap[address.toLowerCase()] ?? null;
+  }, [address]);
 
   /**
    * Entrar. Si ya hay una sesión viva, se ENTRA con ella.
@@ -411,6 +427,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       session,
       connectWallet,
       switchAccount,
+      knownRole,
       pendingAccount,
       resumeSession,
       connecting,
@@ -426,6 +443,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       session,
       connectWallet,
       switchAccount,
+      knownRole,
       pendingAccount,
       resumeSession,
       connecting,

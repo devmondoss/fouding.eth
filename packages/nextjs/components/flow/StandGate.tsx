@@ -33,6 +33,7 @@ export function StandGate() {
     session,
     connectWallet,
     switchAccount,
+    knownRole,
     connecting,
     connectError,
     cancelConnect,
@@ -40,27 +41,20 @@ export function StandGate() {
     resumeSession,
   } = useSession();
   const [chosen, setChosen] = useState<Role | null>(null);
-  /** El lado que se tocó cuando esta wallet ya pertenece al otro. */
-  const [choque, setChoque] = useState<Role | null>(null);
-
-  /** El lado que esta wallet ya tiene fijado, si vuelve alguien conocido. */
-  const yaEs = session?.role ?? null;
 
   /**
-   * Una wallet pertenece a un solo lado y eso no cambia (ver `chooseRole`
-   * en useSession). Hasta ahora la puerta preguntaba igual y descartaba la
-   * respuesta en silencio: alguien que ya era empresa tocaba "Soy
-   * inversionista" y aparecía en el panel de empresa sin explicación.
+   * El lado que esta wallet ya tiene fijado. Una wallet pertenece a uno
+   * solo y eso no cambia (ver `chooseRole`), así que cuando lo sabemos la
+   * puerta NO pregunta: ofrecer dos caminos de los cuales uno está
+   * cerrado es hacer elegir para después corregir. Se muestra el que es.
    *
-   * Ahora se dice. Y como la salida no es cambiar de rol sino entrar con
-   * otra cuenta, la puerta ofrece justo eso.
+   * Sale de `knownRole` y no de `session.role` porque durante el "cerrar
+   * sesión" suave la sesión está oculta pero la wallet sigue siendo la
+   * misma — es justo el momento en que esta pantalla aparece.
    */
+  const yaEs = session?.role ?? knownRole;
+
   function choose(role: Role) {
-    if (yaEs && yaEs !== role) {
-      setChoque(role);
-      return;
-    }
-    setChoque(null);
     setChosen(role);
     setIntendedRole(role);
     connectWallet();
@@ -107,12 +101,20 @@ export function StandGate() {
           variants={fadeUp}
           className="mt-3 max-w-[52ch] text-[14px] leading-relaxed text-mid sm:mt-4 sm:text-[15px]"
         >
-          La garantía y el orden de pago se ejecutan en el contrato. Elige
-          desde qué lado quieres recorrerlo: tu wallet se crea al elegir y
-          queda fija a ese lado.
+          {yaEs
+            ? "La garantía y el orden de pago se ejecutan en el contrato. Tu wallet ya está de este lado: sigue por donde ibas."
+            : "La garantía y el orden de pago se ejecutan en el contrato. Elige desde qué lado quieres recorrerlo: tu wallet se crea al elegir y queda fija a ese lado."}
         </motion.p>
 
-        <div className="mt-6 grid grid-cols-1 gap-3 sm:mt-9 lg:grid-cols-2 lg:gap-4">
+        {/* Una tarjeta o dos, según lo que esta wallet pueda elegir de
+            verdad. Mostrar las dos y rechazar una al tocarla es pedir una
+            decisión ya tomada para después corregirla. */}
+        <div
+          className={`mt-6 grid grid-cols-1 gap-3 sm:mt-9 lg:gap-4 ${
+            yaEs ? "lg:max-w-[420px]" : "lg:grid-cols-2"
+          }`}
+        >
+          {yaEs !== "business" && (
           <TravesiaCard
             title="Soy inversionista"
             detail="Pongo capital en una operación y sigo cómo se libera por hitos hasta el repago."
@@ -121,15 +123,37 @@ export function StandGate() {
             disabled={connecting && chosen !== "investor"}
             onClick={() => choose("investor")}
           />
-          <TravesiaCard
-            title="Soy dueño de negocio"
-            detail="Armo el expediente de mi empresa —ventas, garantía, proyecto— y lo envío a revisión."
-            aside="Entras con un expediente por armar, no con saldo."
-            busy={connecting && chosen === "business"}
-            disabled={connecting && chosen !== "business"}
-            onClick={() => choose("business")}
-          />
+          )}
+          {yaEs !== "investor" && (
+            <TravesiaCard
+              title="Soy dueño de negocio"
+              detail="Armo el expediente de mi empresa —ventas, garantía, proyecto— y lo envío a revisión."
+              aside="Entras con un expediente por armar, no con saldo."
+              busy={connecting && chosen === "business"}
+              disabled={connecting && chosen !== "business"}
+              onClick={() => choose("business")}
+            />
+          )}
         </div>
+
+        {/* La otra travesía no desaparece del mundo: cambia de cuenta. En
+            un stand el mismo teléfono pasa de mano en mano, y quien viene
+            a ver el otro lado necesita saber por dónde. */}
+        {yaEs && !connecting && (
+          <motion.p variants={fadeUp} className="mt-5 text-[13px] text-mid">
+            ¿Vienes a recorrer el otro lado?{" "}
+            <button
+              onClick={() => {
+                setIntendedRole(yaEs === "investor" ? "business" : "investor");
+                switchAccount();
+              }}
+              className="focusable font-medium underline decoration-dotted underline-offset-4"
+              style={{ color: "var(--brand-ink)" }}
+            >
+              Entrar con otra cuenta
+            </button>
+          </motion.p>
+        )}
 
         {/* El error es lo único que merece protagonismo acá: es nuestro,
             no de quien está tocando la pantalla. */}
@@ -150,30 +174,6 @@ export function StandGate() {
           </motion.p>
         )}
 
-        {/* Tocó el lado que no le corresponde a esta wallet. No es un
-            error de la persona: es que la puerta pregunta algo que ya
-            estaba decidido. Se explica y se ofrece la única salida real. */}
-        {choque && !connecting && (
-          <motion.p variants={fadeUp} role="alert" className="mt-5 text-[13px] text-mid">
-            Esta wallet ya entró como{" "}
-            <span className="font-medium text-hi">
-              {yaEs === "investor" ? "inversionista" : "dueño de negocio"}
-            </span>{" "}
-            y queda fija a ese lado.{" "}
-            <button
-              onClick={() => {
-                setIntendedRole(choque);
-                setChoque(null);
-                switchAccount();
-              }}
-              className="focusable font-medium underline decoration-dotted underline-offset-4"
-              style={{ color: "var(--brand-ink)" }}
-            >
-              Entrar con otra cuenta
-            </button>{" "}
-            para recorrer el otro lado.
-          </motion.p>
-        )}
 
         {/* Quien ya entró hoy y cerró sesión hace poco no debería volver a
             escribir un correo para seguir donde estaba. */}
