@@ -142,11 +142,12 @@ body {
    documentos normales y sí necesitan poder scrollear.
 
    Desde agosto 2026 esto vale TAMBIÉN en el teléfono. El cero-scroll no
-   se abandonó en móvil: cambió de forma. El catálogo pasa a una pila que
-   se desliza —una operación por pantalla, con anclaje obligatorio— que
-   es el mismo principio de "se pagina, no se hace scroll" dicho en el
-   gesto que un pulgar ya conoce. Lo que scrollea es la pila por dentro,
-   carta a carta; la página nunca. */
+   se abandonó en móvil: cambió de eje. El catálogo es un riel horizontal
+   con anclaje obligatorio, el mismo en teléfono y escritorio, y la rueda
+   del ratón empuja de costado. Es el principio de "se pagina, no se hace
+   scroll" dicho en el eje en el que el catálogo siempre avanzó — ←/→,
+   "Anterior/Siguiente", `slide(dir)`. Lo que se desplaza es el riel por
+   dentro; la página nunca. */
 body.app-shell {
   overflow: hidden;
   /* La barra de direcciones de un navegador móvil aparece y desaparece:

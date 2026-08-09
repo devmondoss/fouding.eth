@@ -48,7 +48,7 @@ Doble contexto confirmado por el usuario: **demo ahora, piloto después**. Ningu
 **Arquitectura de aplicación — se conserva sin cambios** (decisión explícita del usuario en este rediseño):
 
 - Un solo módulo, cero scroll de página en la app del inversionista; todo lo demás son capas y transiciones sobre él.
-- Se pagina, no se hace scroll. **El gesto cambia con el dispositivo, la regla no**: en escritorio son tres por página con flechas y ←/→; en teléfono es una operación por pantalla en una pila con anclaje obligatorio. La ficha avanza por pasos en los dos.
+- Se pagina, no se hace scroll, **y el eje es horizontal**: el catálogo es un riel lateral con anclaje obligatorio, el mismo en teléfono y escritorio. La rueda del ratón empuja de costado y ←/→ mueven una pantalla entera (tres tarjetas en escritorio, una en teléfono), sin botones de avance que dupliquen el gesto. La ficha avanza por pasos en los dos.
 - Excepción honesta: dentro de la ficha y del panel lateral hay scroll interno en pantallas bajas. Rutas como `/solicitar` son documentos normales y sí scrollean.
 - Calibrado a **390×844 y 1366×768**, en las cuatro superficies. El verificador es la única que no baja a 390: es la herramienta del operador, responde desde 768.
 - El primer contacto no pide una wallet, pide una travesía: se elige inversionista o dueño de negocio y la wallet se crea como consecuencia. Al inversionista se le acredita saldo de prueba solo, en una pantalla dedicada; al dueño de negocio no, y esa asimetría se dice. Lo ya explicado no se repite (onboarding marcado en `localStorage`).

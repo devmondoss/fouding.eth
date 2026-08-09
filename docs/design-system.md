@@ -222,16 +222,26 @@ Las tres últimas **no** heredan el cero-scroll: son documentos y herramientas, 
 
 **El cero-scroll no se abandonó en móvil: cambió de eje.** Hasta este cambio, debajo de `lg` el catálogo era una lista vertical corriente y `body.app-shell` solo bloqueaba el scroll desde 1024px. O sea que el principio 1 del sistema solo existía en escritorio, y en el teléfono —donde ahora entra la mayoría de la gente— el producto se leía como un feed.
 
-| | Escritorio | Teléfono |
-| --- | --- | --- |
-| Catálogo | Tres por página, flechas y ←/→ | **Una por pantalla**, pila con anclaje obligatorio |
-| Ficha | Diálogo que crece desde el centro | **Hoja que sube** desde el borde de abajo (`sheetUp`) |
-| Scroll de página | Nunca | Nunca |
+**El catálogo es un riel horizontal, el mismo en los dos tamaños.** Siempre avanzó de lado —←/→ paginan, `slide(dir)` desplaza en X— pero el dedo y la rueda iban en vertical, en contra de todo eso. Ahora el eje es uno solo y **la rueda del ratón empuja de costado**.
 
-Tres reglas que sostienen esto:
+| Gesto | Qué mueve |
+| --- | --- |
+| Rueda o trackpad vertical | Una tarjeta, con cierre temporal para que un gesto no cruce el catálogo entero |
+| Trackpad horizontal, Shift+rueda | Libre y nativo — no se intercepta |
+| ←/→ | Una pantalla entera: tres tarjetas en escritorio, una en teléfono |
+| Dedo | Deslizamiento nativo con anclaje |
 
-- **El gesto sale del navegador, no de una librería.** La pila es `snap-y snap-mandatory` sobre un contenedor con `overflow-y`. Un arrastre interpretado a mano da lo mismo en pantalla y cuesta el teclado, el lector de pantalla, el orden del documento y el impulso nativo.
-- **`svh`, nunca `vh`.** La barra de direcciones de un navegador móvil aparece y desaparece; con `vh` la última carta de la pila queda cortada bajo ella.
+**El riel no lleva botones de "Anterior" y "Siguiente".** Duplicaban con dos controles lo que la rueda, el dedo y el teclado ya hacen con un gesto, y ocupaban la barra inferior entera para eso. Queda solo la cifra —"3 de 9"— porque dice algo que ningún gesto dice: cuántas hay y cuánto falta. El teclado no se pierde: ←/→ siguen moviendo una pantalla, y como cada tarjeta es un botón, el tabulador las recorre y el navegador las trae a la vista solo. **Un control que solo repite un gesto disponible es peso muerto, no accesibilidad** — lo segundo se comprueba con el tabulador y el teclado, no con un par de flechas.
+
+Esto reemplazó dos mecánicas por una: la pila vertical del teléfono y el carrusel con `AnimatePresence` del escritorio, que además remontaba las tarjetas en cada página.
+
+La ficha sigue el mismo criterio de eje: diálogo que crece desde el centro en escritorio, **hoja que sube** desde el borde de abajo en teléfono (`sheetUp`) — una capa no puede crecer desde un centro cuando ya ocupa el viewport entero, y el borde inferior es el único que el pulgar alcanza.
+
+Cuatro reglas que sostienen esto:
+
+- **El gesto sale del navegador, no de una librería.** El riel es `snap-x snap-mandatory` sobre un contenedor con `overflow-x`. Un arrastre interpretado a mano da lo mismo en pantalla y cuesta el teclado, el lector de pantalla, el orden del documento y el impulso nativo.
+- **La rueda se intercepta con `addEventListener`, no con `onWheel`.** React registra `wheel` como pasivo, y en un listener pasivo `preventDefault()` no hace nada. Nunca se intercepta con una capa abierta encima: la ficha tiene su propio contenido que desplazar.
+- **`svh`, nunca `vh`.** La barra de direcciones de un navegador móvil aparece y desaparece; con `vh` el pie del riel queda cortado bajo ella.
 - **Objetivo táctil ≥44px.** El piso de 24px de §7.2 es de puntero. Un dedo en un stand, de pie, con el teléfono en la otra mano, necesita 44.
 
 **Qué se pliega y qué no.** En la barra superior el saldo es lo único que no se achica: es el dato que dice si puedes hacer algo. Lo que se va es la dirección de la wallet —cuatro caracteres de un hash no le dicen nada a nadie— y lo que se queda en su lugar es el estado que gobierna la inversión: "Con acceso" / "Sin acceso".
