@@ -30,7 +30,9 @@ import { TOPUP_TOKEN_AMOUNT } from "@/lib/faucet/config";
  */
 export function StandGate() {
   const {
+    session,
     connectWallet,
+    switchAccount,
     connecting,
     connectError,
     cancelConnect,
@@ -38,8 +40,27 @@ export function StandGate() {
     resumeSession,
   } = useSession();
   const [chosen, setChosen] = useState<Role | null>(null);
+  /** El lado que se tocó cuando esta wallet ya pertenece al otro. */
+  const [choque, setChoque] = useState<Role | null>(null);
 
+  /** El lado que esta wallet ya tiene fijado, si vuelve alguien conocido. */
+  const yaEs = session?.role ?? null;
+
+  /**
+   * Una wallet pertenece a un solo lado y eso no cambia (ver `chooseRole`
+   * en useSession). Hasta ahora la puerta preguntaba igual y descartaba la
+   * respuesta en silencio: alguien que ya era empresa tocaba "Soy
+   * inversionista" y aparecía en el panel de empresa sin explicación.
+   *
+   * Ahora se dice. Y como la salida no es cambiar de rol sino entrar con
+   * otra cuenta, la puerta ofrece justo eso.
+   */
   function choose(role: Role) {
+    if (yaEs && yaEs !== role) {
+      setChoque(role);
+      return;
+    }
+    setChoque(null);
     setChosen(role);
     setIntendedRole(role);
     connectWallet();
@@ -126,6 +147,31 @@ export function StandGate() {
             >
               Volver a intentar
             </button>
+          </motion.p>
+        )}
+
+        {/* Tocó el lado que no le corresponde a esta wallet. No es un
+            error de la persona: es que la puerta pregunta algo que ya
+            estaba decidido. Se explica y se ofrece la única salida real. */}
+        {choque && !connecting && (
+          <motion.p variants={fadeUp} role="alert" className="mt-5 text-[13px] text-mid">
+            Esta wallet ya entró como{" "}
+            <span className="font-medium text-hi">
+              {yaEs === "investor" ? "inversionista" : "dueño de negocio"}
+            </span>{" "}
+            y queda fija a ese lado.{" "}
+            <button
+              onClick={() => {
+                setIntendedRole(choque);
+                setChoque(null);
+                switchAccount();
+              }}
+              className="focusable font-medium underline decoration-dotted underline-offset-4"
+              style={{ color: "var(--brand-ink)" }}
+            >
+              Entrar con otra cuenta
+            </button>{" "}
+            para recorrer el otro lado.
           </motion.p>
         )}
 

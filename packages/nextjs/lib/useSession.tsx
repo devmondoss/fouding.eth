@@ -73,7 +73,10 @@ type Ctx = {
    * components/providers/Web3Provider.tsx). SIEMPRE pide correo: mata el
    * token vivo antes de abrir el modal, que es lo único que permite
    * entrar con otra cuenta (ver implementación). */
+  /** Entrar. Con sesión viva no pide nada: entra con ella. */
   connectWallet: () => void;
+  /** Entrar con otra cuenta: cierra la sesión viva y pide correo. */
+  switchAccount: () => void;
   /** Correo de la sesión que sigue viva detrás de un "cerrar sesión"
    * reciente, o null. Cuando no es null la pantalla de login puede
    * ofrecer reanudar sin código — ver `resumeSession`. */
@@ -205,7 +208,36 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // antes del logout.
   const [awaitingLogoutForLogin, setAwaitingLogoutForLogin] = useState(false);
 
+  /**
+   * Entrar. Si ya hay una sesión viva, se ENTRA con ella.
+   *
+   * Antes esto deslogueaba siempre y volvía a abrir el modal de Privy,
+   * porque era la única forma de que apareciera el campo de correo para
+   * cambiar de cuenta. El precio lo pagaba el caso normal: alguien que ya
+   * había entrado y volvía a tocar la puerta perdía la sesión y tenía que
+   * escribir correo y código otra vez. Cambiar de cuenta es otra
+   * intención, y ahora tiene su propia puerta (`switchAccount`).
+   */
   const connectWallet = useCallback(() => {
+    try {
+      window.localStorage.removeItem(SOFT_SIGNOUT_KEY);
+    } catch {}
+    setSoftSignedOutAt(null);
+    setConnectError(null);
+    // Sesión viva: no hay nada que pedir. El efecto de arriba ya la
+    // resolvió y quien llame decide a dónde llevar a esta persona.
+    if (authenticated && address) return;
+    setConnecting(true);
+    login();
+  }, [login, authenticated, address]);
+
+  /**
+   * Entrar con OTRA cuenta. Acá el logout sí es obligatorio: con token
+   * vivo, `login()` no muestra nada —Privy dispara `onComplete` igual
+   * "for already- or newly-authenticated users"— y resolvería con la
+   * cuenta anterior sin preguntar.
+   */
+  const switchAccount = useCallback(() => {
     try {
       window.localStorage.removeItem(SOFT_SIGNOUT_KEY);
     } catch {}
@@ -378,6 +410,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     () => ({
       session,
       connectWallet,
+      switchAccount,
       pendingAccount,
       resumeSession,
       connecting,
@@ -392,6 +425,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [
       session,
       connectWallet,
+      switchAccount,
       pendingAccount,
       resumeSession,
       connecting,
