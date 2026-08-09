@@ -11,6 +11,7 @@
     "indexer": "tsx --env-file-if-exists=.env.local scripts/indexer.ts",
     "migrate": "tsx --env-file-if-exists=.env.local scripts/migrate.ts",
     "faucet:check": "tsx --env-file-if-exists=.env.local scripts/faucet-status.ts",
+    "seed:catalogo": "tsx --env-file-if-exists=.env.local scripts/seed-catalog.ts",
     "check:scroll": "node scripts/check-scroll-lock.mjs",
     "check:routes": "node scripts/check-routes.mjs",
     "check:ux": "node scripts/check-scroll-lock.mjs && node scripts/check-routes.mjs"
