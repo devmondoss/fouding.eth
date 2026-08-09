@@ -4,8 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Waiting } from "@/components/ui/Waiting";
 import { useAutoTopUp } from "@/hooks/useAutoTopUp";
-import { usePlatform } from "@/lib/data/store";
-import { usdc } from "@/lib/format";
+import { useSaldo } from "@/hooks/useSaldo";
 import { T } from "@/lib/motion";
 
 /**
@@ -24,22 +23,23 @@ import { T } from "@/lib/motion";
  * invertir: la cifra aparece cuando existe de verdad.
  */
 export function SaldoDePrueba() {
-  const { phase, status, result, error, topUp } = useAutoTopUp();
-  const { balance, addFunds } = usePlatform();
+  const { phase, result, status, error, topUp } = useAutoTopUp();
+  const saldo = useSaldo();
   const [cerrado, setCerrado] = useState(false);
-  const sincronizando = useRef(false);
+  const releido = useRef(false);
 
   const acreditado = result?.balance.token ?? null;
 
-  // El saldo real vive en la cadena; el portafolio proyecta el suyo en
-  // localStorage (lib/data/store.tsx). Si no se igualan, la barra
-  // superior dice cero con la wallet llena.
+  // Quien movió el token fue el servidor, no esta pestaña: wagmi no tiene
+  // forma de enterarse y su lectura se queda en el valor viejo. Antes acá
+  // se copiaba la cifra al saldo local de localStorage, pero eso arreglaba
+  // solo la barra y dejaba la contradicción con el panel de inversión, que
+  // lee la cadena. Se relee la cadena y punto: una sola verdad.
   useEffect(() => {
-    if (acreditado === null || sincronizando.current) return;
-    sincronizando.current = true;
-    const faltante = usdc(acreditado) - balance;
-    if (faltante > 0n) addFunds(faltante).catch(() => {});
-  }, [acreditado, balance, addFunds]);
+    if (acreditado === null || releido.current) return;
+    releido.current = true;
+    saldo.refetch?.();
+  }, [acreditado, saldo]);
 
   // El éxito se retira solo: ya explicó de dónde salió la cifra que
   // apareció en la barra. El fallo se queda, porque condiciona lo que la

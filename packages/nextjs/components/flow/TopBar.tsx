@@ -2,6 +2,7 @@
 
 import { motion } from "motion/react";
 import { usePlatform } from "@/lib/data/store";
+import { useSaldo } from "@/hooks/useSaldo";
 import type { Session } from "@/lib/useSession";
 import { fadeUp, press, T } from "@/lib/motion";
 import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
@@ -26,7 +27,11 @@ export function TopBar({
   onOpenFunds: () => void;
   onReplayIntro: () => void;
 }) {
-  const { balance, positions } = usePlatform();
+  const { positions } = usePlatform();
+  // El saldo sale del mismo sitio que en el panel de inversión: la
+  // cadena manda cuando hay token desplegado. Antes esta barra leía el
+  // proyectado de localStorage y decía 0 con la wallet llena.
+  const saldo = useSaldo();
 
   return (
     <motion.header
@@ -64,10 +69,10 @@ export function TopBar({
           className="focusable flex h-11 items-center gap-1.5 rounded-[var(--r-input)] border border-border px-2.5 transition-colors hover:bg-surface-soft sm:h-9 sm:gap-2"
         >
           <AnimatedNumber
-            value={balance}
+            value={saldo.value}
             className="num text-[14px] font-semibold text-hi sm:text-[13px]"
           />
-          <span className="text-[11px] text-low sm:text-[11.5px]">USDC</span>
+          <span className="text-[11px] text-low sm:text-[11.5px]">{saldo.symbol}</span>
           <span
             className="hidden border-l border-border pl-2 text-[12px] font-medium sm:inline"
             style={{ color: "var(--brand-ink)" }}

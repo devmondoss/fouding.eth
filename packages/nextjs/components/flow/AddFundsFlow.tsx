@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Waiting } from "@/components/ui/Waiting";
 import { useProtocolToken } from "@/hooks/useProtocolToken";
 import { useAutoTopUp } from "@/hooks/useAutoTopUp";
+import { useSaldo } from "@/hooks/useSaldo";
 import { TOPUP_TOKEN_AMOUNT } from "@/lib/faucet/config";
 import { usePlatform } from "@/lib/data/store";
 import { useSession } from "@/lib/useSession";
@@ -50,7 +51,10 @@ export function AddFundsFlow({ onClose }: { onClose: () => void }) {
   const { balance, addFunds } = usePlatform();
   const { session } = useSession();
   const token = useProtocolToken(session?.address as Address | undefined);
-  // `auto: false`: el goteo automático ya lo hace Arranque al
+  // Misma fuente que la barra superior y el panel de inversión: la cifra
+  // no puede depender de qué pantalla la muestra.
+  const saldo = useSaldo();
+  // `auto: false`: el goteo automático ya lo hace SaldoDePrueba al
   // entrar. Acá solo se pide el estado y se ofrece el botón.
   const topUp = useAutoTopUp({ auto: false });
 
@@ -93,6 +97,9 @@ export function AddFundsFlow({ onClose }: { onClose: () => void }) {
           setProgress(1);
           const dripped = await topUp.topUp();
           if (!dripped) throw new Error(topUp.error ?? "No se pudo recargar");
+          // Quien acreditó fue el servidor: sin releer, esta pantalla y la
+          // barra se quedan mostrando el saldo viejo.
+          await saldo.refetch?.();
         } else if (moneda === "pen") {
           // Dos pasos simulados para que no se sienta instantáneo: "pago
           // confirmado" y luego "acreditado" son eventos distintos en
@@ -163,10 +170,8 @@ export function AddFundsFlow({ onClose }: { onClose: () => void }) {
               >
                 <div className="label">Saldo actual</div>
                 <div className="num mt-1 text-[22px] font-bold text-hi">
-                  {formatUsdc(onChain ? (token.balance ?? 0n) : balance)}{" "}
-                  <span className="text-[13px] text-low">
-                    {onChain ? token.symbol : "USDC"}
-                  </span>
+                  {formatUsdc(saldo.value)}{" "}
+                  <span className="text-[13px] text-low">{saldo.symbol}</span>
                 </div>
 
                 {error && (
@@ -391,11 +396,8 @@ export function AddFundsFlow({ onClose }: { onClose: () => void }) {
                     // la lectura de wagmi: el receipt ya confirmó, pero el
                     // hook todavía puede estar sirviendo el valor viejo.
                     <div className="num text-[30px] font-bold text-hi">
-                      {(
-                        topUp.result?.balance.token ??
-                        Number((token.balance ?? 0n) / 1_000_000n)
-                      ).toLocaleString("es-PE")}
-                      <span className="text-[14px] text-low"> {token.symbol}</span>
+                      {(topUp.result?.balance.token ?? Number(saldo.value / 1_000_000n)).toLocaleString("es-PE")}
+                      <span className="text-[14px] text-low"> {saldo.symbol}</span>
                     </div>
                   ) : (
                     <AnimatedNumber

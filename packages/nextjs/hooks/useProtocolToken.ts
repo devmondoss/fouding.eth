@@ -66,5 +66,9 @@ export function useProtocolToken(owner?: Address, spender?: Address) {
     isConfirming,
     approve,
     faucet,
+    /** Releer el saldo. Hace falta cuando quien mueve el token NO es esta
+     * pestaña: la dispensadora acredita desde el servidor y wagmi no se
+     * entera, así que la cifra se quedaba en el valor viejo. */
+    refetch: balance.refetch,
   };
 }
