@@ -1,35 +1,32 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/Button";
 import { Pill } from "@/components/ui/Pill";
 import { MetricCard } from "@/components/ui/Stat";
 import { Waiting } from "@/components/ui/Waiting";
 import { BusinessTopBar } from "@/components/flow/BusinessTopBar";
+import { SubmissionDetail } from "@/components/flow/SubmissionDetail";
 import { fadeUp, press, stagger } from "@/lib/motion";
 import { formatDate } from "@/lib/format";
-import type { SubmissionStatus, VerifierSubmission } from "@/lib/verifier/types";
-
-const STATUS_TONE = {
-  pending: "warning",
-  approved: "positive",
-  rejected: "negative",
-} as const;
-
-const STATUS_LABEL = {
-  pending: "Pendiente",
-  approved: "Aprobado",
-  rejected: "Rechazado",
-} as const;
-
-const nf = new Intl.NumberFormat("es-PE", { maximumFractionDigits: 0 });
+import {
+  NEXT_STEP,
+  PROJECT_TYPE_LABEL,
+  REVIEW_SLA_DAYS,
+  STATUS_LABEL,
+  STATUS_TONE,
+  folio,
+  formatUsdcPlain,
+} from "@/lib/verifier/submission";
+import type { SubmissionWithEvents } from "@/lib/verifier/types";
 
 /**
  * Home del dueño de negocio. Su trabajo es responder, sin que haya que
- * preguntar: qué mandaste, en qué punto está, y qué sigue. Antes esta
- * ruta caía directo a un formulario en blanco y, una vez enviado, no
- * quedaba ningún lugar al que volver (ver conversación de agosto 2026).
+ * preguntar: qué mandaste, en qué punto está, quién lo tiene y qué sigue.
+ * Antes esta ruta caía directo a un formulario en blanco y, una vez
+ * enviado, no quedaba ningún lugar al que volver (ver conversación de
+ * agosto 2026).
  */
 export function BusinessDashboard({
   address,
@@ -39,17 +36,20 @@ export function BusinessDashboard({
   onNewSubmission,
 }: {
   address: string;
-  submissions: VerifierSubmission[] | null;
+  submissions: SubmissionWithEvents[] | null;
   loading: boolean;
   onSignOut: () => void;
   onNewSubmission: () => void;
 }) {
+  const [open, setOpen] = useState<SubmissionWithEvents | null>(null);
   const list = submissions ?? [];
   const totalRequested = list.reduce(
     (acc, s) => acc + (Number(s.requestedAmount) || 0),
     0,
   );
-  const pending = list.filter((s) => s.status === "pending").length;
+  const inFlight = list.filter(
+    (s) => s.status === "pending" || s.status === "in_review",
+  ).length;
   const approved = list.filter((s) => s.status === "approved").length;
 
   return (
@@ -66,8 +66,8 @@ export function BusinessDashboard({
           <div>
             <div className="label">Panel de la empresa</div>
             {/* El párrafo que explicaba que revisa un humano se fue: cada
-                tarjeta ya muestra el estado y qué sigue. La promesa no hay
-                que enunciarla si el dato está en pantalla. */}
+                tarjeta ya dice quién revisa y desde cuándo, con nombre. La
+                promesa no hay que enunciarla si el dato está en pantalla. */}
             <h1 className="h1 mt-1.5">Tus solicitudes</h1>
           </div>
 
@@ -78,7 +78,7 @@ export function BusinessDashboard({
 
         {loading ? (
           <div className="mt-16 flex justify-center">
-            <Waiting label="Cargando tus solicitudes" showLabel />
+            <Waiting label="Cargando tus expedientes" showLabel />
           </div>
         ) : list.length === 0 ? (
           <EmptyDashboard onNewSubmission={onNewSubmission} />
@@ -93,16 +93,16 @@ export function BusinessDashboard({
               <motion.div variants={fadeUp}>
                 <MetricCard
                   label="Solicitado"
-                  value={nf.format(totalRequested)}
+                  value={formatUsdcPlain(totalRequested)}
                   unit="USDC en total"
                 />
               </motion.div>
               <motion.div variants={fadeUp}>
                 <MetricCard
                   label="En revisión"
-                  value={pending}
-                  unit={pending === 1 ? "expediente" : "expedientes"}
-                  accent={pending > 0 ? "var(--warning)" : undefined}
+                  value={inFlight}
+                  unit={inFlight === 1 ? "expediente" : "expedientes"}
+                  accent={inFlight > 0 ? "var(--warning)" : undefined}
                 />
               </motion.div>
               <motion.div variants={fadeUp} className="col-span-2 sm:col-span-1">
@@ -122,15 +122,27 @@ export function BusinessDashboard({
               className="mt-4 flex flex-col gap-3"
             >
               {list.map((s) => (
-                <motion.article key={s.id} variants={fadeUp} className="card p-4 sm:p-5">
+                <motion.article
+                  key={s.id}
+                  variants={fadeUp}
+                  className="card p-4 sm:p-5"
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <h2 className="h3 truncate">{s.projectTitle}</h2>
+                      <div className="num text-[11px] text-low">{folio(s.id)}</div>
+                      <h2 className="h3 mt-0.5 truncate">{s.projectTitle}</h2>
                       <div className="mt-1 text-[12.5px] text-mid">
                         <span className="num font-medium text-hi">
-                          {nf.format(Number(s.requestedAmount) || 0)}
+                          {formatUsdcPlain(s.requestedAmount)}
                         </span>{" "}
-                        USDC · {s.companyName} · enviada {formatDate(s.submittedAt)}
+                        USDC
+                        {s.termMonths > 0 && ` · ${s.termMonths} meses`}
+                        {PROJECT_TYPE_LABEL[s.projectType] &&
+                          ` · ${PROJECT_TYPE_LABEL[s.projectType]}`}
+                      </div>
+                      <div className="mt-0.5 text-[12px] text-low">
+                        Enviada {formatDate(s.submittedAt)}
+                        {s.reviewer && ` · revisa ${s.reviewer}`}
                       </div>
                     </div>
                     <Pill
@@ -141,54 +153,73 @@ export function BusinessDashboard({
                   </div>
 
                   <div className="mt-4 border-t border-border pt-4">
-                    <Timeline status={s.status} />
+                    <Timeline submission={s} />
                   </div>
 
-                  <p className="mt-3 text-[12.5px] leading-relaxed text-mid">
-                    {s.note ?? NEXT_STEP[s.status]}
-                  </p>
+                  <div className="mt-3 flex items-end justify-between gap-4">
+                    <p className="max-w-[420px] text-[12.5px] leading-relaxed text-mid">
+                      {s.status === "rejected" && s.note
+                        ? `Observación: ${s.note}`
+                        : NEXT_STEP[s.status]}
+                    </p>
+                    <Button variant="outline" size="sm" onClick={() => setOpen(s)}>
+                      Ver expediente
+                    </Button>
+                  </div>
                 </motion.article>
               ))}
             </motion.div>
           </>
         )}
       </main>
+
+      {open && <SubmissionDetail submission={open} onClose={() => setOpen(null)} />}
     </div>
   );
 }
 
+const STAGES = ["Enviada", "En revisión", "Resultado", "Publicada"] as const;
+
 /**
- * Qué sigue, en una línea. Eran de dos y tres oraciones narrando el
- * procedimiento; lo que la empresa vino a saber es en qué punto está y si le
- * toca hacer algo.
+ * Cuatro estaciones, no tres: publicar es un acto separado de aprobar
+ * (aprobar acredita a la empresa; publicar fija las condiciones y la saca
+ * al catálogo), y la empresa tenía derecho a ver que ese paso existe.
+ * La última la marca un evento real de la bitácora, no una inferencia.
  */
-const NEXT_STEP: Record<SubmissionStatus, string> = {
-  pending: "En revisión. No tienes que hacer nada.",
-  approved: "Aprobado. La operación sale al catálogo de inversionistas.",
-  rejected: "Rechazado. Corrige lo observado y envía una solicitud nueva.",
-};
+function Timeline({ submission }: { submission: SubmissionWithEvents }) {
+  const published = submission.events.some((e) => e.kind === "published");
+  const decided =
+    submission.status === "approved" || submission.status === "rejected";
 
-const STAGES = ["Enviada", "En revisión", "Resultado"] as const;
+  const current = published
+    ? 3
+    : decided
+      ? 2
+      : submission.status === "in_review"
+        ? 1
+        : 0;
 
-function Timeline({ status }: { status: SubmissionStatus }) {
-  // pending se queda en "En revisión"; aprobado/rechazado llegan al final.
-  const current = status === "pending" ? 1 : 2;
   const endColor =
-    status === "approved"
+    submission.status === "approved"
       ? "var(--positive)"
-      : status === "rejected"
+      : submission.status === "rejected"
         ? "var(--negative)"
         : "var(--text-low)";
 
   const labels = [
     STAGES[0],
     STAGES[1],
-    status === "approved" ? "Aprobado" : status === "rejected" ? "Rechazado" : STAGES[2],
+    submission.status === "approved"
+      ? "Aprobado"
+      : submission.status === "rejected"
+        ? "Rechazado"
+        : STAGES[2],
+    STAGES[3],
   ];
 
   const colorAt = (i: number) => {
-    if (i === 2 && current === 2) return endColor;
-    return i <= current ? "var(--brand-ink)" : "var(--border-strong)";
+    if (i === 2 && decided) return endColor;
+    return i <= current ? "var(--brand-strong)" : "var(--border-strong)";
   };
 
   return (
@@ -205,7 +236,7 @@ function Timeline({ status }: { status: SubmissionStatus }) {
                 className="h-px flex-1"
                 style={{
                   backgroundColor:
-                    i < current ? "var(--brand-ink)" : "var(--border)",
+                    i < current ? "var(--brand-strong)" : "var(--border)",
                 }}
               />
             )}
@@ -219,7 +250,7 @@ function Timeline({ status }: { status: SubmissionStatus }) {
             className="text-[11px] font-medium"
             style={{
               color:
-                i === 2 && current === 2
+                i === 2 && decided
                   ? endColor
                   : i <= current
                     ? "var(--text-hi)"
@@ -242,9 +273,11 @@ function EmptyDashboard({ onNewSubmission }: { onNewSubmission: () => void }) {
       animate="show"
       className="card mt-7 flex flex-col items-center gap-3 px-6 py-14 text-center"
     >
-      <h2 className="h3">Todavía no enviaste ninguna solicitud</h2>
-      <p className="max-w-[400px] text-[13px] leading-relaxed text-mid">
-        Son tres pasos: tu empresa, el proyecto y el expediente legal.
+      <h2 className="h3">Todavía no enviaste ningún expediente</h2>
+      <p className="max-w-[420px] text-[13px] leading-relaxed text-mid">
+        Son cuatro pasos: tu empresa, el proyecto, lo que pides y la
+        documentación. Al final ves el expediente completo antes de enviarlo, y un
+        verificador te responde en {REVIEW_SLA_DAYS} días hábiles.
       </p>
       <motion.button
         {...press}
@@ -252,7 +285,7 @@ function EmptyDashboard({ onNewSubmission }: { onNewSubmission: () => void }) {
         className="mt-2 text-[13px] font-medium underline decoration-dotted"
         style={{ color: "var(--brand-ink)" }}
       >
-        Empezar la primera
+        Empezar el primero
       </motion.button>
     </motion.div>
   );

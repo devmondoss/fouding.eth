@@ -30,7 +30,9 @@ export async function POST(
     if (!current) {
       return NextResponse.json({ error: "Expediente no encontrado" }, { status: 404 });
     }
-    if (current.status !== "pending") {
+    // Se decide lo que está en cola o ya tomado; lo decidido no se
+    // vuelve a decidir (aprobar mintea un soulbound: no hay deshacer).
+    if (current.status !== "pending" && current.status !== "in_review") {
       return NextResponse.json({ error: "El expediente ya fue decidido" }, { status: 409 });
     }
 

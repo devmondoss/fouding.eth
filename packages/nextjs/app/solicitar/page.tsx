@@ -7,7 +7,7 @@ import { BusinessDashboard } from "@/components/flow/BusinessDashboard";
 import { SolicitudWizard } from "@/components/flow/SolicitudWizard";
 import { FullScreenLoader } from "@/components/ui/FullScreenLoader";
 import { useSession } from "@/lib/useSession";
-import type { VerifierSubmission } from "@/lib/verifier/types";
+import type { SubmissionWithEvents } from "@/lib/verifier/types";
 
 /**
  * Panel del dueño de negocio — deliberadamente FUERA del módulo único
@@ -53,7 +53,7 @@ export default function SolicitarPage() {
 }
 
 function SolicitarHome({ address, onSignOut }: { address: string; onSignOut: () => void }) {
-  const [mine, setMine] = useState<VerifierSubmission[] | null>(null);
+  const [mine, setMine] = useState<SubmissionWithEvents[] | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [wizardOpen, setWizardOpen] = useState(false);
 

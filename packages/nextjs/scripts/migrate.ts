@@ -32,9 +32,59 @@ async function main() {
       ADD COLUMN IF NOT EXISTS onchain_synced_at TIMESTAMPTZ
   `;
 
+  // El expediente pasó de cinco campos a un legajo. Antes el verificador
+  // tenía que decidir con nombre, RUC y un monto suelto — no alcanzaba ni
+  // para saber a qué plazo ni contra qué garantía. `reviewer` y
+  // `review_started_at` existen porque el dueño del negocio preguntaba
+  // "¿quién está revisando esto?" y la respuesta no estaba en ningún lado.
+  //
+  // Montos en TEXT, en USDC enteros tal como los teclea la empresa (misma
+  // convención que requested_amount, ver nota de `opportunities`).
+  await sql`
+    ALTER TABLE verifier_submissions
+      ADD COLUMN IF NOT EXISTS sector TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS city TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS years_operating INTEGER NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS annual_revenue TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS project_type TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS term_months INTEGER NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS use_of_funds TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS collateral_kind TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS collateral_value TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS collateral_detail TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS legal_pack_name TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS reviewer TEXT,
+      ADD COLUMN IF NOT EXISTS review_started_at TIMESTAMPTZ
+  `;
+
   await sql`
     CREATE INDEX IF NOT EXISTS verifier_submissions_company_wallet_idx
     ON verifier_submissions (lower(company_wallet), submitted_at DESC)
+  `;
+
+  // Bitácora del expediente: quién hizo qué y cuándo, append-only.
+  //
+  // El estado del expediente ya vivía en `verifier_submissions.status`,
+  // pero un estado no cuenta una historia: la empresa veía "Pendiente" sin
+  // saber si alguien lo había tomado, y al aprobarse se perdía el rastro
+  // de la revisión. Cada transición escribe acá una fila y nunca se borra
+  // ni se edita — es lo que la empresa lee como seguimiento y lo que
+  // sostiene el honorario fijo del verificador (un expediente revisado es
+  // un expediente con eventos, apruebe o rechace).
+  await sql`
+    CREATE TABLE IF NOT EXISTS submission_events (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      submission_id UUID NOT NULL REFERENCES verifier_submissions(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL,
+      actor TEXT NOT NULL DEFAULT '',
+      actor_role TEXT NOT NULL DEFAULT 'system',
+      detail TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+  await sql`
+    CREATE INDEX IF NOT EXISTS submission_events_submission_idx
+      ON submission_events (submission_id, created_at)
   `;
 
   await sql`
@@ -75,6 +125,26 @@ async function main() {
       count INTEGER NOT NULL DEFAULT 1,
       PRIMARY KEY (key, window_start)
     )
+  `;
+
+  // Registro de la dispensadora de saldo de prueba (lib/faucet). Sostiene
+  // el enfriamiento por wallet y el tope diario, y deja el rastro de a
+  // quién se le regaló qué — en testnet no es dinero, pero sí es gas real
+  // de una cuenta que alguien tiene que reponer.
+  await sql`
+    CREATE TABLE IF NOT EXISTS faucet_drips (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      wallet TEXT NOT NULL,
+      token_amount TEXT NOT NULL DEFAULT '0',
+      gas_wei TEXT NOT NULL DEFAULT '0',
+      token_tx_hash TEXT,
+      gas_tx_hash TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+  await sql`
+    CREATE INDEX IF NOT EXISTS faucet_drips_wallet_idx
+      ON faucet_drips (lower(wallet), created_at DESC)
   `;
 
   // La empresa prestataria. Vive aparte de la oportunidad porque una
@@ -190,7 +260,7 @@ async function main() {
   `;
 
   console.log(
-    "Migración completa: verifier_submissions + passport receipt, verifier_documents, onchain_activity, rate_limits, companies, opportunities, access_applications, position_listings",
+    "Migración completa: verifier_submissions + expediente extendido + passport receipt, submission_events, verifier_documents, onchain_activity, rate_limits, faucet_drips, companies, opportunities, access_applications, position_listings",
   );
 }
 

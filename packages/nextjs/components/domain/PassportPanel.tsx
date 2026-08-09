@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { Pill } from "@/components/ui/Pill";
 import { Row } from "@/components/ui/Stat";
 import { formatDate, shortHash } from "@/lib/format";
+import { STATUS_LABEL } from "@/lib/verifier/submission";
 import type { Company } from "@/lib/types";
 
 const STATUS_VIEW: Record<
@@ -30,11 +31,10 @@ const STATUS_VIEW: Record<
   "rpc-error": { label: "Datos on-chain no disponibles", tone: "negative" },
 };
 
-const INTERNAL_STATUS = {
-  pending: "Pendiente",
-  approved: "Aprobado",
-  rejected: "Rechazado",
-} as const;
+/* Los rótulos de estado del expediente son los mismos que ven la empresa
+   y el verificador (lib/verifier/submission.ts): tres copias del mismo
+   diccionario ya habían empezado a divergir. */
+const INTERNAL_STATUS = STATUS_LABEL;
 
 type HashCheck = "idle" | "match" | "mismatch" | "unavailable";
 

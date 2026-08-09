@@ -46,25 +46,41 @@ export function PublishOpportunityForm({
   onClose: () => void;
   onPublished: (slug: string) => void;
 }) {
-  const [sector, setSector] = useState("");
-  const [city, setCity] = useState("");
-  const [yearsOperating, setYearsOperating] = useState("");
+  /* Todo lo que la empresa ya declaró en su expediente entra prellenado:
+     el verificador CORRIGE contra lo que verificó, no vuelve a teclear un
+     legajo que ya está en base. Lo declarado no se asciende a verificado
+     por venir prellenado — sigue siendo un campo editable que alguien
+     tiene que confirmar. */
+  const [sector, setSector] = useState(submission.sector);
+  const [city, setCity] = useState(submission.city);
+  const [yearsOperating, setYearsOperating] = useState(
+    submission.yearsOperating ? String(submission.yearsOperating) : "",
+  );
   const [employees, setEmployees] = useState("");
-  const [verifiedRevenue, setVerifiedRevenue] = useState("");
+  const [verifiedRevenue, setVerifiedRevenue] = useState(submission.annualRevenue);
 
-  const [summary, setSummary] = useState("");
+  const [summary, setSummary] = useState(submission.useOfFunds);
   const [highlights, setHighlights] = useState("");
   // Prellenado con lo que pidió la empresa, en USDC — se convierte al enviar.
   const [targetAmount, setTargetAmount] = useState(submission.requestedAmount);
   const [borrowerContribution, setBorrowerContribution] = useState("20");
-  const [termMonths, setTermMonths] = useState("12");
+  const [termMonths, setTermMonths] = useState(
+    submission.termMonths ? String(submission.termMonths) : "12",
+  );
   const [apy, setApy] = useState("15");
   const [fundingDeadline, setFundingDeadline] = useState("");
 
-  const [kind, setKind] = useState<CollateralKind>("machinery");
-  const [description, setDescription] = useState("");
-  const [appraisedValue, setAppraisedValue] = useState("");
-  const [haircut, setHaircut] = useState(String(HAIRCUT_BY_KIND.machinery / 100));
+  const [kind, setKind] = useState<CollateralKind>(
+    (submission.collateralKind as CollateralKind) || "machinery",
+  );
+  const [description, setDescription] = useState(submission.collateralDetail);
+  const [appraisedValue, setAppraisedValue] = useState(submission.collateralValue);
+  const [haircut, setHaircut] = useState(
+    String(
+      HAIRCUT_BY_KIND[(submission.collateralKind as CollateralKind) || "machinery"] /
+        100,
+    ),
+  );
   const [registryEntry, setRegistryEntry] = useState("");
   const [titleVerified, setTitleVerified] = useState(false);
   const [liens, setLiens] = useState("");

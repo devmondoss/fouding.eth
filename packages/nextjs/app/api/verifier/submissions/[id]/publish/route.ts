@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireVerifierAuth } from "@/lib/verifier/auth";
 import { withDbErrors } from "@/lib/verifier/apiError";
-import { getSubmission } from "@/lib/verifier/store";
+import { appendEvent, getSubmission } from "@/lib/verifier/store";
 import {
   createOpportunity,
   getOpportunityBySubmission,
@@ -53,6 +53,8 @@ type PublishBody = {
     liens?: string[];
   };
   milestones?: Milestone[];
+  /** Nombre del verificador que publica — va a la bitácora. */
+  decidedBy?: string;
 };
 
 const isAmount = (v: unknown): v is string =>
@@ -206,6 +208,18 @@ export async function POST(
       milestones,
       legalPackHash: submission.legalPackHash,
       fundingDeadline: body.fundingDeadline!,
+    });
+
+    // Publicar es el último acto del expediente y también el que más le
+    // importa a la empresa: es cuando su operación existe para un
+    // inversionista. Sin este evento, el seguimiento se quedaba mudo en
+    // "aprobado" para siempre.
+    await appendEvent({
+      submissionId: submission.id,
+      kind: "published",
+      actor: body.decidedBy?.trim() || "",
+      actorRole: "verifier",
+      detail: `Publicada como "${slug}" · ${body.termMonths} meses · ${(body.apyBps! / 100).toFixed(1)}% de rentabilidad`,
     });
 
     return NextResponse.json(opportunity, { status: 201 });

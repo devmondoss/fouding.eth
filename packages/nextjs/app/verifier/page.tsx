@@ -11,6 +11,16 @@ import { AccessRequests } from "@/components/verifier/AccessRequests";
 import { PublishOpportunityForm } from "@/components/verifier/PublishOpportunityForm";
 import { ServicingPanel } from "@/components/verifier/ServicingPanel";
 import { shortHash } from "@/lib/format";
+import {
+  COLLATERAL_LABEL,
+  PROJECT_TYPE_LABEL,
+  STATUS_LABEL,
+  STATUS_TONE,
+  declaredCoverage,
+  folio,
+  formatUsdcPlain,
+} from "@/lib/verifier/submission";
+import type { CollateralKind } from "@/lib/types";
 import { T } from "@/lib/motion";
 import type { VerifierSubmission } from "@/lib/verifier/types";
 
@@ -25,20 +35,14 @@ import type { VerifierSubmission } from "@/lib/verifier/types";
 const KEY_STORAGE = "founding.verifier.apiKey";
 const NAME_STORAGE = "founding.verifier.name";
 
-const SUBMISSION_LABEL: Record<VerifierSubmission["status"], string> = {
-  pending: "Pendiente",
-  approved: "Aprobado",
-  rejected: "Rechazado",
-};
+/* Las etiquetas y tonos de estado viven en lib/verifier/submission.ts —
+   los mismos que ve la empresa en su panel. Cuando estaban duplicados
+   acá, "Pendiente" de un lado convivía con "En cola" del otro para la
+   misma fila de base de datos.
 
-/* Antes acá se reimplementaba la píldora a mano, con su propio borde y su
+   La píldora también se reimplementaba a mano, con su propio borde y su
    propio color, mientras `Pill` ya existía y este mismo directorio la
    importaba en AccessRequests. */
-const SUBMISSION_TONE: Record<VerifierSubmission["status"], "warning" | "positive" | "negative"> = {
-  pending: "warning",
-  approved: "positive",
-  rejected: "negative",
-};
 
 /* Cuatro trabajos distintos que estaban apilados como iguales en una sola
    columna. Son secciones, no una lista: el operador hace uno a la vez. */
@@ -210,6 +214,38 @@ function Panel({
     }
   }
 
+  /**
+   * Tomar el expediente antes de decidirlo. Un paso más, a propósito: es
+   * lo que le pone nombre y hora a la revisión del lado de la empresa,
+   * que hasta ahora veía "Pendiente" hasta que aparecía un veredicto de
+   * la nada.
+   */
+  async function claim(id: string) {
+    setBusyId(id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/verifier/submissions/${id}/claim`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({ reviewer: name }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error ?? "No se pudo tomar el expediente");
+      }
+      await load();
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "No se pudo tomar el expediente",
+      );
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function viewDocument(hash: string) {
     const res = await fetch(`/api/verifier/documents/${hash}`, {
       headers: { Authorization: `Bearer ${apiKey}` },
@@ -222,7 +258,12 @@ function Panel({
     window.open(URL.createObjectURL(blob), "_blank");
   }
 
-  const pendientes = submissions?.filter((s) => s.status === "pending").length ?? 0;
+  // Trabajo abierto: lo que está en cola más lo que alguien ya tomó y
+  // todavía no decidió. Contar solo `pending` escondía los expedientes
+  // tomados y olvidados, que son justamente los que se vencen.
+  const pendientes =
+    submissions?.filter((s) => s.status === "pending" || s.status === "in_review")
+      .length ?? 0;
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "var(--bg)" }}>
@@ -337,16 +378,19 @@ function Panel({
             <div key={s.id} className="card p-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="num text-[11px] text-low">{folio(s.id)}</div>
+                  <div className="mt-0.5 flex items-center gap-2">
                     <h3 className="h3">{s.projectTitle}</h3>
                     <Pill
-                      label={SUBMISSION_LABEL[s.status]}
-                      tone={SUBMISSION_TONE[s.status]}
+                      label={STATUS_LABEL[s.status]}
+                      tone={STATUS_TONE[s.status]}
                       dot
                     />
                   </div>
                   <p className="mt-0.5 text-[12.5px] text-mid">
                     {s.companyName} {s.companyRuc && `· RUC ${s.companyRuc}`}
+                    {s.sector && ` · ${s.sector}`}
+                    {s.city && `, ${s.city}`}
                   </p>
                   <p className="num mt-1.5 flex items-center gap-1.5 text-[11.5px] text-low">
                     {shortHash(s.companyWallet, 6)} · hash{" "}
@@ -361,6 +405,11 @@ function Panel({
                       </button>
                     )}
                   </p>
+                  {s.reviewer && s.status === "in_review" && (
+                    <p className="mt-1.5 text-[11.5px] text-mid">
+                      Tomado por {s.reviewer}
+                    </p>
+                  )}
                   {s.note && (
                     <p className="mt-1.5 text-[12px] text-mid">Nota: {s.note}</p>
                   )}
@@ -368,13 +417,28 @@ function Panel({
 
                 <div className="shrink-0 text-right">
                   <div className="num text-[15px] font-semibold text-hi">
-                    {s.requestedAmount}
+                    {formatUsdcPlain(s.requestedAmount)}
                   </div>
-                  <div className="text-[11px] text-low">solicitado</div>
+                  <div className="text-[11px] text-low">USDC solicitados</div>
                 </div>
               </div>
 
+              {/* Lo que hay que revisar, en la tarjeta: antes había que
+                  decidir con nombre, RUC y un monto suelto. */}
+              <Expediente submission={s} />
+
               {s.status === "pending" && (
+                <div className="mt-3.5 flex items-center gap-2 border-t border-border pt-3.5">
+                  <Button size="sm" loading={busyId === s.id} onClick={() => claim(s.id)}>
+                    Tomar revisión
+                  </Button>
+                  <span className="text-[11px] text-low">
+                    La empresa verá tu nombre y desde cuándo lo revisas
+                  </span>
+                </div>
+              )}
+
+              {s.status === "in_review" && (
                 <div className="mt-3.5 flex gap-2 border-t border-border pt-3.5">
                   {/* La línea sobre el honorario fijo era un argumento de
                       venta al lado de dos botones de decisión: el operador ya
@@ -512,6 +576,94 @@ function Panel({
           }}
         />
       )}
+    </div>
+  );
+}
+
+/**
+ * El legajo que la empresa declaró, en la tarjeta de la cola. No es un
+ * adorno: es exactamente lo que hay que contrastar (RUC contra SUNAT,
+ * ventas contra comprobantes, garantía contra registro) y lo que después
+ * llega prellenado al formulario de publicación.
+ *
+ * La cobertura se muestra como "declarada" a propósito — el número que
+ * decide el crédito es el valor neto recuperable, que sale del castigo
+ * por tipo de activo que aplica este mismo panel al publicar.
+ */
+function Expediente({ submission: s }: { submission: VerifierSubmission }) {
+  const coverage = declaredCoverage(s.collateralValue, s.requestedAmount);
+  const hasLegajo = Boolean(s.projectType || s.collateralKind || s.useOfFunds);
+  if (!hasLegajo) return null;
+
+  return (
+    <div className="mt-3.5 border-t border-border pt-3.5">
+      <div className="grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-4">
+        <Dato label="Tipo" value={PROJECT_TYPE_LABEL[s.projectType] ?? "—"} />
+        <Dato
+          label="Plazo pedido"
+          value={s.termMonths ? `${s.termMonths} meses` : "—"}
+        />
+        <Dato
+          label="Antigüedad"
+          value={s.yearsOperating ? `${s.yearsOperating} años` : "—"}
+        />
+        <Dato
+          label="Ventas declaradas"
+          value={s.annualRevenue ? `${formatUsdcPlain(s.annualRevenue)} USDC` : "—"}
+        />
+        <Dato
+          label="Garantía"
+          value={COLLATERAL_LABEL[s.collateralKind as CollateralKind] ?? "—"}
+        />
+        <Dato
+          label="Valor declarado"
+          value={
+            s.collateralValue ? `${formatUsdcPlain(s.collateralValue)} USDC` : "—"
+          }
+        />
+        <Dato
+          label="Cobertura declarada"
+          value={coverage ? `${coverage.toFixed(2)}x` : "—"}
+          accent={coverage !== null && coverage < 1.2 ? "var(--warning)" : undefined}
+        />
+        <Dato label="Documento" value={s.legalPackName || "Sin adjuntar"} />
+      </div>
+
+      {s.useOfFunds && (
+        <p className="mt-3 text-[12px] leading-relaxed text-mid">
+          <span className="text-low">Destino del capital · </span>
+          {s.useOfFunds}
+        </p>
+      )}
+      {s.collateralDetail && (
+        <p className="mt-1.5 text-[12px] leading-relaxed text-mid">
+          <span className="text-low">Activo · </span>
+          {s.collateralDetail}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function Dato({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: string;
+  accent?: string;
+}) {
+  return (
+    <div className="min-w-0">
+      <div className="label">{label}</div>
+      <div
+        className="num mt-0.5 truncate text-[12.5px] font-medium"
+        style={{ color: accent ?? "var(--text-hi)" }}
+        title={value}
+      >
+        {value}
+      </div>
     </div>
   );
 }

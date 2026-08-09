@@ -1,16 +1,40 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
+import { ChipChoice, ChoiceGroup } from "@/components/ui/Choice";
+import {
+  SubmissionReceipt,
+  type ReceiptModel,
+} from "@/components/flow/SubmissionReceipt";
 import { useSession } from "@/lib/useSession";
 import { useLayerKeys } from "@/lib/keyboard";
 import { T, dialog, scrim } from "@/lib/motion";
+import {
+  AMOUNT_PRESETS,
+  COLLATERAL_DETAIL,
+  COLLATERAL_KINDS,
+  COLLATERAL_LABEL,
+  MIN_REQUESTED_USDC,
+  PROJECT_TYPES,
+  REVIEW_SLA_DAYS,
+  SECTORS,
+  TERM_PRESETS,
+  amountError,
+  digits,
+  formatUsdcPlain,
+  parseAmount,
+  rucError,
+  yearsError,
+} from "@/lib/verifier/submission";
+import type { CollateralKind } from "@/lib/types";
 
 const STEPS = [
   { key: "empresa", label: "La empresa" },
   { key: "proyecto", label: "El proyecto" },
+  { key: "condiciones", label: "Lo que pides" },
   { key: "expediente", label: "Expediente" },
 ] as const;
 
@@ -18,6 +42,13 @@ const STEPS = [
  * Overlay de nueva solicitud — se abre desde BusinessDashboard, nunca es
  * la pantalla de entrada por sí sola (ver conversación de agosto 2026:
  * loguearte no debería tirarte de una a un formulario en blanco).
+ *
+ * Pedía cuatro datos y mandaba a revisión un papel que no alcanzaba para
+ * decidir nada: sin plazo, sin destino del capital, sin garantía, con un
+ * monto libre que podía ser 200 dólares. Ahora el asistente levanta el
+ * legajo completo —empresa, proyecto, condiciones y documentación— y el
+ * último paso muestra el comprobante de lo que se está enviando, con lo
+ * que la plataforma todavía NO promete escrito al pie.
  */
 export function SolicitudWizard({
   address,
@@ -30,10 +61,28 @@ export function SolicitudWizard({
 }) {
   const { getAccessToken } = useSession();
   const [step, setStep] = useState(0);
+  /** Un paso muestra sus errores recién cuando se intentó avanzar: hasta
+   * ahí el formulario no le grita a alguien que todavía está tecleando. */
+  const [attempted, setAttempted] = useState<boolean[]>([false, false, false, false]);
+
   const [companyName, setCompanyName] = useState("");
   const [companyRuc, setCompanyRuc] = useState("");
+  const [sector, setSector] = useState<string | null>(null);
+  const [city, setCity] = useState("");
+  const [yearsOperating, setYearsOperating] = useState("");
+  const [annualRevenue, setAnnualRevenue] = useState("");
+
+  const [projectType, setProjectType] = useState<string | null>(null);
   const [projectTitle, setProjectTitle] = useState("");
-  const [requestedAmount, setRequestedAmount] = useState("");
+  const [useOfFunds, setUseOfFunds] = useState("");
+
+  const [amountChoice, setAmountChoice] = useState<string | null>(null);
+  const [customAmount, setCustomAmount] = useState("");
+  const [termMonths, setTermMonths] = useState<string | null>("12");
+  const [collateralKind, setCollateralKind] = useState<CollateralKind | null>(null);
+  const [collateralValue, setCollateralValue] = useState("");
+  const [collateralDetail, setCollateralDetail] = useState("");
+
   const [file, setFile] = useState<File | null>(null);
 
   const [submitting, setSubmitting] = useState(false);
@@ -43,12 +92,88 @@ export function SolicitudWizard({
   // Mientras envía no se puede cerrar: el expediente ya está en vuelo.
   useLayerKeys({ onEscape: () => !submitting && onClose() });
 
-  // Cada fase se valida sola — no se puede avanzar sin completar la
-  // actual, así el error aparece en el paso donde vive el campo.
-  const stepValid = [Boolean(companyName), Boolean(projectTitle && requestedAmount), true];
-  const canSubmit = stepValid[0] && stepValid[1];
+  const requestedAmount =
+    amountChoice === "custom" ? customAmount : (amountChoice ?? "");
+
+  const errors = useMemo(
+    () => ({
+      companyName: companyName.trim() ? null : "El nombre legal de la empresa",
+      companyRuc: rucError(companyRuc),
+      sector: sector ? null : "Elige el sector",
+      city: city.trim() ? null : "En qué ciudad opera",
+      yearsOperating: yearsError(yearsOperating),
+      projectType: projectType ? null : "Elige para qué es el capital",
+      projectTitle: projectTitle.trim() ? null : "Ponle un título al proyecto",
+      useOfFunds:
+        useOfFunds.trim().length >= 40
+          ? null
+          : "Cuenta en qué se gasta el capital — al menos un par de líneas",
+      amount: amountError(requestedAmount),
+      term: termMonths ? null : "Elige un plazo",
+      collateralKind: collateralKind ? null : "Elige el activo que ofreces",
+      collateralValue: (() => {
+        const n = parseAmount(collateralValue);
+        if (!Number.isFinite(n) || n <= 0) return "Valor estimado del activo";
+        return null;
+      })(),
+    }),
+    [
+      companyName,
+      companyRuc,
+      sector,
+      city,
+      yearsOperating,
+      projectType,
+      projectTitle,
+      useOfFunds,
+      requestedAmount,
+      termMonths,
+      collateralKind,
+      collateralValue,
+    ],
+  );
+
+  const stepErrors: (string | null)[][] = [
+    [
+      errors.companyName,
+      errors.companyRuc,
+      errors.sector,
+      errors.city,
+      errors.yearsOperating,
+    ],
+    [errors.projectType, errors.projectTitle, errors.useOfFunds],
+    [errors.amount, errors.term, errors.collateralKind, errors.collateralValue],
+    [],
+  ];
+  const stepValid = stepErrors.map((list) => list.every((e) => e === null));
+  const canSubmit = stepValid[0] && stepValid[1] && stepValid[2];
+
+  /** El error solo se pinta si ya se intentó pasar de ese paso. */
+  const show = (index: number, message: string | null) =>
+    attempted[index] ? message : null;
+
+  const receipt: ReceiptModel = {
+    companyName,
+    companyRuc: digits(companyRuc),
+    companyWallet: address,
+    sector: sector ?? "",
+    city,
+    yearsOperating,
+    annualRevenue,
+    projectTitle,
+    projectType: projectType ?? "",
+    useOfFunds,
+    requestedAmount,
+    termMonths: termMonths ?? "",
+    collateralKind: collateralKind ?? "",
+    collateralValue,
+    collateralDetail,
+    legalPackName: file?.name ?? null,
+    legalPackHash: null,
+  };
 
   function goNext() {
+    setAttempted((prev) => prev.map((v, i) => (i === step ? true : v)));
     if (!stepValid[step]) return;
     setStep((s) => Math.min(s + 1, STEPS.length - 1));
   }
@@ -90,11 +215,22 @@ export function SolicitudWizard({
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeader },
         body: JSON.stringify({
-          companyName,
-          companyRuc,
-          projectTitle,
-          requestedAmount,
+          companyName: companyName.trim(),
+          companyRuc: digits(companyRuc),
+          sector,
+          city: city.trim(),
+          yearsOperating: Number(digits(yearsOperating)) || 0,
+          annualRevenue: annualRevenue ? String(parseAmount(annualRevenue)) : "",
+          projectTitle: projectTitle.trim(),
+          projectType,
+          useOfFunds: useOfFunds.trim(),
+          requestedAmount: String(parseAmount(requestedAmount)),
+          termMonths: Number(termMonths) || 0,
+          collateralKind,
+          collateralValue: String(parseAmount(collateralValue)),
+          collateralDetail: collateralDetail.trim(),
           legalPackHash,
+          legalPackName: file?.name ?? "",
         }),
       });
 
@@ -127,35 +263,30 @@ export function SolicitudWizard({
         animate="show"
         exit="exit"
         onClick={(e) => e.stopPropagation()}
-        className="max-h-[calc(100vh-32px)] w-full max-w-[520px] overflow-y-auto rounded-[var(--r-card)] border border-border bg-surface shadow-[var(--shadow-lg)]"
+        className="flex max-h-[calc(100vh-32px)] w-full max-w-[580px] flex-col rounded-[var(--r-card)] border border-border bg-surface shadow-[var(--shadow-lg)]"
       >
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h2 className="h2 text-[16px]">Nueva solicitud</h2>
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
+          <div>
+            <h2 className="h2 text-[16px]">Nueva solicitud de financiamiento</h2>
+            {!done && (
+              <p className="num mt-0.5 text-[12px] text-low">
+                Paso {step + 1} de {STEPS.length}
+              </p>
+            )}
+          </div>
           {!submitting && (
             <button
               onClick={onClose}
-              className="focusable -mr-1 flex h-7 items-center rounded-[var(--r-input)] px-1.5 text-[12px] text-mid transition-colors hover:bg-surface-soft hover:text-hi"
+              className="focusable -mr-1 flex h-7 shrink-0 items-center rounded-[var(--r-input)] px-1.5 text-[12px] text-mid transition-colors hover:bg-surface-soft hover:text-hi"
             >
               Cerrar
             </button>
           )}
         </div>
 
-        <div className="p-5">
+        <div className="min-h-0 flex-1 overflow-y-auto p-5">
           {done ? (
-            <div className="flex flex-col items-center gap-3 py-6 text-center">
-              {/* El check verde en un círculo era el sello genérico de
-                  "listo". El titular ya afirma que se envió, y el
-                  `positive-soft` de relleno rompía además la regla de no
-                  teñir superficies (§4). */}
-              <h3 className="h3">Solicitud enviada</h3>
-              <p className="max-w-[360px] text-[13px] leading-relaxed text-mid">
-                Un verificador va a revisar tu expediente.
-              </p>
-              <Button size="lg" className="mt-2 w-full" onClick={onSubmitted}>
-                Listo
-              </Button>
-            </div>
+            <Submitted onDone={onSubmitted} />
           ) : (
             <>
               <div className="mb-5 flex items-center gap-2">
@@ -169,7 +300,10 @@ export function SolicitudWizard({
                   >
                     <span
                       className="h-1.5 w-full rounded-full transition-colors"
-                      style={{ backgroundColor: i <= step ? "var(--brand-ink)" : "var(--border)" }}
+                      style={{
+                        backgroundColor:
+                          i <= step ? "var(--brand-strong)" : "var(--border)",
+                      }}
                     />
                     <span
                       className="text-[11px] font-medium"
@@ -183,79 +317,191 @@ export function SolicitudWizard({
 
               <AnimatePresence mode="wait">
                 {step === 0 && (
-                  <motion.div
-                    key="empresa"
-                    initial={{ opacity: 0, x: 12 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -12 }}
-                    transition={T.fast}
-                    className="flex flex-col gap-4"
-                  >
+                  <Step key="empresa">
                     <Field
-                      label="Nombre de la empresa"
+                      label="Razón social"
                       placeholder="Textiles del Sur S.A.C."
                       value={companyName}
                       onChange={(e) => setCompanyName(e.target.value)}
-                      required
+                      error={show(0, errors.companyName)}
                       autoFocus
                     />
-                    <Field
-                      label="RUC"
-                      placeholder="20123456789"
-                      value={companyRuc}
-                      onChange={(e) => setCompanyRuc(e.target.value)}
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field
+                        label="RUC"
+                        placeholder="20123456789"
+                        inputMode="numeric"
+                        maxLength={11}
+                        value={companyRuc}
+                        onChange={(e) => setCompanyRuc(digits(e.target.value))}
+                        error={show(0, errors.companyRuc)}
+                        hint="11 dígitos"
+                      />
+                      <Field
+                        label="Ciudad"
+                        placeholder="Arequipa"
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        error={show(0, errors.city)}
+                      />
+                    </div>
+
+                    <ChoiceGroup
+                      label="Sector"
+                      columns={2}
+                      options={SECTORS.map((s) => ({ value: s, label: s }))}
+                      value={sector}
+                      onChange={setSector}
+                      error={show(0, errors.sector)}
                     />
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field
+                        label="Años operando"
+                        placeholder="8"
+                        inputMode="numeric"
+                        value={yearsOperating}
+                        onChange={(e) => setYearsOperating(digits(e.target.value))}
+                        error={show(0, errors.yearsOperating)}
+                      />
+                      <Field
+                        label="Ventas del último año"
+                        suffix="USDC"
+                        inputMode="decimal"
+                        placeholder="480000"
+                        value={annualRevenue}
+                        onChange={(e) => setAnnualRevenue(e.target.value)}
+                        hint="Opcional, pero acelera la revisión"
+                      />
+                    </div>
+
                     <Field
                       label="Wallet de la empresa"
                       value={address}
-                      hint="No se puede cambiar"
+                      hint="La wallet con la que iniciaste sesión — es la que queda habilitada si se aprueba. No se puede cambiar."
                       readOnly
                       disabled
                     />
-                  </motion.div>
+                  </Step>
                 )}
 
                 {step === 1 && (
-                  <motion.div
-                    key="proyecto"
-                    initial={{ opacity: 0, x: 12 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -12 }}
-                    transition={T.fast}
-                    className="flex flex-col gap-4"
-                  >
+                  <Step key="proyecto">
+                    <ChoiceGroup
+                      label="¿Para qué es el capital?"
+                      options={PROJECT_TYPES.map((t) => ({
+                        value: t.key,
+                        label: t.label,
+                        detail: t.detail,
+                      }))}
+                      value={projectType}
+                      onChange={setProjectType}
+                      error={show(1, errors.projectType)}
+                    />
+
                     <Field
                       label="Título del proyecto"
-                      placeholder="Compra de mercadería para temporada"
+                      placeholder="Compra de mercadería para temporada alta"
                       value={projectTitle}
                       onChange={(e) => setProjectTitle(e.target.value)}
-                      required
-                      autoFocus
+                      error={show(1, errors.projectTitle)}
                     />
-                    <Field
-                      label="Monto solicitado"
-                      suffix="USDC"
-                      inputMode="decimal"
-                      placeholder="50000"
-                      value={requestedAmount}
-                      onChange={(e) => setRequestedAmount(e.target.value)}
-                      required
+
+                    <TextArea
+                      label="Destino del capital"
+                      rows={4}
+                      value={useOfFunds}
+                      onChange={setUseOfFunds}
+                      placeholder="Dos secadoras industriales cotizadas con un proveedor de Lima, instalación en planta y capital de trabajo para el primer lote. Ya hay orden de compra de dos clientes."
+                      error={show(1, errors.useOfFunds)}
+                      hint="En qué se gasta y contra qué pedido"
                     />
-                  </motion.div>
+                  </Step>
                 )}
 
                 {step === 2 && (
-                  <motion.div
-                    key="expediente"
-                    initial={{ opacity: 0, x: 12 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -12 }}
-                    transition={T.fast}
-                    className="flex flex-col gap-4"
-                  >
+                  <Step key="condiciones">
+                    <ChipChoice
+                      label="Monto solicitado"
+                      options={[
+                        ...AMOUNT_PRESETS.map((n) => ({
+                          value: String(n),
+                          label: `${formatUsdcPlain(n)} USDC`,
+                        })),
+                        { value: "custom", label: "Otro monto" },
+                      ]}
+                      value={amountChoice}
+                      onChange={setAmountChoice}
+                      error={show(2, errors.amount)}
+                      hint={`Mínimo ${formatUsdcPlain(MIN_REQUESTED_USDC)} USDC`}
+                      footer={
+                        amountChoice === "custom" ? (
+                          <div className="mt-1">
+                            <Field
+                              label="Monto exacto"
+                              suffix="USDC"
+                              inputMode="decimal"
+                              placeholder="75000"
+                              value={customAmount}
+                              onChange={(e) => setCustomAmount(e.target.value)}
+                              autoFocus
+                            />
+                          </div>
+                        ) : null
+                      }
+                    />
+
+                    <ChipChoice
+                      label="Plazo de repago"
+                      options={TERM_PRESETS.map((m) => ({
+                        value: String(m),
+                        label: `${m} meses`,
+                      }))}
+                      value={termMonths}
+                      onChange={setTermMonths}
+                      error={show(2, errors.term)}
+                      hint="Referencial: el definitivo lo fija el verificador"
+                    />
+
+                    <ChoiceGroup
+                      label="Garantía que ofreces"
+                      options={COLLATERAL_KINDS.map((k) => ({
+                        value: k,
+                        label: COLLATERAL_LABEL[k],
+                        detail: COLLATERAL_DETAIL[k],
+                      }))}
+                      value={collateralKind}
+                      onChange={setCollateralKind}
+                      error={show(2, errors.collateralKind)}
+                    />
+
+                    <Field
+                      label="Valor estimado del activo"
+                      suffix="USDC"
+                      inputMode="decimal"
+                      placeholder="90000"
+                      value={collateralValue}
+                      onChange={(e) => setCollateralValue(e.target.value)}
+                      error={show(2, errors.collateralValue)}
+                      hint="Tu estimación. El verificador lo tasa y le aplica un castigo por tipo de activo."
+                    />
+
+                    <TextArea
+                      label="Descripción del activo"
+                      optional
+                      rows={2}
+                      value={collateralDetail}
+                      onChange={setCollateralDetail}
+                      placeholder="Secadora industrial marca X, año 2021, partida registral si la tienes a mano."
+                    />
+                  </Step>
+                )}
+
+                {step === 3 && (
+                  <Step key="expediente">
                     <label className="flex flex-col gap-1.5">
                       <span className="text-[12.5px] font-medium text-hi">
-                        Expediente legal <span className="text-low">(opcional por ahora)</span>
+                        Expediente legal <span className="text-low">(opcional)</span>
                       </span>
                       <span className="flex items-center justify-between gap-2 rounded-[var(--r-input)] border border-border bg-surface px-3 py-2.5">
                         <span className="truncate text-[13px] text-mid">
@@ -265,75 +511,197 @@ export function SolicitudWizard({
                           className="shrink-0 text-[12px] font-medium underline decoration-dotted"
                           style={{ color: "var(--brand-ink)" }}
                         >
-                          Elegir
+                          {file ? "Cambiar" : "Elegir"}
                         </span>
                         <input
                           type="file"
                           className="hidden"
+                          accept="application/pdf,image/*"
                           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                         />
                       </span>
                       <span className="text-[12px] text-low">
-                        Se guarda en storage privado; a la cadena solo va su
-                        huella.
+                        Vigencia de poderes, ficha RUC, comprobantes de venta o la
+                        tasación del activo, en un PDF. Puedes enviarlo sin adjuntar
+                        nada: el verificador te lo pedirá si le hace falta. El
+                        documento se guarda en storage privado — a la cadena solo
+                        llega su hash, nunca el archivo.
                       </span>
                     </label>
 
-                    <div className="rounded-[var(--r-panel)] border border-border bg-surface-soft p-3 text-[12.5px]">
-                      <div className="font-medium text-hi">Resumen</div>
-                      <div className="mt-1.5 flex flex-col gap-1 text-mid">
-                        <span>
-                          {companyName || "—"}
-                          {companyRuc ? ` · RUC ${companyRuc}` : ""}
-                        </span>
-                        <span>{projectTitle || "—"}</span>
-                        <span>{requestedAmount ? `${requestedAmount} USDC` : "—"}</span>
-                      </div>
+                    <SubmissionReceipt model={receipt} dense />
+
+                    <div className="rounded-[var(--r-panel)] border border-border p-3">
+                      <div className="label">Qué pasa cuando envíes</div>
+                      <ol className="mt-2 flex flex-col gap-2">
+                        <NextStep n={1} title="Entra a la cola de revisión">
+                          Queda con folio propio y visible en tu panel.
+                        </NextStep>
+                        <NextStep n={2} title="Un verificador lo toma">
+                          Vas a ver su nombre y desde cuándo lo está revisando.
+                        </NextStep>
+                        <NextStep
+                          n={3}
+                          title={`Resultado en ${REVIEW_SLA_DAYS} días hábiles`}
+                        >
+                          Si aprueba, se emite tu pasaporte de negocio onchain. Si
+                          rechaza, te deja por escrito qué corregir.
+                        </NextStep>
+                        <NextStep n={4} title="Publicación al catálogo">
+                          Con el expediente aprobado, el verificador fija plazo,
+                          rentabilidad e hitos, y recién ahí los inversionistas
+                          pueden financiarlo.
+                        </NextStep>
+                      </ol>
                     </div>
 
                     {error && (
                       <div
+                        role="alert"
                         className="rounded-[var(--r-panel)] border px-3 py-2.5 text-[12.5px]"
-                        style={{ borderColor: "var(--negative)", color: "var(--negative)" }}
+                        style={{
+                          borderColor: "var(--negative)",
+                          color: "var(--negative)",
+                        }}
                       >
                         {error}
                       </div>
                     )}
-                  </motion.div>
+                  </Step>
                 )}
               </AnimatePresence>
-
-              <div className="mt-6 flex items-center gap-2.5">
-                {step > 0 && (
-                  <Button variant="outline" size="lg" onClick={goBack}>
-                    Atrás
-                  </Button>
-                )}
-                {step < STEPS.length - 1 ? (
-                  <Button
-                    size="lg"
-                    className="flex-1"
-                    onClick={goNext}
-                    disabled={!stepValid[step]}
-                  >
-                    Continuar
-                  </Button>
-                ) : (
-                  <Button
-                    size="lg"
-                    className="flex-1"
-                    onClick={handleSubmit}
-                    disabled={!canSubmit || submitting}
-                    loading={submitting}
-                  >
-                    {submitting ? "Enviando" : "Enviar solicitud"}
-                  </Button>
-                )}
-              </div>
             </>
           )}
         </div>
+
+        {!done && (
+          <div className="flex shrink-0 items-center gap-2.5 border-t border-border px-5 py-4">
+            {step > 0 && (
+              <Button variant="outline" size="lg" onClick={goBack} disabled={submitting}>
+                Atrás
+              </Button>
+            )}
+            {step < STEPS.length - 1 ? (
+              <Button size="lg" className="flex-1" onClick={goNext}>
+                Continuar
+              </Button>
+            ) : (
+              <Button
+                size="lg"
+                className="flex-1"
+                onClick={handleSubmit}
+                disabled={!canSubmit || submitting}
+                loading={submitting}
+              >
+                Enviar a revisión
+              </Button>
+            )}
+          </div>
+        )}
       </motion.div>
     </motion.div>
+  );
+}
+
+function Step({ children }: { children: React.ReactNode }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 12 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -12 }}
+      transition={T.fast}
+      className="flex flex-col gap-4"
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+function NextStep({
+  n,
+  title,
+  children,
+}: {
+  n: number;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <li className="flex gap-2.5">
+      <span
+        className="num mt-[1px] flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold"
+        style={{ backgroundColor: "var(--brand-soft)", color: "var(--brand-ink)" }}
+      >
+        {n}
+      </span>
+      <span className="min-w-0">
+        <span className="block text-[12.5px] font-medium text-hi">{title}</span>
+        <span className="mt-0.5 block text-[12px] leading-relaxed text-mid">
+          {children}
+        </span>
+      </span>
+    </li>
+  );
+}
+
+function Submitted({ onDone }: { onDone: () => void }) {
+  return (
+    <div className="flex flex-col items-center gap-3 py-6 text-center">
+      {/* El check verde en un círculo era el sello genérico de "listo". El
+          titular ya afirma que se envió, y el `positive-soft` de relleno
+          rompía además la regla de no teñir superficies (§4). */}
+      <h3 className="h3">Expediente enviado a revisión</h3>
+      <p className="max-w-[380px] text-[13px] leading-relaxed text-mid">
+        Ya está en la cola con su folio. En tu panel ves quién lo toma y el
+        resultado con su motivo.
+      </p>
+      <Button size="lg" className="mt-2 w-full" onClick={onDone}>
+        Ver el seguimiento
+      </Button>
+    </div>
+  );
+}
+
+function TextArea({
+  label,
+  value,
+  onChange,
+  rows = 3,
+  placeholder,
+  hint,
+  error,
+  optional = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  rows?: number;
+  placeholder?: string;
+  hint?: string;
+  error?: string | null;
+  optional?: boolean;
+}) {
+  return (
+    <label className="flex flex-col gap-1.5">
+      <span className="text-[12.5px] font-medium text-hi">
+        {label} {optional && <span className="text-low">(opcional)</span>}
+      </span>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        rows={rows}
+        placeholder={placeholder}
+        aria-invalid={error ? true : undefined}
+        className="w-full resize-y rounded-[var(--r-input)] border bg-surface px-3 py-2 text-[13px] leading-relaxed text-hi outline-none transition-colors placeholder:text-low focus:border-[var(--brand-ink)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-ink)]"
+        style={{ borderColor: error ? "var(--negative)" : "var(--border)" }}
+      />
+      {error ? (
+        <span role="alert" className="text-[12px]" style={{ color: "var(--negative)" }}>
+          {error}
+        </span>
+      ) : (
+        hint && <span className="text-[12px] leading-snug text-low">{hint}</span>
+      )}
+    </label>
   );
 }
