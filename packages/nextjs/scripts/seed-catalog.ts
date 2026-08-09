@@ -29,7 +29,11 @@ const CANTIDAD = 80;
 /** Expedientes que quedan sin publicar, para que la cola del verificador
  * no aparezca vacía: la bandeja es una pantalla del producto. */
 const EN_COLA = 7;
-const MARCA = "0x5EED";
+/** En minúsculas a propósito: una dirección con mayúsculas mezcladas se
+ * interpreta como checksum EIP-55 y el sembrado no lo cumplía, así que
+ * viem rechazaba `0x5EED…0001` en cualquier lectura onchain —pasaporte,
+ * saldo, vault—. En minúsculas no hay checksum que validar. */
+const MARCA = "0x5eed";
 const HOY = new Date("2026-08-09T00:00:00Z");
 
 /** PRNG con semilla: la siembra tiene que ser igual en cada máquina, o
@@ -189,18 +193,21 @@ const slugify = (s: string) =>
 
 async function limpiar() {
   // El orden importa: opportunities referencia companies y submissions.
+  // Y la comparación va en minúsculas: LIKE distingue caja en Postgres, así
+  // que al cambiar la marca a minúsculas el borrado dejaba de encontrar lo
+  // sembrado antes y la re-siembra chocaba contra el RUC único.
   await sql`
     DELETE FROM opportunities
-    WHERE company_id IN (SELECT id FROM companies WHERE wallet LIKE ${MARCA + "%"})
+    WHERE company_id IN (SELECT id FROM companies WHERE lower(wallet) LIKE ${MARCA + "%"})
   `;
   await sql`
     DELETE FROM submission_events
     WHERE submission_id IN (
-      SELECT id FROM verifier_submissions WHERE company_wallet LIKE ${MARCA + "%"}
+      SELECT id FROM verifier_submissions WHERE lower(company_wallet) LIKE ${MARCA + "%"}
     )
   `;
-  await sql`DELETE FROM verifier_submissions WHERE company_wallet LIKE ${MARCA + "%"}`;
-  await sql`DELETE FROM companies WHERE wallet LIKE ${MARCA + "%"}`;
+  await sql`DELETE FROM verifier_submissions WHERE lower(company_wallet) LIKE ${MARCA + "%"}`;
+  await sql`DELETE FROM companies WHERE lower(wallet) LIKE ${MARCA + "%"}`;
 }
 
 /**

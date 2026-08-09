@@ -8282,9 +8282,9 @@ const deployedContracts = {
       ],
     },
     CreditVault: {
-      address: "0x2ff9d0da4040be9cb243bca4857a33ea0ba70848",
+      address: "0xd470aadb20aeae8a225e68fef09a37addbde3797",
       txHash:
-        "0x94232c1bba06897a2c3633cc49701608772d005eece52faee66550fc319795bc",
+        "0x37c92da470595fddd03b85fd67a4a0c237530fde528064204ac31ed2f334d0a7",
       abi: [
         {
           inputs: [],

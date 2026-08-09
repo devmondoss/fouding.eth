@@ -268,8 +268,19 @@ export default async function deployScript(deployOptions: DeployOptions) {
     archiveLatestDeployment(baseConfig.deploymentDir, baseConfig.chain.id);
   }
 
+  // Payment token: MockUSDC everywhere, Sepolia included.
+  //
+  // Picking Circle's USDC on Sepolia looked canonical but broke the only
+  // path a visitor has: that token has no faucet, so a freshly created
+  // wallet could never hold any, and "invest" was unreachable without
+  // bridging testnet USDC in from outside the product. The app hands out
+  // MockUSDC (see lib/faucet), and a vault that expects a different token
+  // than the one people actually hold is a vault nobody can fund.
+  //
+  // Pass --circle-usdc to go back to Circle's token on Sepolia — for a
+  // deployment meant to be funded by hand rather than demoed.
   let paymentToken: Address;
-  if (baseConfig.chain.id === arbitrumSepolia.id) {
+  if (baseConfig.chain.id === arbitrumSepolia.id && options.circleUsdc) {
     paymentToken = ARBITRUM_SEPOLIA_USDC_ADDRESS;
     console.log(`💵 Payment token: Circle USDC (canonical) ${paymentToken}`);
   } else {

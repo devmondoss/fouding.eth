@@ -21,6 +21,8 @@ export interface DeployOptions {
   verify?: boolean;
   minimal?: boolean;
   resume?: boolean;
+  /** Sepolia only: fall back to Circle USDC instead of MockUSDC. */
+  circleUsdc?: boolean;
 }
 
 export interface DeploymentData {

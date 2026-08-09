@@ -40,6 +40,12 @@ if (require.main === module) {
       type: "boolean",
       default: false,
     })
+    .option("circle-usdc", {
+      describe:
+        "On Sepolia, use Circle's USDC instead of MockUSDC. Only for a deployment funded by hand: Circle's token has no faucet, so the in-app top-up cannot fund it",
+      type: "boolean",
+      default: false,
+    })
     .option("resume", {
       describe: "Reuse valid contracts from the chain deployment manifest",
       type: "boolean",
