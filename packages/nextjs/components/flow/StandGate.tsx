@@ -78,51 +78,52 @@ export function StandGate() {
         </span>
       </motion.div>
 
+      {/* Dos columnas: la tesis a la izquierda, la decisión a la derecha.
+          Apilado en una sola, el ojo bajaba por título, párrafo, tarjeta y
+          dos renglones de enlaces mientras media pantalla quedaba vacía al
+          costado. Con lo elegido ya sabido —una sola tarjeta— eso se veía
+          peor todavía. En teléfono vuelve a ser una columna, que es donde
+          apilar sí corresponde. */}
       <motion.div
         variants={stagger(0.07)}
         initial="hidden"
         animate="show"
-        className="mx-auto flex w-full max-w-[620px] flex-1 flex-col justify-center py-7 sm:py-10 lg:max-w-[860px]"
+        className="mx-auto grid w-full max-w-[620px] flex-1 grid-cols-1 items-center gap-8 py-7 sm:py-10 lg:max-w-[980px] lg:grid-cols-[1fr_minmax(380px,440px)] lg:gap-14"
       >
-        {/* El titular medía seis líneas en un teléfono de 640px de alto y
-            empujaba la segunda opción debajo del borde: en la pantalla
-            cuyo único trabajo es elegir entre dos caminos, uno de los dos
-            no se veía. La tesis completa —garantía y orden de pago en el
-            contrato— bajó a la línea de apoyo, que es donde cabe sin
-            costarle la mitad de la pantalla a la decisión. */}
-        <motion.h1
-          variants={fadeUp}
-          className="h1 text-[26px] leading-[1.1] text-balance sm:text-[34px] lg:text-[42px]"
-        >
-          Crédito privado para empresas que ya facturan.
-        </motion.h1>
+        <div>
+          <motion.h1
+            variants={fadeUp}
+            className="h1 text-[26px] leading-[1.1] text-balance sm:text-[34px] lg:text-[42px]"
+          >
+            Crédito privado para empresas que ya facturan.
+          </motion.h1>
 
-        <motion.p
-          variants={fadeUp}
-          className="mt-3 max-w-[52ch] text-[14px] leading-relaxed text-mid sm:mt-4 sm:text-[15px]"
-        >
-          {yaEs
-            ? "La garantía y el orden de pago se ejecutan en el contrato. Tu wallet ya está de este lado: sigue por donde ibas."
-            : "La garantía y el orden de pago se ejecutan en el contrato. Elige desde qué lado quieres recorrerlo: tu wallet se crea al elegir y queda fija a ese lado."}
-        </motion.p>
+          {/* Una línea, no un párrafo. Lo que cada travesía implica ya lo
+              dice su propia tarjeta, y repetirlo acá era el texto de más
+              que hacía scroll a la decisión. */}
+          <motion.p
+            variants={fadeUp}
+            className="mt-3 max-w-[42ch] text-[14px] leading-relaxed text-mid sm:mt-4 sm:text-[15px]"
+          >
+            {yaEs
+              ? "Tu wallet ya está de este lado."
+              : "La garantía y el orden de pago se ejecutan en el contrato."}
+          </motion.p>
+        </div>
 
-        {/* Una tarjeta o dos, según lo que esta wallet pueda elegir de
-            verdad. Mostrar las dos y rechazar una al tocarla es pedir una
-            decisión ya tomada para después corregirla. */}
-        <div
-          className={`mt-6 grid grid-cols-1 gap-3 sm:mt-9 lg:gap-4 ${
-            yaEs ? "lg:max-w-[420px]" : "lg:grid-cols-2"
-          }`}
-        >
+        <div className="flex flex-col gap-3">
+          {/* Una tarjeta o dos, según lo que esta wallet pueda elegir de
+              verdad. Mostrar las dos y rechazar una al tocarla es pedir una
+              decisión ya tomada para después corregirla. */}
           {yaEs !== "business" && (
-          <TravesiaCard
-            title="Soy inversionista"
-            detail="Pongo capital en una operación y sigo cómo se libera por hitos hasta el repago."
-            aside={`Entras con ${TOPUP_TOKEN_AMOUNT.toLocaleString("es-PE")} USDC de prueba ya acreditados.`}
-            busy={connecting && chosen === "investor"}
-            disabled={connecting && chosen !== "investor"}
-            onClick={() => choose("investor")}
-          />
+            <TravesiaCard
+              title="Soy inversionista"
+              detail="Pongo capital en una operación y sigo cómo se libera por hitos hasta el repago."
+              aside={`Entras con ${TOPUP_TOKEN_AMOUNT.toLocaleString("es-PE")} USDC de prueba ya acreditados.`}
+              busy={connecting && chosen === "investor"}
+              disabled={connecting && chosen !== "investor"}
+              onClick={() => choose("investor")}
+            />
           )}
           {yaEs !== "investor" && (
             <TravesiaCard
@@ -134,72 +135,60 @@ export function StandGate() {
               onClick={() => choose("business")}
             />
           )}
+
+          {/* Las dos salidas secundarias en un solo renglón: reanudar la
+              sesión de quien acaba de cerrarla, y ceder el teléfono a la
+              siguiente persona. Antes eran dos frases completas, una
+              debajo de la otra, compitiendo con la decisión. */}
+          {!connecting && (pendingAccount || yaEs) && (
+            <motion.p
+              variants={fadeUp}
+              className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-low"
+            >
+              {pendingAccount && (
+                <button
+                  onClick={resumeSession}
+                  className="focusable font-medium underline decoration-dotted underline-offset-4"
+                  style={{ color: "var(--brand-ink)" }}
+                >
+                  Continuar como {pendingAccount}
+                </button>
+              )}
+              {pendingAccount && yaEs && <span aria-hidden>·</span>}
+              {yaEs && (
+                <button
+                  onClick={() => {
+                    setIntendedRole(yaEs === "investor" ? "business" : "investor");
+                    switchAccount();
+                  }}
+                  className="focusable underline decoration-dotted underline-offset-4 transition-colors hover:text-hi"
+                >
+                  Entrar con otra cuenta
+                </button>
+              )}
+            </motion.p>
+          )}
+
+          {/* El error es lo único que merece protagonismo acá: es nuestro,
+              no de quien está tocando la pantalla. */}
+          {connectError && (
+            <motion.p
+              variants={fadeUp}
+              role="alert"
+              className="text-[13px]"
+              style={{ color: "var(--negative)" }}
+            >
+              {connectError}{" "}
+              <button
+                onClick={cancelConnect}
+                className="focusable underline decoration-dotted underline-offset-4"
+              >
+                Volver a intentar
+              </button>
+            </motion.p>
+          )}
         </div>
-
-        {/* La otra travesía no desaparece del mundo: cambia de cuenta. En
-            un stand el mismo teléfono pasa de mano en mano, y quien viene
-            a ver el otro lado necesita saber por dónde. */}
-        {yaEs && !connecting && (
-          <motion.p variants={fadeUp} className="mt-5 text-[13px] text-mid">
-            ¿Vienes a recorrer el otro lado?{" "}
-            <button
-              onClick={() => {
-                setIntendedRole(yaEs === "investor" ? "business" : "investor");
-                switchAccount();
-              }}
-              className="focusable font-medium underline decoration-dotted underline-offset-4"
-              style={{ color: "var(--brand-ink)" }}
-            >
-              Entrar con otra cuenta
-            </button>
-          </motion.p>
-        )}
-
-        {/* El error es lo único que merece protagonismo acá: es nuestro,
-            no de quien está tocando la pantalla. */}
-        {connectError && (
-          <motion.p
-            variants={fadeUp}
-            role="alert"
-            className="mt-5 text-[13px]"
-            style={{ color: "var(--negative)" }}
-          >
-            {connectError}{" "}
-            <button
-              onClick={cancelConnect}
-              className="focusable underline decoration-dotted underline-offset-4"
-            >
-              Volver a intentar
-            </button>
-          </motion.p>
-        )}
-
-
-        {/* Quien ya entró hoy y cerró sesión hace poco no debería volver a
-            escribir un correo para seguir donde estaba. */}
-        {pendingAccount && !connecting && (
-          <motion.p variants={fadeUp} className="mt-5 text-[13px] text-mid">
-            Tu sesión de {pendingAccount} sigue disponible.{" "}
-            <button
-              onClick={resumeSession}
-              className="focusable font-medium underline decoration-dotted underline-offset-4"
-              style={{ color: "var(--brand-ink)" }}
-            >
-              Continuar sin código
-            </button>
-          </motion.p>
-        )}
       </motion.div>
-
-      <motion.p
-        variants={fadeUp}
-        initial="hidden"
-        animate="show"
-        className="mx-auto w-full max-w-[620px] text-[11.5px] leading-relaxed text-low sm:text-[12px] lg:max-w-[860px]"
-      >
-        Catálogo de demostración sobre Arbitrum de prueba. El saldo que se
-        acredita no es dinero: es un token de pruebas sin valor.
-      </motion.p>
     </main>
   );
 }
