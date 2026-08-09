@@ -57,6 +57,42 @@ export function Web3Provider({ children }: { children: ReactNode }) {
         },
         embeddedWallets: {
           ethereum: { createOnLogin: "all-users" },
+          /**
+           * Sin los modales de Privy. La confirmación es del producto.
+           *
+           * Privy interponía su propia pantalla antes de cada firma:
+           * "Approve transaction — fondealo.eth wants your permission to
+           * approve the following transaction", con la dirección del
+           * contrato en hexadecimal, "Network", "Estimated fee" y un
+           * botón "Approve". Tres problemas, y el idioma es el menor:
+           *
+           *   1. **Es una segunda confirmación.** InvestPanel ya abre la
+           *      suya con monto, rentabilidad, plazo, calificación,
+           *      cobertura, ganancia estimada y el riesgo de liquidez.
+           *      Quien aprieta "Confirmar 10 000 USDC" ya decidió; volver
+           *      a preguntárselo con otras palabras no agrega consenso,
+           *      agrega duda.
+           *   2. **No se entiende.** Un dueño de PyME en un stand no sabe
+           *      qué es aprobar una transacción a `0xe1a2…3684`. El dato
+           *      que necesita —cuánto pone y qué recibe— ya lo vio; este
+           *      lo reemplaza por uno que no puede evaluar.
+           *   3. **Está en inglés y no se puede traducir.** Privy 3.36.1
+           *      no expone ninguna opción de idioma: `appearance` solo
+           *      admite tema y color de acento. La única forma de que
+           *      este paso hable castellano es que sea nuestro.
+           *
+           * Lo que se pierde —el desglose de comisión y el "estás
+           * autorizando a X a gastar Y"— lo asume InvestPanel, que
+           * nombra los dos pasos mientras corren.
+           *
+           * La wallet firma sin preguntar, y eso está bien acá porque el
+           * producto ya preguntó. Si algún día una firma NO tuviera una
+           * confirmación propia delante, esta línea deja de ser
+           * defendible: la regla es "toda acción irreversible se
+           * confirma" (docs/design-system.md §9), no "se confirma en
+           * algún lado".
+           */
+          showWalletUIs: false,
         },
         defaultChain: protocolChain,
         supportedChains: [arbitrumNitro, arbitrumSepolia],

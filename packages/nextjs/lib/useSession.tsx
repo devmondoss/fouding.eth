@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { useLogin, usePrivy } from "@privy-io/react-auth";
-import { keccak256, toBytes, type Address } from "viem";
+import { type Address } from "viem";
 import { useAccessRegistry } from "@/hooks/useAccessRegistry";
 
 export type Role = "investor" | "business";
@@ -146,8 +146,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // efecto, ver commit del bug de store.tsx con el mismo patrón).
   // `resolvedKey` es la "huella" de esos valores; solo se recalcula
   // session cuando esa huella cambia de verdad.
-  const softHidden =
-    softSignedOutAt !== null && Date.now() - softSignedOutAt < SOFT_SIGNOUT_GRACE_MS;
+  // Basta con que exista la marca: el efecto de más abajo es el dueño de
+  // su vencimiento y la borra al expirar (llamando además a logout). Antes
+  // acá se comparaba contra `Date.now()` en pleno render, que es una
+  // llamada impura —el resultado cambia entre dos renders idénticos— y
+  // encima daba un peor comportamiento: con la gracia ya vencida y el
+  // efecto todavía sin correr, la sesión se mostraba un instante justo
+  // antes de cerrarse.
+  const softHidden = softSignedOutAt !== null;
 
   const resolvedKey = `${ready}|${authenticated}|${address ?? ""}|${access.isAllowed}|${access.status}|${softHidden}`;
   const [lastResolvedKey, setLastResolvedKey] = useState(resolvedKey);

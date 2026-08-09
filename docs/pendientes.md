@@ -1,10 +1,24 @@
 # Pendientes — lista única
 
-> Actualizado 2026-08-08 (noche). WSL2 se instaló y el `CreditVault` con hitos ya está **desplegado de verdad en Arbitrum Sepolia**, no solo compilado. Sigue pendiente únicamente `RepaymentRouter`, bloqueado por un problema no resuelto de `cargo-stylus` específico de ese contrato.
+> Actualizado 2026-08-09. El producto ya se puede recorrer entero sin salir de él: se entra sin wallet previa, se recibe saldo de prueba solo, y el catálogo tiene 80 operaciones con su expediente detrás. Queda **una incompatibilidad de token** entre el faucet y el vault desplegado (bloque 0.1) y sigue pendiente `RepaymentRouter`.
 
 ---
 
-## 0. Qué se resolvió en esta sesión (para no repetir trabajo)
+## 0.1 Sesión del 9 de agosto
+
+- ✅ **Expediente completo y circuito de revisión.** El asistente pasó de cuatro campos a un legajo en cuatro pasos (empresa, proyecto, condiciones, documentación) que cierra con el comprobante de lo enviado. El verificador **toma** el expediente antes de decidirlo (`in_review`, candado optimista: el segundo que llega recibe 409) y cada transición escribe en `submission_events`, que es lo que la empresa lee como seguimiento. Las reglas de negocio viven en `lib/verifier/submission.ts` y las validan el formulario **y** la API.
+- ✅ **Saldo de prueba automático al entrar** (`lib/faucet`). El token canónico en Arbitrum Sepolia pasó a ser el `MockUSDC` desplegado (símbolo `mUSDC`), porque el USDC de Circle no tiene faucet y dejaba el primer contacto en un callejón. La dispensadora del servidor manda **gas primero** —una wallet nueva no puede firmar nada, ni siquiera el `faucet()` público del token— y después el token por donde se pueda: `mint` si tiene `MINTER_ROLE`, transferencia si tiene saldo, o la propia wallet reclama del contrato. Medido: `faucet()` cuesta 0.0000019 ETH, así que el goteo de gas es de 0.0003 y la cuenta operadora rinde ~120 visitantes.
+- ✅ **La acreditación no bloquea.** Corre detrás del catálogo, no delante, y toda espera tiene tope (firma 45 s, petición 90 s, receipts 60 s). Antes una firma que no salía dejaba la pantalla de arranque esperando indefinidamente — pasó, una hora.
+- ✅ **El saldo se lee de un solo sitio** (`hooks/useSaldo.ts`). La barra decía 0 con la wallet teniendo 10 000 mUSDC en cadena: cada superficie miraba una fuente distinta (localStorage / cadena / mezcla).
+- ✅ **Catálogo sembrado y persistido**: 80 oportunidades publicadas (50 en fondeo, 17 activas, 9 pagadas, 4 en default) y 9 expedientes en la cola del verificador, en Neon. Cada una nace del camino completo del dominio —empresa, expediente aprobado, bitácora, publicación—, no como fila suelta. `yarn seed:catalogo` / `--limpiar`; lo sembrado se reconoce por la wallet `0x5EED…` y nunca pisa un expediente real.
+- ⚠️ **El token del faucet y el del vault no coinciden.** El `CreditVault` desplegado (`0x2ff9d0da…`) está inicializado con `payment_token = 0x75faf114…`, que es el **USDC de Circle**, mientras el faucet reparte `mUSDC`. Hoy no explota porque las oportunidades sembradas tienen `vaultAddress: null` y la inversión no llega al contrato, pero el día que se conecte una oportunidad real a ese vault, choca. Salidas: redesplegar el vault inicializado con `MockUSDC`, o conseguir USDC de Circle de testnet por fuera — que es el callejón del que se salió.
+- ⚠️ **`MINTER_ROLE` opcional pero recomendable.** La dispensadora (`0xa05D9756…`) no lo tiene, así que el token lo reclama la wallet del visitante firmando en el navegador. Funciona, pero mete a wagmi en el camino crítico. Con `grantRole(MINTER_ROLE, 0xa05D9756…)` desde el admin del `MockUSDC` (`0x487B9d8b…`), el servidor mintea y el navegador no firma nada. Diagnóstico en `yarn faucet:check`.
+- ✅ **`yarn.lock` restaurado.** Alguien corrió `npm install` en un repo Yarn 3: quedó un `package-lock.json` y el lockfile reescrito en formato v1, lo que rompió `yarn migrate` y `tsx` (perdió el binario de esbuild).
+- ✅ **`tsc` y `eslint` limpios**, y los dos guardarraíles (`check:routes`, `check:scroll`) pasan **desde cero**. El de rutas fallaba en frío porque `next dev` compila cada ruta en su primera visita y esa compilación se comía el plazo de la aserción; ahora precalienta antes de medir.
+
+---
+
+## 0. Qué se resolvió en la sesión del 8 de agosto (para no repetir trabajo)
 
 - ✅ **Hitos on-chain en `CreditVault`**: `activate()` deja el remanente en `escrow_remaining` y se libera por tramos vía `set_milestones` / `submit_milestone_evidence` / `release_milestone` / `reject_milestone`.
 - ✅ **Waterfall on-chain**: `record_recovery()` corre la cascada legal → servicing → principal → interés → surplus, portada de `underwriting.ts::computeWaterfall`, acumulativa entre llamadas.
@@ -153,6 +167,7 @@
 
 ## Por dónde seguir ahora
 
+0. **Decidir el token de la operación real** (bloque 0.1): el vault desplegado pide USDC de Circle y el faucet reparte mUSDC. Mientras no se conecte una oportunidad a un vault, no molesta; en cuanto se conecte, es lo primero que rompe. Redesplegar el vault con `MockUSDC` es la salida barata.
 1. **Diagnosticar el silencio de `cargo-stylus` con `RepaymentRouter`** — probar `cargo install cargo-stylus --version <otra>` (0.9.x o una más nueva que 0.10.8), o pedir ayuda en el Discord/GitHub de Offchain Labs con un repro mínimo. No es urgente: el protocolo funciona sin el router (fallback ya construido).
 2. **Actualizar `CREDIT_VAULT_ADDRESS` en Railway** con `0x2ff9d0da4040be9cb243bca4857a33ea0ba70848` (bloque 0) — pendiente de que el usuario lo pegue en el raw editor.
 3. **Cifra de impacto** (bloque 9) — no depende de código, se puede resolver en paralelo.

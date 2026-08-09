@@ -56,6 +56,19 @@ async function main() {
   const browser = await chromium.launch();
   const failures = [];
 
+  // Precalentado. En `next dev` cada ruta se compila en su primera
+  // visita, y esa compilación se comía el plazo de la aserción: el check
+  // fallaba en frío y pasaba en caliente, que es la peor clase de
+  // guardarraíl — el que te hace dudar del producto cuando el problema
+  // es del medidor. Acá se paga la compilación sin medir nada.
+  const calentar = await browser.newPage();
+  for (const c of CASES) {
+    await calentar
+      .goto(`${BASE_URL}${c.path}`, { waitUntil: "networkidle", timeout: 120000 })
+      .catch(() => {});
+  }
+  await calentar.close();
+
   for (const c of CASES) {
     const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
     await page.goto(`${BASE_URL}${c.path}`, { waitUntil: "networkidle" });

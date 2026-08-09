@@ -19,9 +19,16 @@ const FILTROS: { key: OpportunityStatus | "all"; label: string }[] = [
   { key: "defaulted", label: STATUS_LABEL.defaulted },
 ];
 
-/** Una rueda parada emite muchos eventos seguidos; un trackpad, decenas.
- *  Sin este cierre, un solo gesto de dos dedos cruzaba el catálogo entero. */
-const RUEDA_COOLDOWN_MS = 320;
+/** Cuánto esperar, sin más eventos de rueda, para dar el gesto por
+ *  terminado y devolver el anclaje. Bajo se siente nervioso —ancla en
+ *  medio de un deslizamiento largo—; alto deja el riel suelto un rato
+ *  después de soltar. */
+const RUEDA_FIN_MS = 130;
+
+/** Algunos ratones informan el desplazamiento en líneas o en páginas en
+ *  vez de píxeles. Sin convertirlo, una muesca movía tres píxeles y la
+ *  rueda parecía rota. */
+const PX_POR_LINEA = 16;
 
 /**
  * Catálogo. **Un riel horizontal**, el mismo en teléfono y en escritorio.
@@ -38,7 +45,7 @@ const RUEDA_COOLDOWN_MS = 320;
  *
  * Cómo se mueve:
  *
- *   rueda / trackpad vertical   una tarjeta por gesto (con cierre temporal)
+ *   rueda / trackpad vertical   1:1, el riel sigue al dedo sin retardo
  *   trackpad horizontal         libre, nativo — no se intercepta
  *   ←/→                         una pantalla entera (3 tarjetas en escritorio)
  *   dedo                        deslizamiento nativo con anclaje
@@ -46,8 +53,23 @@ const RUEDA_COOLDOWN_MS = 320;
  * No hay botones de "Anterior" y "Siguiente": duplicaban con un control lo
  * que la rueda, el dedo y el teclado ya hacen con un gesto.
  *
- * El anclaje (`snap-x`) es obligatorio: ninguna operación queda cortada a
- * medias. Y la página nunca scrollea — el que se mueve es el riel.
+ * **Por qué la primera versión se sentía trabada.** Tenía tres frenos, y
+ * ninguno era del navegador:
+ *
+ *   1. Un cierre de 320 ms que *descartaba* los eventos de rueda del
+ *      medio. Mover algo y que ignore la mitad de lo que hacés es la
+ *      definición de lag.
+ *   2. `behavior: "smooth"` en cada muesca: una animación de duración fija
+ *      que arranca de nuevo con cada evento y pelea contra la anterior.
+ *   3. El anclaje obligatorio tirando hacia atrás en mitad del gesto.
+ *
+ * Ahora la rueda mueve `scrollLeft` directo —el riel va exactamente donde
+ * va el dedo— el anclaje se suelta mientras dura el gesto y se devuelve al
+ * soltar, que es cuando el navegador acomoda a la tarjeta más cercana con
+ * su propia física.
+ *
+ * El anclaje (`snap-x`) es obligatorio en reposo: ninguna operación queda
+ * cortada a medias. Y la página nunca scrollea — el que se mueve es el riel.
  */
 export function Deck({ onSelect }: { onSelect: (o: Opportunity) => void }) {
   const { opportunities, usingSeedData } = usePlatform();
@@ -62,39 +84,55 @@ export function Deck({ onSelect }: { onSelect: (o: Opportunity) => void }) {
     [opportunities, filtro],
   );
 
-  /** Ancho de una tarjeta más su separación, medido del DOM. Calcularlo a
-   *  mano obligaría a repetir acá el `gap` y los breakpoints de las clases,
-   *  y a mantenerlos sincronizados para siempre. */
-  const pasoTarjeta = useCallback(() => {
-    const el = riel.current;
-    const primera = el?.firstElementChild as HTMLElement | undefined;
-    if (!el || !primera) return 0;
-    const segunda = primera.nextElementSibling as HTMLElement | null;
-    return segunda
-      ? segunda.offsetLeft - primera.offsetLeft
-      : primera.offsetWidth;
-  }, []);
+  /**
+   * Ancho de una tarjeta más su separación. **Medido una vez**, no en cada
+   * evento de scroll.
+   *
+   * Leerlo al vuelo era el segundo freno: `offsetLeft` obliga al navegador
+   * a recalcular el layout, y hacerlo en cada cuadro de un desplazamiento
+   * es exactamente el trabajo que no lo deja ir a 60fps. Se vuelve a medir
+   * cuando cambia el tamaño del riel (rotar el teléfono, cruzar un
+   * breakpoint) o cuando cambia cuántas tarjetas hay.
+   *
+   * Se mide del DOM y no a mano porque calcularlo obligaría a repetir acá
+   * el `gap` y los breakpoints de las clases, y a mantenerlos
+   * sincronizados para siempre.
+   */
+  const paso = useRef(1);
 
-  const suave = useCallback((left: number) => {
+  useEffect(() => {
+    const el = riel.current;
+    if (!el) return;
+
+    const medir = () => {
+      const primera = el.firstElementChild as HTMLElement | null;
+      if (!primera) return;
+      const segunda = primera.nextElementSibling as HTMLElement | null;
+      paso.current =
+        (segunda
+          ? segunda.offsetLeft - primera.offsetLeft
+          : primera.offsetWidth) || 1;
+    };
+
+    medir();
+    const ro = new ResizeObserver(medir);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [visibles.length]);
+
+  /** Una pantalla entera — tres tarjetas en escritorio, una en teléfono.
+   *  Es el paso del teclado: control grueso, y el mismo salto que tenía la
+   *  paginación de antes. Acá sí va animado, porque no viene de un gesto
+   *  continuo sino de una tecla suelta. */
+  const porPantalla = useCallback((dir: number) => {
     const el = riel.current;
     if (!el) return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    el.scrollBy({ left, behavior: reduce ? "auto" : "smooth" });
+    el.scrollBy({
+      left: dir * el.clientWidth,
+      behavior: reduce ? "auto" : "smooth",
+    });
   }, []);
-
-  /** Una tarjeta. Es el paso de la rueda: control fino. */
-  const porTarjeta = useCallback(
-    (dir: number) => suave(dir * (pasoTarjeta() || 1)),
-    [suave, pasoTarjeta],
-  );
-
-  /** Una pantalla entera — tres tarjetas en escritorio, una en teléfono.
-   *  Es el paso del teclado y de los botones: control grueso, y el mismo
-   *  que tenía la paginación de antes. */
-  const porPantalla = useCallback(
-    (dir: number) => suave(dir * (riel.current?.clientWidth ?? 0)),
-    [suave],
-  );
 
   // Solo cuando no hay ficha ni panel abierto encima, y nunca dentro de un
   // campo: escribir un monto no debe paginar el catálogo de atrás.
@@ -104,12 +142,19 @@ export function Deck({ onSelect }: { onSelect: (o: Opportunity) => void }) {
   });
 
   /**
-   * La rueda empuja de lado.
+   * La rueda empuja de lado, 1:1.
    *
    * Va por `addEventListener` y no por `onWheel` de React porque hace
    * falta `preventDefault()`, y React registra `wheel` como pasivo — en un
    * listener pasivo `preventDefault()` no hace nada y el navegador avisa
    * por consola.
+   *
+   * El anclaje se suelta mientras dura el gesto y se devuelve cuando para.
+   * Con `snap-mandatory` puesto, cada asignación a `scrollLeft` era una
+   * posición que el navegador corregía en el acto: el riel tiraba hacia
+   * atrás en mitad del movimiento y se sentía pegajoso. Al devolverlo, el
+   * navegador acomoda solo a la tarjeta más cercana, con su física y no
+   * con una que tengamos que escribir.
    *
    * Tres cosas que se dejan pasar sin tocar: un desplazamiento horizontal
    * de verdad (trackpad de dos dedos, `deltaX`), Shift+rueda —que el
@@ -120,7 +165,13 @@ export function Deck({ onSelect }: { onSelect: (o: Opportunity) => void }) {
     const el = riel.current;
     if (!el) return;
 
-    let cerrado = 0;
+    let fin: ReturnType<typeof setTimeout>;
+
+    const enPixeles = (e: WheelEvent) => {
+      if (e.deltaMode === 1) return e.deltaY * PX_POR_LINEA;
+      if (e.deltaMode === 2) return e.deltaY * el.clientWidth;
+      return e.deltaY;
+    };
 
     const onWheel = (e: WheelEvent) => {
       if (layersOpen() > 0) return;
@@ -130,16 +181,23 @@ export function Deck({ onSelect }: { onSelect: (o: Opportunity) => void }) {
 
       e.preventDefault();
 
-      const ahora = e.timeStamp;
-      if (ahora - cerrado < RUEDA_COOLDOWN_MS) return;
-      cerrado = ahora;
+      el.style.scrollSnapType = "none";
+      el.scrollLeft += enPixeles(e);
 
-      porTarjeta(e.deltaY > 0 ? 1 : -1);
+      clearTimeout(fin);
+      fin = setTimeout(() => {
+        // Devolver la propiedad al valor de la clase hace que el navegador
+        // vuelva a anclar por su cuenta, a la tarjeta que quedó más cerca.
+        el.style.scrollSnapType = "";
+      }, RUEDA_FIN_MS);
     };
 
     el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
-  }, [porTarjeta]);
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      clearTimeout(fin);
+    };
+  }, []);
 
   // Cambiar de filtro deja el riel donde estaba: con "Todas" mirando la
   // sexta y al filtrar a dos resultados, el contenedor conserva el scroll
@@ -224,9 +282,14 @@ export function Deck({ onSelect }: { onSelect: (o: Opportunity) => void }) {
       ) : (
         <div
           ref={riel}
+          // El tercer freno estaba acá: esto medía el DOM y llamaba a
+          // setState en CADA evento de scroll, o sea un render de React por
+          // cuadro para cambiar un número que casi siempre era el mismo.
+          // Ahora usa la medida cacheada y solo avisa cuando el índice
+          // cambia de verdad.
           onScroll={(e) => {
-            const paso = pasoTarjeta() || 1;
-            setActual(Math.round(e.currentTarget.scrollLeft / paso));
+            const i = Math.round(e.currentTarget.scrollLeft / paso.current);
+            setActual((previo) => (previo === i ? previo : i));
           }}
           role="group"
           aria-label="Catálogo de operaciones"

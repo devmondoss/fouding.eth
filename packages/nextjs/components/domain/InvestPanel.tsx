@@ -9,6 +9,7 @@ import { Field } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { Row } from "@/components/ui/Stat";
+import { Waiting } from "@/components/ui/Waiting";
 import { usePlatform } from "@/lib/data/store";
 import { daysUntil, formatBps, formatRatio, formatUsdc, usdc } from "@/lib/format";
 import { T } from "@/lib/motion";
@@ -61,6 +62,15 @@ export function InvestPanel({
   const [amount, setAmount] = useState("");
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
+  /**
+   * Qué firma está corriendo. Invertir son DOS transacciones —autorizar
+   * el gasto del token y enviar el aporte al contrato— y hasta ahora eso
+   * lo contaba, mal y en inglés, el modal de Privy que se interponía
+   * antes de cada una. Apagado ese modal (ver Web3Provider), sin esta
+   * línea la persona aprieta "Confirmar" y se queda mirando un botón
+   * ocupado entre diez y treinta segundos, sin saber si se colgó.
+   */
+  const [paso, setPaso] = useState<"autorizando" | "enviando" | null>(null);
   const [receipt, setReceipt] = useState<InvestReceipt | null>(null);
   const [transactionError, setTransactionError] = useState<string | null>(null);
 
@@ -125,7 +135,11 @@ export function InvestPanel({
     setTransactionError(null);
     const balanceBefore = availableBalance;
     try {
-      if ((token.allowance ?? 0n) < value) await token.approve(value);
+      if ((token.allowance ?? 0n) < value) {
+        setPaso("autorizando");
+        await token.approve(value);
+      }
+      setPaso("enviando");
       const tx = await vault.fund(value);
       // El store conserva únicamente la proyección visual del catálogo.
       // La operación financiera ya fue confirmada onchain antes de tocarlo.
@@ -144,6 +158,7 @@ export function InvestPanel({
       );
     } finally {
       setBusy(false);
+      setPaso(null);
     }
   }
 
@@ -337,7 +352,15 @@ export function InvestPanel({
         subtitle={`${o.projectTitle} — ${o.company.name}`}
         footer={
           <>
-            <Button variant="ghost" onClick={() => setConfirming(false)}>
+            {/* Cancelar deja de estar disponible una vez que la primera
+                firma salió: la transacción ya está en la red y el botón
+                no la detendría — solo cerraría la pantalla que dice qué
+                está pasando. */}
+            <Button
+              variant="ghost"
+              onClick={() => setConfirming(false)}
+              disabled={busy}
+            >
               Cancelar
             </Button>
             <Button loading={busy} onClick={handleInvest}>
@@ -363,14 +386,43 @@ export function InvestPanel({
           accent="var(--positive)"
           strong
         />
-        {/* Advertencia de liquidez, no explicación del mercado secundario:
-            el párrafo de cuatro líneas que describía cómo funciona el libro
-            de órdenes se fue. Lo que hay que saber antes de firmar es que el
-            capital puede quedar inmovilizado, y eso cabe en una línea. */}
-        <p className="mt-4 rounded-[var(--r-panel)] border border-border px-3 py-2.5 text-[11.5px] leading-relaxed text-mid">
-          Sin comprador en el mercado secundario, el capital queda inmovilizado
-          hasta que la operación pague.
-        </p>
+        {/* Antes de firmar, el riesgo. Mientras se firma, el progreso.
+            No conviven: la advertencia de liquidez es para decidir, y esa
+            decisión ya se tomó cuando aparece el primer paso. */}
+        {paso === null ? (
+          /* Advertencia de liquidez, no explicación del mercado secundario:
+             el párrafo de cuatro líneas que describía cómo funciona el libro
+             de órdenes se fue. Lo que hay que saber antes de firmar es que el
+             capital puede quedar inmovilizado, y eso cabe en una línea. */
+          <p className="mt-4 rounded-[var(--r-panel)] border border-border px-3 py-2.5 text-[11.5px] leading-relaxed text-mid">
+            Sin comprador en el mercado secundario, el capital queda
+            inmovilizado hasta que la operación pague.
+          </p>
+        ) : (
+          <div
+            role="status"
+            aria-live="polite"
+            className="mt-4 flex flex-col gap-2 rounded-[var(--r-panel)] border border-border px-3 py-2.5"
+          >
+            <span className="text-[12.5px] font-medium text-hi">
+              {paso === "autorizando"
+                ? "Paso 1 de 2 — autorizando el uso de tu saldo"
+                : "Paso 2 de 2 — enviando tu aporte al contrato"}
+            </span>
+            <Waiting
+              label={
+                paso === "autorizando"
+                  ? "Autorizando el uso de tu saldo"
+                  : "Enviando tu aporte al contrato"
+              }
+              width={110}
+            />
+            <span className="text-[11.5px] leading-relaxed text-low">
+              Son dos firmas en Arbitrum y tardan lo que tarde la red. No
+              cierres esta pantalla.
+            </span>
+          </div>
+        )}
       </Modal>
 
       {/* El momento en que se mueve el dinero. Antes terminaba en una frase
