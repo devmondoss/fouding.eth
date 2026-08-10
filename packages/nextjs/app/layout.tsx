@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import localFont from "next/font/local";
 import { PlatformProvider } from "@/lib/data/store";
@@ -18,6 +18,27 @@ export const metadata: Metadata = {
   title: "Founding — invierte en empresas peruanas que ya facturan",
   description:
     "Crédito privado con garantía real. Capital retenido en contrato y liberado contra hitos verificados, liquidado en USDC sobre Arbitrum.",
+};
+
+/**
+ * Viewport. Next ya inyecta `width=device-width, initial-scale=1` por su
+ * cuenta; esto lo declara explícito para poder agregar lo que falta.
+ *
+ * `viewportFit: "cover"` es lo nuevo: sin él, en un teléfono con muesca
+ * el navegador reserva franjas a los lados y el shell —que es de ancho
+ * completo y sin scroll— queda enmarcado en gris.
+ *
+ * **`userScalable` y `maximumScale` NO se tocan**, aunque el atajo esté
+ * a una línea. Apagar el zoom mata el involuntario y también el
+ * deliberado: quien no ve bien deja de poder agrandar y el producto se
+ * le vuelve inaccesible (WCAG 1.4.4 pide poder llegar al 200%). El zoom
+ * involuntario que sí molestaba —el que dispara iOS al enfocar un campo
+ * de menos de 16px— está corregido en su causa, en globals.css.
+ */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 // PrivyProvider valida el App ID al montarse. Localmente compila estático

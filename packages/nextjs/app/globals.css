@@ -146,6 +146,56 @@ body {
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden; /* nunca scroll horizontal, ni en mobile */
+  /* Sin rebote elástico al llegar al final. En iOS, arrastrar más allá
+     del borde despega la página entera del fondo y deja una franja gris
+     — el "se estira" que no es un fallo de layout sino el gesto nativo
+     del navegador. En una pantalla que ya no scrollea (app-shell) eso
+     además no comunica nada: no hay más contenido de donde tirar. */
+  overscroll-behavior: none;
+  /* iOS agranda el texto solo al rotar a horizontal, con un factor que
+     calcula por su cuenta. Ese es el otro "se estira": tipografía que
+     crece sin que nadie la haya tocado. */
+  -webkit-text-size-adjust: 100%;
+}
+
+/* ============================================================
+   ZOOM INVOLUNTARIO EN iOS
+
+   Safari hace zoom sobre cualquier campo con letra menor a 16px al
+   enfocarlo, **y no vuelve atrás al salir**. Los campos del producto
+   son de 14px, así que el primer toque en cualquier formulario dejaba
+   la aplicación entera magnificada para el resto de la visita: eso es
+   el "se hace zoom y queda estirado", y no se arregla en el layout
+   porque no es el layout.
+
+   16px SOLO debajo de sm. En escritorio la densidad de 14px se
+   conserva, que es donde fue calibrada.
+
+   Lo que NO se hace acá es `user-scalable=no` ni `maximum-scale=1`,
+   que es el atajo con el que se suele "prohibir el zoom": eso apaga
+   TAMBIÉN el zoom deliberado, el de quien no ve bien y necesita
+   agrandar. Prohibir el zoom involuntario es corregir un defecto;
+   prohibir el voluntario es quitarle el producto a alguien.
+   ============================================================ */
+@media (max-width: 639.98px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* El retardo de 300ms que el navegador espera por si el toque era un
+   doble toque para hacer zoom. En controles no lo es nunca, y esperarlo
+   hace que cada botón se sienta medio segundo tarde. */
+button,
+a,
+[role="button"],
+label,
+input,
+select,
+textarea {
+  touch-action: manipulation;
 }
 
 /* Solo el módulo único del inversionista (app/page.tsx) es una sola
