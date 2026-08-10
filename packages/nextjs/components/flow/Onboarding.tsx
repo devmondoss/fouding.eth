@@ -5,6 +5,12 @@ import { AnimatePresence, motion } from "motion/react";
 import { Button } from "@/components/ui/Button";
 import { useLayerKeys } from "@/lib/keyboard";
 import { scrim, slide } from "@/lib/motion";
+import {
+  MIN_REQUESTED_USDC,
+  MIN_YEARS_OPERATING,
+  REVIEW_SLA_DAYS,
+  TERM_PRESETS,
+} from "@/lib/verifier/submission";
 
 /**
  * Explicación del producto en pasos. Se muestra UNA sola vez por navegador
@@ -20,11 +26,14 @@ import { scrim, slide } from "@/lib/motion";
  *  —oficina, documento, banco, billetera— que no agregaba nada al titular
  *  y ponía la estampa de "cuatro tarjetas con ícono" en la primera
  *  pantalla del producto. El titular sostiene solo. */
-const SLIDES = [
+export type Slide = { stage: string; title: string; body: string };
+
+/** Lo que necesita entender quien pone el capital. */
+export const SLIDES_INVERSIONISTA: Slide[] = [
   {
     stage: "El origen",
     title: "Empresas que ya facturan",
-    body: "PyMEs peruanas con al menos dos años operando y ventas comprobables piden capital para un proyecto concreto: una máquina, una flota, una planta. No para caja general.",
+    body: `PyMEs peruanas con al menos ${MIN_YEARS_OPERATING} años operando y ventas comprobables piden capital para un proyecto concreto: una máquina, una flota, una planta. No para caja general.`,
   },
   {
     stage: "El filtro",
@@ -43,7 +52,49 @@ const SLIDES = [
   },
 ];
 
-export function Onboarding({ onDone }: { onDone: () => void }) {
+/**
+ * Lo que necesita entender quien pide. No existía: el dueño de negocio
+ * entraba directo a un panel con un botón de "Acreditar mi empresa" y
+ * ninguna explicación de por qué hay dos trámites, qué se le va a pedir
+ * ni cómo le llega la plata. La misma cortesía que se le hace al
+ * inversionista, del otro lado del mercado.
+ *
+ * Las cifras salen de las mismas constantes que validan el formulario
+ * (lib/verifier/submission.ts): si mañana el mínimo sube, esta pantalla
+ * no queda mintiendo.
+ */
+export const SLIDES_EMPRESA: Slide[] = [
+  {
+    stage: "Qué financiamos",
+    title: "Capital para un proyecto, no para caja",
+    body: `Una máquina, una flota, una planta: algo que puedas nombrar y demostrar. Desde ${MIN_REQUESTED_USDC.toLocaleString("es-PE")} USDC y a ${TERM_PRESETS[0]} a ${TERM_PRESETS[TERM_PRESETS.length - 1]} meses, a una tasa fija que define el verificador.`,
+  },
+  {
+    stage: "La acreditación",
+    title: "Tu empresa se acredita una sola vez",
+    body: `RUC vigente, al menos ${MIN_YEARS_OPERATING} años operando y tus ventas del último año. Un verificador lo revisa y tu empresa recibe un pasaporte onchain. Después de eso, cada solicitud es solo el proyecto: no vuelves a teclear nada de la empresa.`,
+  },
+  {
+    stage: "La garantía",
+    title: "Un activo tuyo respalda el crédito",
+    body: "Maquinaria, vehículo o inmueble, inscrito y sin gravámenes. A la tasación se le aplica un castigo por tipo de activo y solo se publica si lo que quedaría al liquidarlo cubre lo que pides. Tu aporte propio se pierde antes que el del inversionista.",
+  },
+  {
+    stage: "El dinero",
+    title: "Llega por hitos, no de golpe",
+    body: `El capital queda en un contrato y se libera cuando demuestras cada hito. Te responden en ${REVIEW_SLA_DAYS} días hábiles, y si te rechazan te dicen por escrito qué corregir para volver a enviarlo.`,
+  },
+];
+
+export function Onboarding({
+  onDone,
+  slides = SLIDES_INVERSIONISTA,
+}: {
+  onDone: () => void;
+  /** Qué recorrido se explica. Ver SLIDES_EMPRESA. */
+  slides?: Slide[];
+}) {
+  const SLIDES = slides;
   const [i, setI] = useState(0);
   const [dir, setDir] = useState(1);
   const last = i === SLIDES.length - 1;

@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { AnimatePresence } from "motion/react";
 import { BusinessDashboard } from "@/components/flow/BusinessDashboard";
+import { Onboarding, SLIDES_EMPRESA } from "@/components/flow/Onboarding";
 import { RoleConflict } from "@/components/flow/RoleConflict";
 import { FullScreenLoader } from "@/components/ui/FullScreenLoader";
+import { useOnce } from "@/lib/useOnce";
 import { useSession } from "@/lib/useSession";
 import type { Company } from "@/lib/verifier/companies";
 import type { SubmissionWithEvents } from "@/lib/verifier/types";
@@ -76,6 +79,17 @@ function SolicitarHome({ address, onSignOut }: { address: string; onSignOut: () 
   const { getAccessToken } = useSession();
   const router = useRouter();
 
+  /**
+   * El lado empresa no tenía introducción: se caía en un panel con un
+   * botón de "Acreditar mi empresa" y ninguna explicación de por qué hay
+   * dos trámites, qué se le va a pedir ni cómo llega el dinero. El
+   * inversionista sí la tenía desde el principio.
+   *
+   * Marca por wallet y no por navegador, por lo mismo que del otro lado:
+   * en un stand el teléfono es uno y las personas son muchas.
+   */
+  const intro = useOnce(`founding.intro.negocio.${address.toLowerCase()}`);
+
   useEffect(() => {
     let alive = true;
     setMine(null);
@@ -106,18 +120,28 @@ function SolicitarHome({ address, onSignOut }: { address: string; onSignOut: () 
   }, [getAccessToken]);
 
   return (
-    <BusinessDashboard
-      address={address}
-      submissions={mine}
-      empresa={empresa}
-      loading={mine === null || empresa === undefined}
-      onSignOut={onSignOut}
+    <>
+      {/* Encima del panel, no en vez de él: al cerrarla la persona queda
+          donde iba a quedar, con sus datos ya cargados detrás. */}
+      <AnimatePresence>
+        {intro.seen === false && (
+          <Onboarding slides={SLIDES_EMPRESA} onDone={intro.markSeen} />
+        )}
+      </AnimatePresence>
+
+      <BusinessDashboard
+        address={address}
+        submissions={mine}
+        empresa={empresa}
+        loading={mine === null || empresa === undefined}
+        onSignOut={onSignOut}
       // Ninguno de los dos se abre encima de esto: los dos tienen su
       // propia ruta. Al volver, esta pantalla se monta de nuevo y vuelve a
       // pedir los datos, así que lo recién enviado aparece sin necesidad
       // de una llave de refresco.
-      onNewSubmission={() => router.push("/solicitar/nueva")}
-      onAcreditar={() => router.push("/solicitar/empresa")}
-    />
+        onNewSubmission={() => router.push("/solicitar/nueva")}
+        onAcreditar={() => router.push("/solicitar/empresa")}
+      />
+    </>
   );
 }

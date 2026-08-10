@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Address } from "viem";
 import { useSession } from "@/lib/useSession";
 import { useProtocolToken } from "@/hooks/useProtocolToken";
+import { mensajeDeCadena } from "@/lib/web3/errors";
 import { TOPUP_TOKEN_AMOUNT, type TopUpResult, type TopUpStatus } from "@/lib/faucet/config";
 
 /**
@@ -132,7 +133,7 @@ export function useAutoTopUp({ auto = true }: { auto?: boolean } = {}) {
       setPhase("done");
       return dripped;
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "No se pudo recargar");
+      setError(mensajeDeCadena(cause, "No se pudo recargar tu saldo de prueba."));
       setPhase("error");
       return null;
     } finally {

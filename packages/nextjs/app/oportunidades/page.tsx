@@ -35,7 +35,23 @@ import type { Opportunity } from "@/lib/types";
 export default function App() {
   const { session, signOut, verify, deleteAccount } =
     useSession();
-  const { seen, markSeen, reset } = useOnce("founding.intro");
+  /**
+   * La marca es por WALLET, no por navegador.
+   *
+   * `founding.intro` a secas significaba "este navegador ya vio la
+   * introducción", y cerrar sesión no la borra a propósito (quien vuelve
+   * a entrar ya sabe cómo funciona esto). El efecto colateral es el caso
+   * que más va a ocurrir en un stand: un solo teléfono, muchas personas.
+   * La segunda que se crea una cuenta cae directo al catálogo sin que
+   * nadie le haya explicado qué está mirando — que es exactamente lo que
+   * pasa al probar el registro dos veces seguidas.
+   *
+   * Colgada de la dirección, la promesa se cumple de los dos lados: la
+   * misma persona no la vuelve a ver, una cuenta nueva sí.
+   */
+  const { seen, markSeen, reset } = useOnce(
+    session ? `founding.intro.${session.address.toLowerCase()}` : "founding.intro",
+  );
   const { getOpportunity } = usePlatform();
   const router = useRouter();
 
