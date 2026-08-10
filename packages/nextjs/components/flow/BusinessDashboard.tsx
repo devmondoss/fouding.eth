@@ -84,18 +84,19 @@ export function BusinessDashboard({
             <h1 className="h1 mt-1.5">Tus solicitudes</h1>
           </div>
 
-          {/* La acción principal depende de dónde está la empresa: pedir
-              financiamiento sin acreditación termina en un 409, y ofrecer
-              un botón que va a fallar es peor que no ofrecerlo. */}
-          {acreditada ? (
+          {/* Una sola acción principal, y solo cuando se puede ejecutar:
+              pedir financiamiento sin acreditación termina en 409.
+
+              Sin acreditar, acá NO va nada. La acreditación la ofrece el
+              bloque "Tu empresa" de abajo, que es el que explica por qué
+              hace falta; ponerla también en la cabecera —y otra vez al pie
+              de "Qué necesitas"— dejaba tres botones idénticos en una
+              pantalla, uno de ellos sin contexto ninguno. */}
+          {acreditada && (
             <Button size="lg" onClick={onNewSubmission}>
               Nueva solicitud
             </Button>
-          ) : empresa === null || empresa?.status === "rejected" ? (
-            <Button size="lg" onClick={onAcreditar}>
-              {empresa === null ? "Acreditar mi empresa" : "Corregir y reenviar"}
-            </Button>
-          ) : null}
+          )}
         </motion.div>
 
         {loading ? (
@@ -110,7 +111,6 @@ export function BusinessDashboard({
           <EmptyDashboard
             acreditada={acreditada}
             onNewSubmission={onNewSubmission}
-            onAcreditar={onAcreditar}
           />
         ) : (
           <>
@@ -429,11 +429,9 @@ function Timeline({ submission }: { submission: SubmissionWithEvents }) {
 function EmptyDashboard({
   acreditada,
   onNewSubmission,
-  onAcreditar,
 }: {
   acreditada: boolean;
   onNewSubmission: () => void;
-  onAcreditar: () => void;
 }) {
   const condiciones = [
     {
@@ -458,21 +456,25 @@ function EmptyDashboard({
     },
   ];
 
+  // Son dos trámites y el proceso tiene que decirlo: acreditar la empresa
+  // pasó a ser un paso propio, y con él se mudó el pasaporte —antes lo
+  // emitía la aprobación del primer expediente, que mezclaba acreditar al
+  // sujeto con aprobar una operación suya.
   const pasos = [
     {
-      titulo: "Envías el expediente",
+      titulo: "Acreditas tu empresa",
       detalle:
-        "Cuatro pasos: tu empresa, el proyecto, lo que pides y la documentación. Antes de enviarlo lo ves completo.",
+        "Una sola vez, seis campos. Si pasa la revisión, tu empresa recibe su pasaporte onchain y queda habilitada.",
     },
     {
-      titulo: "Un verificador lo toma",
+      titulo: "Envías la solicitud",
       detalle:
-        "Ves su nombre y desde cuándo lo revisa. Cobra honorario fijo: gana lo mismo si aprueba que si rechaza.",
+        "Tres pasos: el proyecto, lo que pides y la documentación. Antes de enviarla la ves completa.",
     },
     {
       titulo: "Resultado con motivo",
       detalle:
-        "Si aprueba, tu empresa recibe su pasaporte onchain. Si rechaza, te deja por escrito qué corregir.",
+        "Ves quién la revisa y desde cuándo. Cobra honorario fijo: gana lo mismo si aprueba que si rechaza, y si rechaza te deja por escrito qué corregir.",
     },
     {
       titulo: "Se publica y se financia",
@@ -551,22 +553,30 @@ function EmptyDashboard({
             ))}
           </ul>
 
-          {/* El paso que toca, no el que suena mejor: sin acreditación la
-              solicitud no se puede enviar, así que el botón lleva al
-              trámite que sí desbloquea el resto. */}
+          {/* El botón solo aparece cuando la acción que toca es ESTA. Sin
+              acreditar, el paso siguiente no es armar una solicitud sino
+              acreditar la empresa, y ese botón ya está arriba, en su
+              bloque: repetirlo acá era el tercer "Acreditar mi empresa" de
+              la misma pantalla. Queda la frase, que sí dice algo nuevo —
+              en qué orden van los dos trámites. */}
           <div className="mt-auto pt-5">
-            <Button
-              size="lg"
-              className="w-full"
-              onClick={acreditada ? onNewSubmission : onAcreditar}
-            >
-              {acreditada ? "Armar mi solicitud" : "Acreditar mi empresa"}
-            </Button>
-            <p className="mt-2 text-[11.5px] leading-snug text-low">
-              {acreditada
-                ? "Puedes enviarla sin adjuntar documentos: el verificador te los pide si le faltan."
-                : "Primero se acredita la empresa, una sola vez. Después cada proyecto es solo el proyecto."}
-            </p>
+            {acreditada ? (
+              <>
+                <Button size="lg" className="w-full" onClick={onNewSubmission}>
+                  Armar mi solicitud
+                </Button>
+                <p className="mt-2 text-[11.5px] leading-snug text-low">
+                  Puedes enviarla sin adjuntar documentos: el verificador te los
+                  pide si le faltan.
+                </p>
+              </>
+            ) : (
+              <p className="text-[11.5px] leading-snug text-low">
+                Primero se acredita la empresa, una sola vez —el trámite está
+                arriba, en «Tu empresa»—. Después cada proyecto es solo el
+                proyecto.
+              </p>
+            )}
           </div>
         </motion.section>
       </div>

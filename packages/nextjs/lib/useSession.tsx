@@ -228,6 +228,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return roleMap[address.toLowerCase()] ?? null;
   }, [address]);
 
+  /** Levantar el "cerrar sesión" suave: la sesión vuelve a verse. */
+  const forgetSoftSignOut = useCallback(() => {
+    try {
+      window.localStorage.removeItem(SOFT_SIGNOUT_KEY);
+    } catch {}
+    setSoftSignedOutAt(null);
+  }, []);
+
   /**
    * Entrar. Si ya hay una sesión viva, se ENTRA con ella.
    *
@@ -236,20 +244,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
    * cambiar de cuenta. El precio lo pagaba el caso normal: alguien que ya
    * había entrado y volvía a tocar la puerta perdía la sesión y tenía que
    * escribir correo y código otra vez. Cambiar de cuenta es otra
-   * intención, y ahora tiene su propia puerta (`switchAccount`).
+   * intención, y ahora tiene su propia puerta (`switchAccount`) — que hay
+   * que llamar de verdad: enchufar un botón de "entrar con otro correo" a
+   * ESTA función lo convierte en un botón que no hace nada.
    */
   const connectWallet = useCallback(() => {
-    try {
-      window.localStorage.removeItem(SOFT_SIGNOUT_KEY);
-    } catch {}
-    setSoftSignedOutAt(null);
+    forgetSoftSignOut();
     setConnectError(null);
     // Sesión viva: no hay nada que pedir. El efecto de arriba ya la
     // resolvió y quien llame decide a dónde llevar a esta persona.
     if (authenticated && address) return;
     setConnecting(true);
     login();
-  }, [login, authenticated, address]);
+  }, [login, authenticated, address, forgetSoftSignOut]);
 
   /**
    * Entrar con OTRA cuenta. Acá el logout sí es obligatorio: con token
@@ -258,26 +265,31 @@ export function SessionProvider({ children }: { children: ReactNode }) {
    * cuenta anterior sin preguntar.
    */
   const switchAccount = useCallback(() => {
-    try {
-      window.localStorage.removeItem(SOFT_SIGNOUT_KEY);
-    } catch {}
-    setSoftSignedOutAt(null);
     setConnectError(null);
     setConnecting(true);
     if (authenticated) {
+      // La marca de "cerrar sesión" NO se borra acá. Borrarla antes del
+      // logout destapaba la sesión anterior —Privy sigue autenticado
+      // hasta que el logout aterriza—, y esa sesión resucitada disparaba
+      // las redirecciones de las pantallas de login: te mandaba a tu
+      // panel de siempre justo mientras se abría el modal para pedirte
+      // otro correo. Se queda oculta hasta que el token muere de verdad.
       setAwaitingLogoutForLogin(true);
       logout();
     } else {
+      forgetSoftSignOut();
       login();
     }
-  }, [login, logout, authenticated]);
+  }, [login, logout, authenticated, forgetSoftSignOut]);
 
   useEffect(() => {
     if (!awaitingLogoutForLogin) return;
     if (authenticated) return; // todavía no se asentó el logout
     setAwaitingLogoutForLogin(false);
+    // El token ya murió: no queda sesión que ocultar ni que reanudar.
+    forgetSoftSignOut();
     login();
-  }, [awaitingLogoutForLogin, authenticated, login]);
+  }, [awaitingLogoutForLogin, authenticated, login, forgetSoftSignOut]);
 
   // El correo de la sesión que quedó viva detrás del "cerrar sesión".
   // Solo se ofrece dentro de la ventana de gracia: pasada esa hora el
@@ -288,12 +300,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // Reanudar es puramente local: se borra la marca de "cerrar sesión" y
   // la sesión vuelve a resolverse sola con el token que nunca murió. Sin
   // llamadas a Privy, o sea sin correo y sin código.
-  const resumeSession = useCallback(() => {
-    try {
-      window.localStorage.removeItem(SOFT_SIGNOUT_KEY);
-    } catch {}
-    setSoftSignedOutAt(null);
-  }, []);
+  const resumeSession = forgetSoftSignOut;
 
   // Red de seguridad: si Privy nunca avisa (usuario cierra el modal
   // tocando afuera, o se cuelga por lo que sea), no dejamos a nadie

@@ -20,6 +20,7 @@ import { fadeUp, T } from "@/lib/motion";
 export function AuthFlow() {
   const {
     connectWallet,
+    switchAccount,
     connecting,
     connectError,
     cancelConnect,
@@ -47,9 +48,18 @@ export function AuthFlow() {
    */
   const [intent, setIntent] = useState<"connect" | "switch">("connect");
 
+  /**
+   * Las dos intenciones NO son la misma llamada. `connectWallet` entra con
+   * la sesión que ya hay y, si está viva, no hace nada — que es lo
+   * correcto para "iniciar sesión" y lo peor posible para "entrar con
+   * otro correo": el botón se tocaba y volvía la cuenta anterior, sin
+   * modal y sin campo de correo. Matar el token es exactamente lo que
+   * distingue a `switchAccount`.
+   */
   function start(next: "connect" | "switch") {
     setIntent(next);
-    connectWallet();
+    if (next === "switch") switchAccount();
+    else connectWallet();
   }
 
   return (
