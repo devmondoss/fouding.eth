@@ -214,8 +214,13 @@ export function PublishOpportunityForm({
           </div>
         )}
 
+        {/* Los tres pares de campos bajan a una columna en teléfono. En dos
+            quedaban en 170px, y estos no son campos de una palabra: llevan
+            etiqueta ("Castigo (haircut)", "Años operando") y sufijo
+            ("USDC", "meses", "%"), así que el valor que se teclea quedaba
+            en una ranura de cuatro caracteres. */}
         <Section title="La empresa">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="Sector" value={sector} onChange={(e) => setSector(e.target.value)} placeholder="Manufactura" />
             <Field label="Ciudad" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Arequipa" />
             <Field label="Años operando" inputMode="numeric" value={yearsOperating} onChange={(e) => setYearsOperating(e.target.value)} placeholder="8" />
@@ -250,7 +255,7 @@ export function PublishOpportunityForm({
               placeholder={"Contrato firmado con dos clientes\nMaquinaria ya cotizada"}
             />
           </label>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="Monto objetivo" suffix="USDC" inputMode="decimal" value={targetAmount} onChange={(e) => setTargetAmount(e.target.value)} />
             <Field label="Aporte propio" suffix="%" inputMode="decimal" value={borrowerContribution} onChange={(e) => setBorrowerContribution(e.target.value)} />
             <Field label="Plazo" suffix="meses" inputMode="numeric" value={termMonths} onChange={(e) => setTermMonths(e.target.value)} />
@@ -280,7 +285,7 @@ export function PublishOpportunityForm({
             </div>
           </label>
           <Field label="Descripción" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Dos secadoras industriales, modelo…" />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="Valor tasado" suffix="USDC" inputMode="decimal" value={appraisedValue} onChange={(e) => setAppraisedValue(e.target.value)} />
             <Field
               label="Castigo (haircut)"
@@ -327,7 +332,7 @@ export function PublishOpportunityForm({
                   }
                 />
               </div>
-              <div className="w-[100px]">
+              <div className="w-[92px] shrink-0">
                 <Field
                   label="Libera"
                   suffix="%"

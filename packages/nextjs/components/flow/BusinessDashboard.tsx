@@ -160,7 +160,12 @@ export function BusinessDashboard({
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="num text-[11px] text-low">{folio(s.id)}</div>
-                      <h2 className="h3 mt-0.5 truncate">{s.projectTitle}</h2>
+                      {/* Sin `truncate` en teléfono: al lado de la píldora
+                          de estado la columna del titular queda en ~230px,
+                          y "Renovación de tracto camiones" se recortaba a
+                          la mitad. Es el nombre del propio expediente de
+                          esta empresa — el dato con el que lo reconoce. */}
+                      <h2 className="h3 mt-0.5 sm:truncate">{s.projectTitle}</h2>
                       <div className="mt-1 text-[12.5px] text-mid">
                         <span className="num font-medium text-hi">
                           {formatUsdcPlain(s.requestedAmount)}
@@ -186,13 +191,22 @@ export function BusinessDashboard({
                     <Timeline submission={s} />
                   </div>
 
-                  <div className="mt-3 flex items-end justify-between gap-4">
-                    <p className="max-w-[420px] text-[12.5px] leading-relaxed text-mid">
+                  {/* El texto explica qué sigue y el botón abre el legajo:
+                      dos cosas de ancho variable peleando por 350px. En
+                      teléfono se apilan y el botón queda alineado al
+                      arranque de la frase que acaba de leer. */}
+                  <div className="mt-3 flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+                    <p className="text-[12.5px] leading-relaxed text-mid sm:max-w-[420px]">
                       {s.status === "rejected" && s.note
                         ? `Observación: ${s.note}`
                         : NEXT_STEP[s.status]}
                     </p>
-                    <Button variant="outline" size="sm" onClick={() => setOpen(s)}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0"
+                      onClick={() => setOpen(s)}
+                    >
                       Ver expediente
                     </Button>
                   </div>

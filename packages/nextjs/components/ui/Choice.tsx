@@ -70,11 +70,21 @@ export function ChoiceGroup<T extends string>({
   footer?: ReactNode;
 }) {
   const messageId = useId();
+  /**
+   * `columns` es el techo, no la constante.
+   *
+   * Tres opciones en 390px de ancho dan columnas de ~110px, y las
+   * etiquetas de este producto son frases —"Maquinaria o equipo",
+   * "Inmueble comercial"— no palabras sueltas: se partían en cuatro
+   * renglones o se salían de la caja. Debajo de `sm` todas las listas
+   * bajan a una columna, que en un formulario largo además es más rápido
+   * de recorrer con el pulgar; el techo pedido vuelve desde `sm`.
+   */
   const cols =
     columns === 3
-      ? "grid-cols-3"
+      ? "grid-cols-1 sm:grid-cols-3"
       : columns === 2
-        ? "grid-cols-2"
+        ? "grid-cols-1 sm:grid-cols-2"
         : "grid-cols-1";
 
   return (

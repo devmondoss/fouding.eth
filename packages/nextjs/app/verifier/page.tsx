@@ -430,10 +430,19 @@ function Panel({
               historial se muestra recortado: es consulta, no trabajo. */}
           {enCola.map((s) => (
             <div key={s.id} className="card p-4">
-              <div className="flex items-start justify-between gap-4">
+              {/* En un teléfono el monto se lleva casi la mitad del ancho y
+                  deja el titular en una columna de 200px. Debajo de sm sube
+                  a su propia línea —igual que la tarjeta del catálogo, que
+                  abre con su cifra— y el expediente recupera el ancho
+                  entero. Desde sm vuelve a la esquina derecha. */}
+              <div className="flex flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                 <div className="min-w-0">
                   <div className="num text-[11px] text-low">{folio(s.id)}</div>
-                  <div className="mt-0.5 flex items-center gap-2">
+                  {/* `flex-wrap`: la píldora al lado del titular partía
+                      "Compra del local de operaciones" en tres renglones
+                      de dos palabras para dejarle sitio al costado. Que
+                      baje entera cuando no cabe. */}
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
                     <h3 className="h3">{s.projectTitle}</h3>
                     <Pill
                       label={STATUS_LABEL[s.status]}
@@ -469,7 +478,7 @@ function Panel({
                   )}
                 </div>
 
-                <div className="shrink-0 text-right">
+                <div className="order-first flex items-baseline gap-1.5 sm:order-none sm:block sm:shrink-0 sm:text-right">
                   <div className="num text-[15px] font-semibold text-hi">
                     {formatUsdcPlain(s.requestedAmount)}
                   </div>
@@ -547,12 +556,20 @@ function Panel({
               </div>
 
               {decididos.slice(0, historial).map((s) => (
+                /* En una sola fila esto no entra en un teléfono, y lo que
+                   cedía era justo el título — "Capital p…", "Automa…",
+                   "Compr…"— mientras la píldora y el botón conservaban su
+                   ancho entero. O sea que la lista perdía lo ÚNICO que
+                   identifica cada expediente y conservaba lo que se repite
+                   idéntico en todas las filas.
+                   Debajo de sm se apila: primero qué es, después en qué
+                   quedó y qué se puede hacer. Desde sm vuelve la fila. */
                 <div
                   key={s.id}
-                  className="flex items-center justify-between gap-4 rounded-[var(--r-panel)] border border-border px-4 py-2.5"
+                  className="flex flex-col gap-2 rounded-[var(--r-panel)] border border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:py-2.5"
                 >
                   <div className="min-w-0">
-                    <div className="truncate text-[13px] font-medium text-hi">
+                    <div className="text-[13px] font-medium text-hi sm:truncate">
                       {s.projectTitle}
                     </div>
                     <div className="truncate text-[11.5px] text-low">
@@ -570,7 +587,12 @@ function Panel({
                       dot
                     />
                     {s.status === "approved" && (
-                      <Button size="sm" variant="outline" onClick={() => setPublishing(s)}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="ml-auto sm:ml-0"
+                        onClick={() => setPublishing(s)}
+                      >
                         Publicar
                       </Button>
                     )}
@@ -765,8 +787,14 @@ function Dato({
   return (
     <div className="min-w-0">
       <div className="label">{label}</div>
+      {/* Sin `truncate`. En dos columnas de teléfono esto recortaba
+          "Maquinaria y equipamiento" a "Maquinaria y equipami…" — y este
+          panel existe para decidir sobre un expediente, así que esconder
+          el tipo de garantía detrás de tres puntos es esconder justo lo
+          que se está evaluando. Que envuelva: son dos palabras más de
+          alto, no una columna más de ancho. */}
       <div
-        className="num mt-0.5 truncate text-[12.5px] font-medium"
+        className="num mt-0.5 text-[12.5px] font-medium break-words"
         style={{ color: accent ?? "var(--text-hi)" }}
         title={value}
       >
