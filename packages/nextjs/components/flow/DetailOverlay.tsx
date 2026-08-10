@@ -17,12 +17,13 @@ import { daysUntil, formatBps, formatRatio, formatUsdc, usdc } from "@/lib/forma
 import { useFocusTrap, useLayerKeys } from "@/lib/keyboard";
 import { dialog, scrim, sheetUp, slide, T } from "@/lib/motion";
 import { useEsHoja } from "@/lib/useViewport";
-import { compararConElCatalogo, type Comparativa } from "@/lib/benchmark";
+import { Bloque, Cifra, Encabezado, FilaBarra } from "@/components/domain/FichaTab";
+import { compararConElCatalogo } from "@/lib/benchmark";
 import {
   coverageBps,
-  creditInterest,
   issuerTrackRecord,
   projectedReturn,
+  remainingToFund,
 } from "@/lib/opportunity";
 import { lossBufferBps, recoveryOnDefaultBps } from "@/lib/underwriting";
 import type { Opportunity } from "@/lib/types";
@@ -235,8 +236,9 @@ const TICKET_REFERENCIA = 1_000;
  *
  * Nada de eso respondía las tres preguntas con las que alguien decide:
  * cuánto gano en dinero, es caro o barato comparado con qué, y cuánto
- * pierdo si sale mal. Ahora la pantalla son esas tres, en ese orden, todo
- * expresado sobre el mismo ticket de referencia.
+ * pierdo si sale mal. Son esas tres, en ese orden, sobre un mismo ticket
+ * de referencia — y las tres caben en el encabezado, sin una tarjeta por
+ * cifra.
  */
 function Resumen({ o }: { o: Opportunity }) {
   const { opportunities } = usePlatform();
@@ -249,291 +251,186 @@ function Resumen({ o }: { o: Opportunity }) {
   const cobertura = coverageBps(o);
   const recuperoBps = recoveryOnDefaultBps(o);
   const colchonBps = lossBufferBps(o);
-  // Sobre el ticket, que es como se lee una pérdida: no "87%" sino
-  // "vuelven 870 de los 1,000 que pusiste".
   const capitalEnRiesgo = ticket + interes;
   const recupero = (capitalEnRiesgo * BigInt(recuperoBps)) / 10000n;
-  const perdida = capitalEnRiesgo - recupero;
 
   const dias = daysUntil(o.fundingDeadline);
   const hitos = o.milestones.length;
+  const pagos =
+    o.company.passport.onTimeRepayments +
+    o.company.passport.lateRepayments +
+    o.company.passport.defaults;
 
   return (
-    <div className="flex flex-col gap-3.5">
-      {/* 1 — El trato, en dinero. */}
-      <section className="card p-4 sm:p-5">
-        <div className="flex items-baseline justify-between gap-3">
-          <h3 className="label">
-            Si inviertes {TICKET_REFERENCIA.toLocaleString("es-PE")} USDC
-          </h3>
-          <span className="text-[11.5px] text-low">
-            a {o.termMonths} meses
-          </span>
-        </div>
+    <div>
+      <Encabezado>
+        <Cifra
+          label={`Si pones ${TICKET_REFERENCIA.toLocaleString("es-PE")} USDC`}
+          value={formatUsdc(ticket + interes)}
+          nota={`+${formatUsdc(interes)} en ${o.termMonths} meses · ${formatBps(o.apyBps)} fijo`}
+        />
+        {/* Cuando la garantía alcanza, la cifra que informa NO es
+            "recuperas todo" —repite el número de al lado y hace parecer
+            gratis un default—: es cuánto puede caer el activo antes de que
+            empieces a perder. */}
+        {colchonBps > 0 ? (
+          <Cifra
+            label="Si la empresa no paga"
+            value={`−${formatBps(colchonBps, 0)}`}
+            nota="puede caer el activo antes de que pierdas capital"
+          />
+        ) : (
+          <Cifra
+            label="Si la empresa no paga"
+            value={formatUsdc(recupero)}
+            nota={`de los ${formatUsdc(capitalEnRiesgo)} que esperabas`}
+            color="var(--negative)"
+          />
+        )}
+        <Cifra
+          label="Cierra el fondeo"
+          value={dias > 0 ? `${dias} días` : "cerrado"}
+          nota={`${formatUsdc(remainingToFund(o))} USDC por levantar`}
+        />
+      </Encabezado>
 
-        <div className="mt-2 flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-          <span className="num text-[30px] font-semibold leading-none text-hi">
-            {formatUsdc(ticket + interes)}
-          </span>
-          <span className="text-[12.5px] text-low">USDC al vencimiento</span>
-          <span
-            className="num ml-auto text-[15px] font-semibold"
-            style={{ color: "var(--positive)" }}
-          >
-            +{formatUsdc(interes)}
-          </span>
-        </div>
-
-        <p className="mt-1.5 text-[12px] text-low">
-          Interés simple de {formatBps(o.apyBps)} anual, fijo. La empresa
-          paga {formatUsdc(creditInterest(o))} USDC por el crédito completo.
-        </p>
-
-        {comparativa && (
-          <Comparacion
+      {comparativa && (
+        <Bloque
+          titulo="Comparado con el catálogo"
+          aparte={
+            <span className="text-[11px] text-low">
+              {comparativa.base === "grado"
+                ? `mediana de las ${comparativa.muestra} operaciones ${comparativa.grado}`
+                : `mediana de las ${comparativa.muestra} del catálogo — el grado ${comparativa.grado} tiene pocas`}
+            </span>
+          }
+        >
+          <Par
             titulo="Rentabilidad"
-            esta={formatBps(o.apyBps)}
-            estaBps={o.apyBps}
-            medianaBps={comparativa.apyMedianaBps}
-            mediana={formatBps(comparativa.apyMedianaBps)}
             delta={`${comparativa.apyDeltaBps >= 0 ? "+" : "−"}${Math.abs(comparativa.apyDeltaBps / 100).toFixed(1)} pp`}
             mejor={comparativa.apyDeltaBps >= 0}
-            pie={leyenda(comparativa)}
+            estaBps={o.apyBps}
+            medianaBps={comparativa.apyMedianaBps}
+            formato={(b) => formatBps(b)}
           />
-        )}
-      </section>
-
-      {/* 2 — El escenario malo, que era el que no estaba. */}
-      <section className="card p-4 sm:p-5">
-        <div className="flex items-baseline justify-between gap-3">
-          <h3 className="label">Si la empresa no paga</h3>
-          <span className="num text-[11.5px] text-low">
-            cobertura {formatRatio(cobertura)}
-          </span>
-        </div>
-
-        {/* Con la garantía alcanzando, la cifra que informa NO es "recuperas
-            todo" —eso repite el número de arriba y hace parecer gratis un
-            default—: es cuánto puede caer el activo antes de que empieces a
-            perder. Cuando no alcanza, ahí sí lo que importa es la pérdida. */}
-        {colchonBps > 0 ? (
-          <>
-            <div className="mt-2 flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-              <span className="num text-[30px] font-semibold leading-none text-hi">
-                −{formatBps(colchonBps, 0)}
-              </span>
-              <span className="max-w-[30ch] text-[12.5px] leading-snug text-low">
-                puede caer el valor del activo antes de que pierdas capital
-              </span>
-            </div>
-            <p className="mt-1.5 text-[12px] leading-relaxed text-low">
-              Vendiéndolo por encima de eso, la ejecución te devuelve los{" "}
-              {formatUsdc(capitalEnRiesgo)} completos —capital e interés— ya
-              descontados costos legales y servicing.
-            </p>
-          </>
-        ) : (
-          <>
-            <div className="mt-2 flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-              <span
-                className="num text-[30px] font-semibold leading-none"
-                style={{ color: "var(--warning)" }}
-              >
-                {formatUsdc(recupero)}
-              </span>
-              <span className="text-[12.5px] text-low">
-                de los {formatUsdc(capitalEnRiesgo)} que esperabas
-              </span>
-              <span
-                className="num ml-auto text-[15px] font-semibold"
-                style={{ color: "var(--negative)" }}
-              >
-                −{formatUsdc(perdida)}
-              </span>
-            </div>
-            <p className="mt-1.5 text-[12px] leading-relaxed text-low">
-              La garantía no alcanza a cubrir capital más interés ni
-              vendiéndose a su valor neto estimado: recuperas{" "}
-              {formatBps(recuperoBps, 0)}.
-            </p>
-          </>
-        )}
-
-        <p className="mt-1.5 text-[12px] leading-relaxed text-low">
-          Respaldo neto de {formatUsdc(o.collateral.netRecoverableValue)} USDC.
-          La empresa puso {formatBps(o.borrowerContributionBps, 0)} del
-          proyecto: ese capital se pierde antes que el tuyo.
-        </p>
-
-        {comparativa && (
-          <Comparacion
+          <Par
             titulo="Cobertura"
-            esta={formatRatio(cobertura)}
-            estaBps={cobertura}
-            medianaBps={comparativa.coberturaMedianaBps}
-            mediana={formatRatio(comparativa.coberturaMedianaBps)}
             delta={`${comparativa.coberturaDeltaBps >= 0 ? "+" : "−"}${Math.abs(comparativa.coberturaDeltaBps / 10000).toFixed(2)}x`}
             mejor={comparativa.coberturaDeltaBps >= 0}
-            pie={leyenda(comparativa)}
+            estaBps={cobertura}
+            medianaBps={comparativa.coberturaMedianaBps}
+            formato={formatRatio}
           />
-        )}
-      </section>
+        </Bloque>
+      )}
 
-      {/* 3 — Cuándo se mueve la plata. Estaba repartido entre tres
-          pestañas y ninguna lo decía en una línea. */}
-      <section className="card p-4 sm:p-5">
-        <h3 className="label">Cuándo se mueve el dinero</h3>
-        <div className="mt-2.5 flex flex-col">
-          <Row
-            label="Cierra el fondeo"
-            value={dias > 0 ? `en ${dias} días` : "cerrado"}
-          />
-          <Row
-            label="Sale al proyecto"
-            value={`por ${hitos} hito${hitos === 1 ? "" : "s"} verificado${hitos === 1 ? "" : "s"}`}
-          />
-          <Row label="Te devuelven" value={`mes ${o.termMonths}`} />
-        </div>
-        <p className="mt-2 text-[11.5px] leading-relaxed text-low">
-          Hasta que un hito se aprueba, el capital sigue en el contrato — no
-          en la caja de la empresa.
-        </p>
-      </section>
+      <Bloque
+        titulo="Cuándo se mueve el dinero"
+        aparte={
+          <span className="text-[11px] text-low">
+            hasta que un hito se aprueba, el capital sigue en el contrato
+          </span>
+        }
+      >
+        <Row
+          label="Sale al proyecto"
+          value={`por ${hitos} hito${hitos === 1 ? "" : "s"} verificado${hitos === 1 ? "" : "s"}`}
+        />
+        <Row label="Te devuelven" value={`mes ${o.termMonths}`} />
+        <Row
+          label="Respaldo si no pagan"
+          value={`${formatUsdc(o.collateral.netRecoverableValue)} USDC netos`}
+        />
+      </Bloque>
 
-      {/* 4 — Quién pide y para qué. Va último a propósito: es el contexto
-          de la decisión, no la decisión. */}
-      <section className="card p-4 sm:p-5">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h3 className="label">Quién pide</h3>
+      <Bloque
+        titulo="Quién pide y para qué"
+        aparte={
           <span
-            className="text-[12px] font-medium"
+            className="text-[11.5px] font-medium"
             style={{ color: TRACK_TONE_COLOR[track.tone] }}
           >
             {track.label}
             {!track.firstTime && (
-              <span className="num ml-1.5 text-[11.5px] text-low">
-                {o.company.passport.onTimeRepayments}/
-                {o.company.passport.onTimeRepayments +
-                  o.company.passport.lateRepayments +
-                  o.company.passport.defaults}{" "}
-                a tiempo
+              <span className="num ml-1.5 text-[11px] text-low">
+                {o.company.passport.onTimeRepayments}/{pagos} a tiempo
               </span>
             )}
           </span>
-        </div>
-
-        <p className="mt-2 text-[13px] leading-relaxed text-mid">{o.summary}</p>
+        }
+      >
+        <p className="text-[12.5px] leading-relaxed text-mid">{o.summary}</p>
+        <p className="mt-1.5 text-[11.5px] leading-relaxed text-low">
+          La empresa puso {formatBps(o.borrowerContributionBps, 0)} del costo
+          del proyecto: ese capital se pierde antes que el tuyo.
+        </p>
 
         {o.highlights.length > 0 && (
           // El check verde afirmaba "verificado" sobre cada frase, que es
           // más de lo que el dato sostiene: son hechos declarados en el
           // expediente. La lista los enumera sin certificarlos.
-          <ul className="mt-3 flex flex-col gap-2 border-t border-border pt-3">
+          <ul className="mt-2.5 flex flex-col gap-1.5">
             {o.highlights.map((h) => (
               <li
                 key={h}
-                className="flex items-start gap-2.5 text-[12.5px] leading-relaxed text-mid"
+                className="flex items-start gap-2.5 text-[12px] leading-snug text-mid"
               >
-                <span className="marker mt-[7px]" />
+                <span className="marker mt-[6px]" />
                 {h}
               </li>
             ))}
           </ul>
         )}
-      </section>
+      </Bloque>
     </div>
   );
 }
 
-function leyenda(c: Comparativa): string {
-  return c.base === "grado"
-    ? `Mediana de las ${c.muestra} operaciones ${c.grado} del catálogo`
-    : `Mediana de las ${c.muestra} operaciones del catálogo — el grado ${c.grado} todavía tiene pocas`;
-}
-
 /**
- * Dos barras a la misma escala: esta operación y la mediana de sus
- * comparables. La barra existe porque "13.9% contra 12.5%" en texto obliga
- * a restar mentalmente; puestas una debajo de otra, la diferencia se ve
- * antes de leerla.
+ * Una magnitud contra su mediana: dos barras a la misma escala, el delta
+ * al costado. En texto —"12.5% contra 16.0%"— la resta la hace quien lee;
+ * puestas una debajo de otra la diferencia se ve antes de leerla.
  */
-function Comparacion({
+function Par({
   titulo,
-  esta,
-  estaBps,
-  mediana,
-  medianaBps,
   delta,
   mejor,
-  pie,
+  estaBps,
+  medianaBps,
+  formato,
 }: {
   titulo: string;
-  esta: string;
-  estaBps: number;
-  mediana: string;
-  medianaBps: number;
   delta: string;
   mejor: boolean;
-  pie: string;
+  estaBps: number;
+  medianaBps: number;
+  formato: (bps: number) => string;
 }) {
   const tope = Math.max(estaBps, medianaBps) || 1;
   const color = mejor ? "var(--positive)" : "var(--warning)";
 
   return (
-    <div className="mt-3.5 border-t border-border pt-3">
+    <div className="mb-2 last:mb-0">
       <div className="flex items-baseline justify-between gap-3">
-        <span className="text-[11.5px] text-low">{titulo} vs. comparables</span>
-        <span className="num text-[12px] font-semibold" style={{ color }}>
+        <span className="text-[11.5px] font-medium text-hi">{titulo}</span>
+        <span className="num text-[11.5px] font-semibold" style={{ color }}>
           {delta}
         </span>
       </div>
-
-      <div className="mt-2 flex flex-col gap-1.5">
-        <Barra
-          etiqueta="Esta operación"
-          valor={esta}
-          fraccion={estaBps / tope}
-          color={color}
-        />
-        <Barra
-          etiqueta="Mediana"
-          valor={mediana}
-          fraccion={medianaBps / tope}
-          color="var(--border-strong)"
-        />
-      </div>
-
-      <p className="mt-2 text-[11px] text-low">{pie}</p>
-    </div>
-  );
-}
-
-function Barra({
-  etiqueta,
-  valor,
-  fraccion,
-  color,
-}: {
-  etiqueta: string;
-  valor: string;
-  fraccion: number;
-  color: string;
-}) {
-  return (
-    <div className="flex items-center gap-2.5">
-      <span className="w-[92px] shrink-0 text-[11.5px] text-mid">{etiqueta}</span>
-      <span className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-surface-soft">
-        <motion.span
-          initial={{ scaleX: 0 }}
-          animate={{ scaleX: Math.max(0.02, Math.min(1, fraccion)) }}
-          transition={T.base}
-          className="block h-full origin-left rounded-full"
-          style={{ backgroundColor: color }}
-        />
-      </span>
-      <span className="num w-[52px] shrink-0 text-right text-[12px] font-medium text-hi">
-        {valor}
-      </span>
+      <FilaBarra
+        etiqueta="Esta operación"
+        valor={formato(estaBps)}
+        fraccion={estaBps / tope}
+        color={color}
+        anchoEtiqueta={92}
+      />
+      <FilaBarra
+        etiqueta="Mediana"
+        valor={formato(medianaBps)}
+        fraccion={medianaBps / tope}
+        color="var(--border-strong)"
+        anchoEtiqueta={92}
+      />
     </div>
   );
 }

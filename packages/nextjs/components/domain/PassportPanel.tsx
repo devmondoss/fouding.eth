@@ -10,6 +10,7 @@ import { protocolChain } from "@/lib/web3/config";
 import { Button } from "@/components/ui/Button";
 import { Pill } from "@/components/ui/Pill";
 import { Row } from "@/components/ui/Stat";
+import { Bloque, Cifra, Encabezado } from "./FichaTab";
 import { formatDate, shortHash } from "@/lib/format";
 import { STATUS_LABEL } from "@/lib/verifier/submission";
 import type { Company } from "@/lib/types";
@@ -20,11 +21,8 @@ const STATUS_VIEW: Record<
 > = {
   loading: { label: "Consultando blockchain…", tone: "neutral" },
   "wrong-network": { label: "Red incorrecta", tone: "warning" },
-  "no-passport": {
-    label: "Empresa todavía no tiene Company Passport",
-    tone: "neutral",
-  },
-  active: { label: "Empresa verificada on-chain", tone: "positive" },
+  "no-passport": { label: "Sin pasaporte emitido", tone: "neutral" },
+  active: { label: "Verificada on-chain", tone: "positive" },
   suspended: { label: "Pasaporte suspendido", tone: "warning" },
   revoked: { label: "Pasaporte revocado", tone: "negative" },
   expired: { label: "Pasaporte expirado", tone: "negative" },
@@ -39,19 +37,26 @@ const INTERNAL_STATUS = STATUS_LABEL;
 type HashCheck = "idle" | "match" | "mismatch" | "unavailable";
 
 /**
- * Company Passport: presenta por separado blockchain, evidencia privada
- * resumida por Neon e historial indexado de Fouding. Ningún error de RPC se
- * convierte en un estado verificado y ningún dato mock representa la cadena.
+ * La empresa detrás de la operación.
+ *
+ * Estaba ordenada por FUENTE —on-chain, off-chain, historial—, que es
+ * cómo la construimos nosotros y no cómo la lee un inversionista. Lo
+ * primero de la pestaña eran Token ID, Chain ID y dirección de contrato:
+ * seis filas de plomería antes de decir si la empresa había pagado sus
+ * créditos anteriores. Y el pasaporte es soulbound justamente para que
+ * ese historial no se pueda tirar a la basura abriendo otra wallet.
+ *
+ * Ahora manda el sujeto: quién es, cómo pagó, y recién al final la prueba
+ * en cadena de que eso no es una declaración nuestra. La prueba no se
+ * esconde —es el argumento del producto— pero deja de ir primero.
  */
 export function PassportPanel({ company }: { company: Company }) {
   const passport = useCompanyPassport(company.walletAddress);
   const evidence = useCompanyEvidence(company.walletAddress);
   const [hashCheck, setHashCheck] = useState<HashCheck>("idle");
   const statusView = STATUS_VIEW[passport.status];
-  const explorer = protocolChain.blockExplorers?.default.url?.replace(
-    /\/$/,
-    "",
-  );
+  const explorer = protocolChain.blockExplorers?.default.url?.replace(/\/$/, "");
+  const h = company.foudingHistory;
 
   useEffect(() => {
     setHashCheck("idle");
@@ -73,227 +78,199 @@ export function PassportPanel({ company }: { company: Company }) {
     );
   }
 
+  // El historial sale del PASAPORTE, que siempre viene con la operación,
+  // y no de `foudingHistory`, que es opcional y solo trae los enlaces al
+  // explorador. Leerlo de ahí dejaba esta pestaña con tres guiones
+  // mientras el resumen —que sí usa el pasaporte— decía "4 créditos
+  // previos, 24/25 a tiempo" de la misma empresa.
+  const p = company.passport;
+  const total = p.onTimeRepayments + p.lateRepayments + p.defaults;
+
   return (
-    <section className="card p-4 sm:p-5">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h3 className="h3">La empresa</h3>
-          <p className="mt-1 text-[13px] text-mid">{company.name}</p>
+    <div>
+      <Encabezado>
+        <Cifra
+          label="Créditos en Founding"
+          value={p.completedDeals}
+          nota={
+            p.completedDeals === 0
+              ? "primera vez en la plataforma"
+              : "ya completados"
+          }
+        />
+        {total > 0 && (
+          <Cifra
+            label="Pagos a tiempo"
+            value={`${p.onTimeRepayments}/${total}`}
+            nota={
+              p.defaults > 0
+                ? `${p.defaults} en impago`
+                : p.lateRepayments > 0
+                  ? `${p.lateRepayments} tardío${p.lateRepayments === 1 ? "" : "s"}`
+                  : "sin incidencias"
+            }
+            color={
+              p.defaults > 0
+                ? "var(--negative)"
+                : p.lateRepayments > 0
+                  ? "var(--warning)"
+                  : "var(--positive)"
+            }
+          />
+        )}
+        <div className="min-w-0">
+          <div className="label">Pasaporte</div>
+          <div className="mt-1">
+            <Pill label={statusView.label} tone={statusView.tone} dot />
+          </div>
+          <div className="mt-1 text-[11px] text-low">
+            Intransferible: el historial no se deja atrás
+          </div>
         </div>
-        <span className="shrink-0 rounded-[var(--r-pill)] border border-border bg-surface-soft px-2.5 py-1 text-[11.5px] text-low">
-          Perfil intransferible
-        </span>
-      </div>
+      </Encabezado>
 
-      <SourceSection title="Estado on-chain">
-        {/* El spinner al lado de la píldora era redundante: la píldora dice
-            literalmente "Consultando blockchain…". */}
-        <Pill label={statusView.label} tone={statusView.tone} dot />
+      {/* Lo que sabemos de la empresa sale del expediente que viene con la
+          operación; la consulta a Neon solo AGREGA quién la revisó y
+          cuándo. Antes todo el bloque dependía de esa consulta, así que
+          sin ella la pestaña no decía ni el RUC —dato que ya estaba en
+          memoria. */}
+      <Bloque titulo="La empresa">
+        <Row label="Razón social" value={company.name} />
+        <Row label="RUC" value={company.ruc || "—"} />
+        <Row
+          label="Actividad"
+          value={`${company.sector} · ${company.city}`}
+        />
+        <Row
+          label="Trayectoria"
+          value={`${company.yearsOperating} años · ${company.employees} colaboradores`}
+        />
+        {evidence.evidence && (
+          <Row
+            label="Revisión"
+            value={
+              evidence.evidence.lastReviewedAt
+                ? `${INTERNAL_STATUS[evidence.evidence.verificationStatus]} el ${formatDate(evidence.evidence.lastReviewedAt)}${evidence.evidence.verifier ? ` por ${evidence.evidence.verifier}` : ""}`
+                : "Pendiente"
+            }
+          />
+        )}
+        {evidence.error && (
+          <p className="mt-2 text-[11.5px] text-low">
+            No se pudo consultar quién revisó el expediente en este momento.
+          </p>
+        )}
+      </Bloque>
 
+      {h && h.transactions.length > 0 && explorer && (
+        <Bloque titulo="Movimientos en cadena">
+          <div className="flex flex-col">
+            {h.transactions.map((t) => (
+              <a
+                key={t.txHash}
+                href={`${explorer}/tx/${t.txHash}`}
+                target="_blank"
+                rel="noreferrer"
+                className="focusable flex items-center justify-between gap-3 border-b border-border py-2 text-[12.5px] text-mid transition-colors last:border-b-0 hover:text-hi"
+              >
+                <span className="min-w-0 truncate">{t.label}</span>
+                <span className="num shrink-0 text-[11.5px] text-low">
+                  {shortHash(t.txHash, 5)}
+                </span>
+              </a>
+            ))}
+          </div>
+        </Bloque>
+      )}
+
+      {/* La prueba, al final: es lo que sostiene todo lo de arriba, no lo
+          que hay que leer primero. */}
+      <Bloque
+        titulo="La prueba"
+        aparte={
+          <span className="text-[11px] text-low">
+            {protocolChain.name} · {passport.chainId}
+          </span>
+        }
+      >
         {passport.status === "wrong-network" && (
-          <Message>
-            Conecta la wallet a {protocolChain.name} ({passport.chainId}) para
-            consultar el pasaporte.
-          </Message>
+          <Aviso>
+            Conecta la wallet a {protocolChain.name} para consultar el
+            pasaporte.
+          </Aviso>
         )}
         {passport.status === "rpc-error" && (
-          <Message>
+          <Aviso>
             No se pudo consultar el contrato. Revisa el RPC y el deployment de
             la red configurada.
-          </Message>
+          </Aviso>
         )}
 
         {passport.credential && passport.tokenId !== null && (
-          <div className="mt-3">
-            <Row label="Token ID" value={`#${passport.tokenId.toString()}`} />
+          <>
             <Row
               label="Emitido"
-              value={formatTimestamp(passport.credential.issuedAt)}
+              value={`${formatTimestamp(passport.credential.issuedAt)} · vence ${formatTimestamp(passport.credential.expiresAt)}`}
             />
             <Row
-              label="Vence"
-              value={formatTimestamp(passport.credential.expiresAt)}
-            />
-            <Row label="Chain ID" value={passport.chainId} />
-            <Row
-              label="Contrato"
-              value={
+              label="Pasaporte"
+              value={`#${passport.tokenId.toString()} en ${
                 passport.contractAddress
                   ? shortHash(passport.contractAddress, 5)
-                  : "No configurado"
-              }
+                  : "contrato no configurado"
+              }`}
             />
-          </div>
-        )}
-
-        {explorer && passport.contractAddress && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            <ExplorerLink
-              href={`${explorer}/address/${passport.contractAddress}`}
-            >
-              Ver contrato
-            </ExplorerLink>
-            {passport.issuanceTxHash && (
-              <ExplorerLink href={`${explorer}/tx/${passport.issuanceTxHash}`}>
-                Ver emisión
-              </ExplorerLink>
-            )}
-          </div>
-        )}
-      </SourceSection>
-
-      <SourceSection title="Evidencia off-chain">
-        {evidence.isLoading && (
-          <Message>Consultando evidencia verificada…</Message>
-        )}
-        {evidence.error && (
-          <Message>No se pudo consultar la evidencia en este momento.</Message>
-        )}
-        {!evidence.isLoading && !evidence.error && !evidence.evidence && (
-          <Message>
-            No hay evidencia pública disponible para esta empresa.
-          </Message>
+          </>
         )}
 
         {evidence.evidence && (
-          <>
-            <div>
-              <Row label="Razón social" value={evidence.evidence.companyName} />
-              <Row label="RUC" value={evidence.evidence.companyRuc || "—"} />
-              <Row
-                label="Estado interno"
-                value={INTERNAL_STATUS[evidence.evidence.verificationStatus]}
-              />
-              <Row
-                label="Verificador"
-                value={evidence.evidence.verifier || "No asignado"}
-              />
-              <Row
-                label="Última revisión"
-                value={
-                  evidence.evidence.lastReviewedAt
-                    ? formatDate(evidence.evidence.lastReviewedAt)
-                    : "Pendiente"
-                }
-              />
-              <Row
-                label="Legal pack"
-                value={shortHash(evidence.evidence.legalPackHash, 6)}
-              />
-            </div>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <Button variant="outline" size="sm" onClick={checkHash}>
-                Comprobar hash
-              </Button>
-              <HashResult result={hashCheck} />
-            </div>
-          </>
+          <Row
+            label="Expediente legal"
+            value={shortHash(evidence.evidence.legalPackHash, 6)}
+          />
         )}
-      </SourceSection>
 
-      <SourceSection title="Historial Fouding">
-        {company.foudingHistory ? (
-          <>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <Mini
-                label="Créditos"
-                value={company.foudingHistory.completedCredits}
-              />
-              <Mini
-                label="A tiempo"
-                value={company.foudingHistory.onTimePayments}
-                color="var(--positive)"
-              />
-              <Mini
-                label="Tardíos"
-                value={company.foudingHistory.latePayments}
-                color={
-                  company.foudingHistory.latePayments > 0
-                    ? "var(--warning)"
-                    : undefined
-                }
-              />
-              <Mini
-                label="Impagos"
-                value={company.foudingHistory.defaults}
-                color={
-                  company.foudingHistory.defaults > 0
-                    ? "var(--negative)"
-                    : undefined
-                }
-              />
-            </div>
-            {explorer && company.foudingHistory.transactions.length > 0 && (
-              <div className="mt-3 flex flex-col gap-2">
-                {company.foudingHistory.transactions.map((transaction) => (
-                  <a
-                    key={transaction.txHash}
-                    href={`${explorer}/tx/${transaction.txHash}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="focusable flex items-center justify-between rounded-[var(--r-panel)] border border-border px-3 py-2 text-[12.5px] text-mid transition-colors hover:border-border-strong hover:text-hi"
-                  >
-                    {transaction.label}
-                    <span className="text-[11.5px] text-low">
-                      Ver en el explorador
-                    </span>
-                  </a>
-                ))}
-              </div>
-            )}
-          </>
-        ) : (
-          <Message>
-            El historial de esta empresa todavía no está indexado.
-          </Message>
-        )}
-      </SourceSection>
-    </section>
-  );
-}
+        <div className="mt-2.5 flex flex-wrap items-center gap-2">
+          {evidence.evidence && (
+            <Button variant="outline" size="sm" onClick={checkHash}>
+              Comprobar hash
+            </Button>
+          )}
+          <HashResult result={hashCheck} />
 
-/**
- * Cada sección llevaba un ícono —red, documento, reloj— delante del título.
- * Tres glifos de librería para tres títulos que ya nombran su fuente:
- * "Estado on-chain", "Evidencia off-chain", "Historial Fouding". El título
- * es la etiqueta; el ícono era decoración.
- */
-function SourceSection({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className="mt-4 border-t border-border pt-4 first:border-t-0">
-      <div className="mb-3 text-[12.5px] font-semibold text-hi">{title}</div>
-      {children}
+          {explorer && passport.contractAddress && (
+            <span className="ml-auto flex gap-2">
+              <Enlace href={`${explorer}/address/${passport.contractAddress}`}>
+                Ver contrato
+              </Enlace>
+              {passport.issuanceTxHash && (
+                <Enlace href={`${explorer}/tx/${passport.issuanceTxHash}`}>
+                  Ver emisión
+                </Enlace>
+              )}
+            </span>
+          )}
+        </div>
+      </Bloque>
     </div>
   );
 }
 
-function Message({ children }: { children: ReactNode }) {
+function Aviso({ children }: { children: ReactNode }) {
   return (
-    <p className="mt-2 rounded-[var(--r-panel)] border border-border bg-surface-soft px-3 py-2 text-[12.5px] leading-relaxed text-mid">
+    <p className="rounded-[var(--r-panel)] border border-border bg-surface-soft px-3 py-2 text-[12px] leading-relaxed text-mid">
       {children}
     </p>
   );
 }
 
-function ExplorerLink({
-  href,
-  children,
-}: {
-  href: string;
-  children: ReactNode;
-}) {
+function Enlace({ href, children }: { href: string; children: ReactNode }) {
   return (
     <a
       href={href}
       target="_blank"
       rel="noreferrer"
-      className="focusable inline-flex h-8 items-center rounded-[var(--r-input)] border border-border bg-surface px-3 text-[12.5px] font-medium text-hi transition-colors hover:border-border-strong hover:bg-surface-soft"
+      className="focusable inline-flex h-8 items-center rounded-[var(--r-input)] border border-border bg-surface px-2.5 text-[12px] font-medium text-hi transition-colors hover:border-border-strong hover:bg-surface-soft"
     >
       {children}
     </a>
@@ -323,26 +300,4 @@ function HashResult({ result }: { result: HashCheck }) {
 
 function formatTimestamp(timestamp: bigint): string {
   return formatDate(new Date(Number(timestamp) * 1_000).toISOString());
-}
-
-function Mini({
-  label,
-  value,
-  color,
-}: {
-  label: string;
-  value: number;
-  color?: string;
-}) {
-  return (
-    <div className="rounded-[var(--r-panel)] border border-border bg-surface-soft px-2 py-2.5 text-center">
-      <div
-        className="num text-[18px] font-bold"
-        style={{ color: color ?? "var(--text-hi)" }}
-      >
-        {value}
-      </div>
-      <div className="mt-0.5 text-[11px] text-low">{label}</div>
-    </div>
-  );
 }
