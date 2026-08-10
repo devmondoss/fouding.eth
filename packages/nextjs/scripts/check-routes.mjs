@@ -20,7 +20,7 @@ const CASES = [
   {
     path: "/solicitar",
     expectUrl: "/login",
-    expectText: "Soy inversionista",
+    expectText: "Entrar con mi correo",
     why: "el panel es privado: sin sesión sale por la puerta",
   },
   {
@@ -28,7 +28,7 @@ const CASES = [
     // describe lo que muestra, deja de poder enlazarse y recargarse.
     path: "/solicitar/nueva",
     expectUrl: "/login",
-    expectText: "Soy inversionista",
+    expectText: "Entrar con mi correo",
     why: "armar un expediente exige sesión de empresa",
   },
   {
@@ -36,15 +36,16 @@ const CASES = [
     // también tiene URL propia: se envía una vez y se puede volver a ella.
     path: "/solicitar/empresa",
     expectUrl: "/login",
-    expectText: "Soy inversionista",
+    expectText: "Entrar con mi correo",
     why: "acreditar la empresa exige sesión de empresa",
   },
   {
     path: "/rol",
     expectUrl: "/login",
-    // Sin sesión, elegir rol manda a la puerta — que ES la pantalla de
-    // elegir rol, solo que antes de la wallet en vez de después.
-    expectText: "Soy inversionista",
+    // Sin sesión no hay a quién fijarle un rol, así que sale por la
+    // puerta. La pregunta la hace /rol y SOLO /rol: el login llegó a
+    // hacerla también, y eran dos pantallas para una decisión.
+    expectText: "Entrar con mi correo",
     why: "elegir rol exige sesión",
   },
   {
@@ -56,9 +57,10 @@ const CASES = [
   {
     path: "/login",
     expectUrl: "/login",
-    // La puerta ya no pide una wallet, pide una travesía: es la misma
-    // StandGate que sirve `/`. Ver app/login/page.tsx.
-    expectText: "Soy inversionista",
+    // La puerta entra y nada más. Preguntar acá el lado obligaba a
+    // guardarlo, hacerlo sobrevivir al modal de Privy, caducarlo y
+    // reconciliarlo después — todo para adelantar una pregunta un paso.
+    expectText: "Entrar con mi correo",
     why: "puerta de entrada con URL propia, enlazable desde el QR",
   },
   {
@@ -70,7 +72,7 @@ const CASES = [
     // enlaces compartidos no se enteran de que borramos algo.
     path: "/negocios/login",
     expectUrl: "/login",
-    expectText: "Soy inversionista",
+    expectText: "Entrar con mi correo",
     why: "el login de empresa ya no existe: hay una sola puerta",
   },
   {
@@ -79,7 +81,7 @@ const CASES = [
     // sesión, el catálogo en una URL que no lo nombraba.
     path: "/",
     expectUrl: "/login",
-    expectText: "Soy inversionista",
+    expectText: "Entrar con mi correo",
     why: "la raíz solo reparte: sin sesión, a la puerta",
   },
   {
@@ -88,7 +90,7 @@ const CASES = [
     // para existir. Ahora se llama como su titular.
     path: "/oportunidades",
     expectUrl: "/login",
-    expectText: "Soy inversionista",
+    expectText: "Entrar con mi correo",
     why: "el catálogo es privado: sin sesión sale por la puerta",
   },
 ];

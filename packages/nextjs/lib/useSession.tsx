@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -14,6 +15,31 @@ import { type Address } from "viem";
 import { useAccessRegistry } from "@/hooks/useAccessRegistry";
 
 export type Role = "investor" | "business";
+
+/**
+ * Las etapas por las que pasa una solicitud de acceso, en orden.
+ *
+ * Son las que el trámite ejecuta de verdad —dos de ellas transacciones
+ * firmadas en cadena—, no una animación decorativa. Por eso el nombre de
+ * cada una se puede sostener frente a quien pregunte qué acaba de pasar.
+ *
+ *   declarando   la identidad se guarda fuera de cadena y se calcula su
+ *                huella (POST /api/compliance/application)
+ *   registrando  la huella queda anclada en el AccessRegistry, firmada
+ *                por la wallet de la persona
+ *   resolviendo  la decisión se escribe en el contrato, firmada por el
+ *                operador (POST /api/compliance/auto-review)
+ *   listo        la cadena ya dice que esta wallet puede invertir
+ *
+ * `fallo` no es un estado del trámite sino de una etapa: la solicitud
+ * quedó anclada igual y la resuelve una persona desde /verifier.
+ */
+export type PasoRevision =
+  | { etapa: "declarando" }
+  | { etapa: "registrando" }
+  | { etapa: "resolviendo" }
+  | { etapa: "listo" }
+  | { etapa: "fallo"; motivo: string };
 
 export type Session = {
   address: string;
@@ -98,7 +124,17 @@ type Ctx = {
   signOut: () => void;
   /** Registra la solicitud de acceso: guarda la identidad declarada fuera
    * de cadena y ancla su hash en el AccessRegistry. */
-  verify: (applicant: { fullName: string; documentId: string }) => Promise<void>;
+  /** Emite cada etapa a medida que ocurre, para que la pantalla pueda
+   *  mostrar el trámite en vez de esconderlo detrás de un botón ocupado.
+   *  Ver components/flow/RevisionAcceso.tsx. */
+  verify: (
+    applicant: { fullName: string; documentId: string },
+    onPaso?: (paso: PasoRevision) => void,
+  ) => Promise<void>;
+  /** La revisión automática está corriendo ahora mismo para esta wallet.
+   *  Sirve para que "en revisión" pueda decir que se está resolviendo en
+   *  vez de parecer una espera sin final. */
+  resolvingAccess: boolean;
   /** Fija el rol la primera vez que se llama para esta wallet. Llamadas
    * posteriores no hacen nada — el rol no cambia una vez elegido (ver
    * RoleGate). */
@@ -366,13 +402,69 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // Antes el hash se derivaba solo de la dirección y el nombre y el
   // documento se descartaban en el cliente: el formulario pedía PII que
   // no llegaba a ninguna parte, y compliance aprobaba sin ver nada.
+  /**
+   * Cualquier solicitud en revisión se resuelve sola, esté donde esté.
+   *
+   * La revisión automática arrancó disparándose solo al enviar el
+   * formulario, y eso deja fuera dos casos que en la práctica son la
+   * mayoría: las solicitudes que ya estaban en `Pending` de antes, y las
+   * que fallaron el primer intento —sin red, sin gas, la pestaña cerrada
+   * a mitad—. Todas esas quedaban esperando a una persona que en un
+   * stand no va a estar.
+   *
+   * Acá se reintenta cuando la wallet entra en `Pending`, venga de donde
+   * venga. Una vez por dirección y por pestaña: el servidor solo aprueba
+   * lo que está pendiente, pero insistir en bucle contra un fallo real
+   * —el operador sin gas, por ejemplo— sería martillar una ruta que
+   * firma en cadena.
+   */
+  const [resolvingAccess, setResolvingAccess] = useState(false);
+  const autoReviewed = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!address || access.status !== 1) return;
+    const addr = address.toLowerCase();
+    if (autoReviewed.current === addr) return;
+    autoReviewed.current = addr;
+
+    let alive = true;
+    setResolvingAccess(true);
+    (async () => {
+      try {
+        const token = await getAccessToken();
+        if (!token || !alive) return;
+        await fetch("/api/compliance/auto-review", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (alive) await access.refetch();
+      } catch {
+        // El estado se queda en revisión y lo resuelve una persona desde
+        // /verifier, que es el circuito que siempre existió.
+      } finally {
+        if (alive) setResolvingAccess(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+    // `access` cambia de identidad en cada render (es un objeto literal);
+    // lo que gobierna este efecto es la dirección y el estado leído.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address, access.status, getAccessToken]);
+
   const verify = useCallback(
-    async (applicant: { fullName: string; documentId: string }) => {
+    async (
+      applicant: { fullName: string; documentId: string },
+      onPaso?: (paso: PasoRevision) => void,
+    ) => {
       if (!address) throw new Error("Conecta una wallet antes de solicitar acceso");
 
       const token = await getAccessToken();
       if (!token) throw new Error("Tu sesión expiró, vuelve a entrar");
 
+      onPaso?.({ etapa: "declarando" });
       const res = await fetch("/api/compliance/application", {
         method: "POST",
         headers: {
@@ -386,6 +478,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         throw new Error(body?.error ?? "No se pudo registrar la solicitud");
       }
 
+      onPaso?.({ etapa: "registrando" });
       await access.requestAccess(body.applicationHash as `0x${string}`);
 
       // Y la revisión se resuelve sola, en segundos. El circuito manual
@@ -396,15 +489,30 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // Si falla, NO se propaga el error: la solicitud ya quedó anclada
       // en cadena y esa parte salió bien. Reventar acá le diría a la
       // persona que su solicitud no se registró, que es falso — se queda
-      // en revisión y la aprueba una persona, como antes.
-      await fetch("/api/compliance/auto-review", {
+      // en revisión y la aprueba una persona, como antes. Por eso `fallo`
+      // es una etapa y no una excepción: la pantalla tiene que poder
+      // contar un final a medias sin llamarlo error.
+      onPaso?.({ etapa: "resolviendo" });
+      const resuelta = await fetch("/api/compliance/auto-review", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
-      }).catch(() => null);
+      })
+        .then((r) => r.ok)
+        .catch(() => false);
 
       // El estado vive en la cadena, así que hay que volver a leerlo para
       // que la barra y el panel dejen de decir "Sin acceso".
       await access.refetch();
+
+      onPaso?.(
+        resuelta
+          ? { etapa: "listo" }
+          : {
+              etapa: "fallo",
+              motivo:
+                "Tu solicitud quedó registrada, pero la resolución automática no respondió.",
+            },
+      );
     },
     [access, address, getAccessToken],
   );
@@ -459,6 +567,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const roleMap = readJSON<Record<string, Role>>(ROLE_KEY, {});
       delete roleMap[addr];
       writeJSON(ROLE_KEY, roleMap);
+
+      // Y el resto de lo que esta wallet fue dejando en el navegador:
+      // el portafolio proyectado con sus posiciones y movimientos, la
+      // marca de que ya vio la acreditación de saldo, y la del goteo del
+      // faucet en esta pestaña. Se borraban dos claves de cinco, así que
+      // volver a entrar con la misma dirección resucitaba un portafolio
+      // de una cuenta que ya no existe.
+      try {
+        window.localStorage.removeItem(`founding.wallet.${addr}`);
+        window.localStorage.removeItem(`founding.arranque.${addr}`);
+        window.sessionStorage.removeItem(`founding.topup.${addr}`);
+      } catch {}
     }
     try {
       window.localStorage.removeItem(SOFT_SIGNOUT_KEY);
@@ -480,6 +600,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       cancelConnect,
       signOut,
       verify,
+      resolvingAccess,
       chooseRole,
       deleteAccount,
       getAccessToken,
@@ -496,6 +617,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       cancelConnect,
       signOut,
       verify,
+      resolvingAccess,
       chooseRole,
       deleteAccount,
       getAccessToken,

@@ -1,10 +1,18 @@
 import { NextResponse } from "next/server";
-import { getPrivyServerClient } from "@/lib/privyServer";
+import { getAuthenticatedWallet, getPrivyServerClient } from "@/lib/privyServer";
+import { bloqueoDeBorrado, purgarCuenta } from "@/lib/account/purge";
 
 /**
- * Borra la cuenta del usuario autenticado en Privy — de verdad, no solo
- * datos locales. El userId a borrar sale del token verificado, nunca
- * del body: nadie puede pedir el borrado de otra cuenta.
+ * Borra la cuenta: los datos primero, el usuario de Privy después.
+ *
+ * Antes solo hacía lo segundo. El usuario desaparecía de Privy y el
+ * nombre y el documento declarados seguían en `access_applications`, la
+ * empresa en `companies` y los expedientes con sus PDFs en la base — o
+ * sea que "Eliminar cuenta" borraba la llave de entrada y dejaba dentro
+ * todo lo que la persona quería que se fuera.
+ *
+ * El userId y la wallet salen del token verificado, nunca del body:
+ * nadie puede pedir el borrado de otra cuenta.
  */
 export async function POST(req: Request) {
   const client = getPrivyServerClient();
@@ -29,6 +37,37 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Sesión inválida o expirada" }, { status: 401 });
   }
 
+  // La wallet sale del mismo token, no del body: es la que identifica
+  // todo lo que esta cuenta dejó en la base.
+  const wallet = await getAuthenticatedWallet(req);
+
+  let purga = null;
+  if (wallet) {
+    // Se avisa ANTES de borrar nada. Descubrir a mitad del proceso que
+    // una fila no se puede tocar dejaría la cuenta medio borrada: sin
+    // expedientes pero con empresa, o sin usuario en Privy y con todos
+    // los datos intactos.
+    const bloqueo = await bloqueoDeBorrado(wallet).catch(() => null);
+    if (bloqueo) {
+      return NextResponse.json({ error: bloqueo.motivo }, { status: 409 });
+    }
+
+    // **Primero la base, después Privy.** Al revés, un fallo al purgar
+    // dejaría a alguien sin forma de volver a entrar —el usuario ya no
+    // existe— y con su nombre y su documento todavía guardados: el peor
+    // de los dos resultados posibles, y el único irreparable desde la
+    // aplicación.
+    try {
+      purga = await purgarCuenta(wallet);
+    } catch (err) {
+      console.error("[account] no se pudieron borrar los datos:", err);
+      return NextResponse.json(
+        { error: "No se pudieron borrar tus datos, intenta de nuevo" },
+        { status: 500 },
+      );
+    }
+  }
+
   try {
     await client.deleteUser(userId);
   } catch (err) {
@@ -39,5 +78,5 @@ export async function POST(req: Request) {
     );
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, purga });
 }

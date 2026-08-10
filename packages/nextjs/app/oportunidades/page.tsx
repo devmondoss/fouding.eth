@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence } from "motion/react";
 import { AddFundsFlow } from "@/components/flow/AddFundsFlow";
 import { SaldoDePrueba } from "@/components/flow/SaldoDePrueba";
-import { RoleConflict } from "@/components/flow/RoleConflict";
 import { Deck } from "@/components/flow/Deck";
 import { DetailOverlay } from "@/components/flow/DetailOverlay";
 import { Onboarding } from "@/components/flow/Onboarding";
@@ -15,9 +14,8 @@ import { TopBar } from "@/components/flow/TopBar";
 import { Logo } from "@/components/ui/Logo";
 import { Waiting } from "@/components/ui/Waiting";
 import { usePlatform } from "@/lib/data/store";
-import { clearIntendedRole, readIntendedRole } from "@/lib/intendedRole";
 import { useOnce } from "@/lib/useOnce";
-import { useSession, type Role } from "@/lib/useSession";
+import { useSession } from "@/lib/useSession";
 import type { Opportunity } from "@/lib/types";
 
 /**
@@ -35,7 +33,7 @@ import type { Opportunity } from "@/lib/types";
  *   ProfilePanel        módulo dedicado a la cuenta y su verificación.
  */
 export default function App() {
-  const { session, signOut, verify, deleteAccount, chooseRole, switchAccount } =
+  const { session, signOut, verify, deleteAccount } =
     useSession();
   const { seen, markSeen, reset } = useOnce("founding.intro");
   const { getOpportunity } = usePlatform();
@@ -49,9 +47,6 @@ export default function App() {
   // el bloqueo de verificación de InvestPanel tenga una puerta y no solo un
   // texto rojo.
   const [profileAskingAccess, setProfileAskingAccess] = useState(false);
-  /** El lado que se pidió cuando esta cuenta pertenece al otro. Null =
-   *  sin choque. Ver RoleConflict. */
-  const [choque, setChoque] = useState<Role | null>(null);
 
   // Sin sesión, la puerta.
   //
@@ -64,41 +59,23 @@ export default function App() {
     if (session === null) router.replace("/login");
   }, [session, router]);
 
-  // El rol ya se eligió en la puerta, antes de que existiera la wallet.
-  // Acá solo se aplica: la elección viajó en localStorage porque en el
-  // medio hubo un modal de Privy. Quien llegó sin elección guardada
-  // —link directo, sesión vieja de antes de este cambio— sí va a /rol,
-  // que sigue siendo la pantalla de la pregunta.
+  // Sin lado elegido se va a /rol, que es la ÚNICA pantalla que pregunta.
+  //
+  // Acá había un tramo entero que leía la elección adelantada en la
+  // puerta, la aplicaba, y detectaba el choque cuando no coincidía con el
+  // lado que la wallet ya tenía. Todo eso existía porque el login
+  // preguntaba el rol antes de que la wallet existiera — o sea, la misma
+  // pregunta en dos pantallas. Con la pregunta en un solo sitio, `/rol`
+  // la fija cuando la wallet ya está y no hay nada que transportar, que
+  // caducar, ni que reconciliar después.
   //
   // Una wallet de empresa que cayó acá (link viejo, botón "atrás") se va
   // a la suya.
   useEffect(() => {
     if (!session) return;
-
-    if (session.role === null) {
-      const intended = readIntendedRole();
-      if (intended) {
-        clearIntendedRole();
-        chooseRole(intended);
-      } else {
-        router.replace("/rol");
-      }
-      return;
-    }
-
-    // La wallet ya tiene lado. Si además había una intención guardada y
-    // NO coincide, alguien pidió entrar por la puerta equivocada: se le
-    // dice, no se lo redirige y ya (ver RoleConflict).
-    const intended = readIntendedRole();
-    if (intended && intended !== session.role) {
-      clearIntendedRole();
-      setChoque(intended);
-      return;
-    }
-    if (intended) clearIntendedRole();
-
-    if (session.role === "business") router.replace("/solicitar");
-  }, [session, router, chooseRole]);
+    if (session.role === null) router.replace("/rol");
+    else if (session.role === "business") router.replace("/solicitar");
+  }, [session, router]);
 
   // Este es el único módulo sin scroll de página (ver globals.css) — la
   // clase se agrega/quita con el ciclo de vida de esta pantalla para que
@@ -108,29 +85,14 @@ export default function App() {
     return () => document.body.classList.remove("app-shell");
   }, []);
 
-  // Pidió un lado que esta cuenta no puede tomar. Va ANTES de todo lo
-  // demás, incluida la espera: una cuenta de empresa que pidió entrar como
-  // inversionista tiene `role !== "investor"`, o sea que cae en
-  // `stillResolving` — y como el efecto de arriba corta sin redirigir
-  // cuando hay choque, se quedaba en "Entrando" para siempre. El choque no
-  // es un estado intermedio que se vaya a resolver solo; es el final del
-  // camino, y tiene que ganarle a la espera.
-  if (choque && session?.role) {
-    return (
-      <RoleConflict
-        pedido={choque}
-        real={session.role}
-        onContinuar={() => {
-          setChoque(null);
-          if (session.role === "business") router.replace("/solicitar");
-        }}
-        onOtraCuenta={() => {
-          setChoque(null);
-          switchAccount();
-        }}
-      />
-    );
-  }
+  // Acá vivía la pantalla de choque de rol, y se fue con la causa: el
+  // choque solo podía ocurrir porque el login preguntaba el lado antes de
+  // saber a qué wallet pertenecía. Ahora `/rol` lo fija con la wallet ya
+  // conectada, y una wallet con lado nunca vuelve a que le pregunten.
+  //
+  // `RoleConflict` sigue vivo y sirviendo a `/solicitar`, que es donde el
+  // choque SÍ puede pasar: alguien abre ese enlace directo con una cuenta
+  // de inversionista.
 
   // Resolviendo si ya había una wallet conectada (Privy). Antes esto era
   // un div en blanco — ahora al menos se ve que algo está pasando.
@@ -250,10 +212,6 @@ export default function App() {
             }}
             onVerify={verify}
             onDeleteAccount={deleteAccount}
-            onReplayIntro={() => {
-              setProfile(false);
-              reset();
-            }}
           />
         )}
       </AnimatePresence>
