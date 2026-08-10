@@ -10,6 +10,9 @@
       "packages/demo"
     ]
   },
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "resolutions": {
     "@coinbase/cdp-sdk": "1.51.0"
   },
