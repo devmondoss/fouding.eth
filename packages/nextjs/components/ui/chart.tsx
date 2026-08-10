@@ -135,7 +135,11 @@ function ChartTooltipContent({
         {payload.map((item, i) => {
           const key = String(item.dataKey ?? item.name ?? "value");
           const cfg = config[key];
-          const color = item.color ?? cfg?.color;
+          // El config manda sobre el payload: recharts reporta como color de
+          // la serie su `stroke`, y una serie puede trazar su borde del color
+          // de la superficie a propósito —los 2px de aire entre dos tramos
+          // apilados—, con lo que su marca en el tooltip salía en blanco.
+          const color = cfg?.color ?? item.color;
 
           return (
             <div
@@ -198,7 +202,7 @@ function ChartLegendContent({
           <div key={key} className="flex items-center gap-1.5 text-[11.5px] text-mid">
             <span
               className="h-2 w-2 shrink-0 rounded-[2px]"
-              style={{ backgroundColor: item.color ?? cfg?.color }}
+              style={{ backgroundColor: cfg?.color ?? item.color }}
             />
             {cfg?.label ?? item.value}
           </div>

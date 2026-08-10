@@ -59,6 +59,15 @@
   --chart-repaid: #008300;
   --chart-defaulted: #e34948;
 
+  /* Proyección del ticket — par categórico propio. Los cinco de arriba son
+     ESTADOS de una operación y están reservados para eso: pintar "capital"
+     de azul-activa y "interés" de verde-pagada haría que el mismo color
+     significara dos cosas distintas a dos clics de distancia. Validado con
+     el detector de la skill dataviz sobre --surface: banda de claridad,
+     piso de croma, separación CVD y contraste, los cuatro en verde. */
+  --chart-capital: #008a9c;
+  --chart-interes: var(--brand-strong);
+
   /* Geometría */
   --r-card: 10px;
   --r-panel: 8px;
@@ -108,6 +117,8 @@
   --color-chart-active: var(--chart-active);
   --color-chart-repaid: var(--chart-repaid);
   --color-chart-defaulted: var(--chart-defaulted);
+  --color-chart-capital: var(--chart-capital);
+  --color-chart-interes: var(--chart-interes);
 
   --radius-card: var(--r-card);
   --radius-panel: var(--r-panel);

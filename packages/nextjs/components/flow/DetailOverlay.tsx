@@ -10,6 +10,7 @@ import { PassportPanel } from "@/components/domain/PassportPanel";
 import { ScorePanel } from "@/components/domain/ScorePanel";
 import { WaterfallPanel } from "@/components/domain/WaterfallPanel";
 import { initials } from "@/components/domain/OpportunityCard";
+import { Button } from "@/components/ui/Button";
 import { StatusPill, Tag } from "@/components/ui/Pill";
 import { Row } from "@/components/ui/Stat";
 import { usePlatform } from "@/lib/data/store";
@@ -25,7 +26,11 @@ import {
   projectedReturn,
   remainingToFund,
 } from "@/lib/opportunity";
-import { lossBufferBps, recoveryOnDefaultBps } from "@/lib/underwriting";
+import {
+  computeScore,
+  lossBufferBps,
+  recoveryOnDefaultBps,
+} from "@/lib/underwriting";
 import type { Opportunity } from "@/lib/types";
 
 const TRACK_TONE_COLOR = {
@@ -82,6 +87,9 @@ export function DetailOverlay({
   const panelRef = useFocusTrap<HTMLDivElement>(true);
   const esHoja = useEsHoja();
 
+  const score = computeScore(o);
+  const cov = coverageBps(o);
+
   return (
     <motion.div
       variants={scrim}
@@ -111,7 +119,7 @@ export function DetailOverlay({
         style={{ backgroundColor: "var(--bg)" }}
       >
         {/* Cabecera */}
-        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border bg-surface px-4 py-3 sm:px-6 sm:py-4">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-surface px-4 py-3 sm:px-6 sm:py-4">
           <div className="flex min-w-0 gap-3 sm:gap-3.5">
             <span
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] text-[13px] font-bold sm:h-11 sm:w-11 sm:text-[14px]"
@@ -121,7 +129,14 @@ export function DetailOverlay({
             </span>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
-                <h2 className="h1 text-[17px] sm:text-[21px]">{o.projectTitle}</h2>
+                {/* Sin la clase `h1`: está definida fuera de capa en
+                    globals.css y por eso le ganaba a los tamaños de al lado,
+                    así que el título salía a 30px en todas partes. En el
+                    teléfono eso son tres renglones y una cabecera que empuja
+                    todo lo demás fuera de la pantalla. */}
+                <h2 className="text-[17px] font-bold leading-tight tracking-[-0.022em] text-hi sm:text-[21px]">
+                  {o.projectTitle}
+                </h2>
                 <StatusPill status={o.status} />
               </div>
               {/* La línea de ayuda del estado se fue: la píldora de al lado
@@ -136,61 +151,100 @@ export function DetailOverlay({
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="focusable -mr-1 flex h-8 shrink-0 items-center rounded-[var(--r-input)] px-2 text-[12.5px] text-mid transition-colors hover:bg-surface-soft hover:text-hi"
-          >
-            Cerrar
-          </button>
+          {/* El otro extremo de la cabecera era 700px de nada con la palabra
+              "Cerrar" flotando al final, sin nada a lo que pertenecer. Ahí
+              van los dos números que califican a quien pide —salen del panel
+              de inversión, donde eran dos cuadros con borde— porque
+              pertenecen a la identidad de la operación, igual que el nombre
+              y el sector, y no a la mecánica del ticket. Con la fila
+              poblada, "Cerrar" cierra un renglón en vez de flotar; sigue
+              siendo la palabra y no una cruz (el producto no tiene
+              iconografía: ver docs/design-system.md §5.1). */}
+          <div className="flex shrink-0 items-center gap-5 sm:gap-7">
+            <div className="hidden items-center gap-7 md:flex">
+              <div className="text-right">
+                <div className="label">Calificación</div>
+                <div className="num mt-0.5 text-[14px] font-semibold leading-none text-hi">
+                  {score.grade} · {score.score}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="label">Cobertura</div>
+                <div
+                  className="num mt-0.5 text-[14px] font-semibold leading-none"
+                  style={{
+                    color: cov >= 10000 ? "var(--positive)" : "var(--negative)",
+                  }}
+                >
+                  {formatRatio(cov)}
+                  {cov < 10000 && (
+                    <span className="ml-1.5 font-sans text-[11px] font-medium">
+                      insuficiente
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <Button variant="outline" size="sm" onClick={onClose}>
+              Cerrar
+            </Button>
+          </div>
         </div>
 
-        {/* Cuerpo — en mobile es una columna que scrollea entera, con la
-            inversión primero (order-1); desde lg vuelve al panel lado a
-            lado sin scroll de página. */}
-        <div className="flex flex-1 flex-col overflow-y-auto lg:grid lg:min-h-0 lg:grid-cols-[1fr_320px] lg:overflow-hidden">
-          {/* Inversión */}
-          <div className="order-1 border-b border-border bg-surface p-4 sm:p-5 lg:order-2 lg:min-h-0 lg:overflow-y-auto lg:border-b-0">
-            <InvestPanel
-              o={o}
-              onOpenFunds={onOpenFunds}
-              onRequestAccess={onRequestAccess}
-              onOpenPortfolio={onOpenPortfolio}
-            />
-          </div>
+        {/* Cuerpo — la inversión cruzada arriba, el expediente debajo. En
+            mobile la columna entera scrollea; desde lg solo scrollea el
+            paso, con la barra y las pestañas fijas.
+
+            El expediente se detiene en --w-panel aunque la capa mida 1240:
+            sin la columna de 320px al costado, las filas etiqueta→valor y
+            los párrafos quedarían estirados de borde a borde y habría que
+            recorrer con la vista media pantalla para unir un rótulo con su
+            cifra. Barra y pestañas sí toman todo el ancho —son controles,
+            no lectura— y el documento se centra debajo. */}
+        <div className="flex flex-1 flex-col overflow-y-auto lg:min-h-0 lg:overflow-hidden">
+          <InvestPanel
+            o={o}
+            onOpenFunds={onOpenFunds}
+            onRequestAccess={onRequestAccess}
+            onOpenPortfolio={onOpenPortfolio}
+          />
 
           {/* Pasos */}
-          <div className="order-2 flex flex-col lg:order-1 lg:min-h-0 lg:border-r lg:border-border">
-            <div
-              role="tablist"
-              aria-label="Secciones de la operación"
-              className="flex shrink-0 gap-1 overflow-x-auto border-b border-border bg-surface px-4 sm:px-6"
-            >
-              {STEPS.map((s) => {
-                const on = step === s.key;
-                return (
-                  <button
-                    key={s.key}
-                    role="tab"
-                    aria-selected={on}
-                    onClick={() => go(s.key)}
-                    className="focusable relative shrink-0 whitespace-nowrap px-3 py-3 text-[13px] transition-colors"
-                    style={{
-                      color: on ? "var(--brand-ink)" : "var(--text-mid)",
-                      fontWeight: on ? 600 : 400,
-                    }}
-                  >
-                    {s.label}
-                    {on && (
-                      <motion.span
-                        layoutId="step-underline"
-                        transition={T.indicator}
-                        className="absolute inset-x-2 -bottom-px h-[2px] rounded-full"
-                        style={{ backgroundColor: "var(--brand-ink)" }}
-                      />
-                    )}
-                  </button>
-                );
-              })}
+          <div className="flex flex-col lg:min-h-0 lg:flex-1">
+            <div className="shrink-0 border-b border-border bg-surface">
+              <div
+                role="tablist"
+                aria-label="Secciones de la operación"
+                className="mx-auto flex gap-1 overflow-x-auto px-4 sm:px-6 lg:max-w-[var(--w-panel)]"
+              >
+                {STEPS.map((s) => {
+                  const on = step === s.key;
+                  return (
+                    <button
+                      key={s.key}
+                      role="tab"
+                      aria-selected={on}
+                      onClick={() => go(s.key)}
+                      className="focusable relative shrink-0 whitespace-nowrap px-3 py-3 text-[13px] transition-colors"
+                      style={{
+                        color: on ? "var(--brand-ink)" : "var(--text-mid)",
+                        fontWeight: on ? 600 : 400,
+                      }}
+                    >
+                      {s.label}
+                      {on && (
+                        <motion.span
+                          layoutId="step-underline"
+                          transition={T.indicator}
+                          className="absolute inset-x-2 -bottom-px h-[2px] rounded-full"
+                          style={{ backgroundColor: "var(--brand-ink)" }}
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="relative lg:min-h-0 lg:flex-1 lg:overflow-hidden">
@@ -201,15 +255,17 @@ export function DetailOverlay({
                   initial="hidden"
                   animate="show"
                   exit="exit"
-                  className="px-4 py-4 sm:px-6 sm:py-5 lg:h-full lg:overflow-y-auto"
+                  className="lg:h-full lg:overflow-y-auto"
                 >
-                  {step === "resumen" && <Resumen o={o} />}
-                  {step === "garantia" && <CollateralPanel o={o} />}
-                  {step === "desembolsos" && <MilestoneTimeline o={o} />}
-                  {step === "calificacion" && <ScorePanel o={o} />}
-                  {step === "empresa" && <PassportPanel company={o.company} />}
-                  {step === "orden" && <WaterfallPanel o={o} />}
-                  {step === "mercado" && <OrderBook opportunitySlug={o.slug} />}
+                  <div className="mx-auto w-full px-4 py-4 sm:px-6 sm:py-5 lg:max-w-[var(--w-panel)]">
+                    {step === "resumen" && <Resumen o={o} />}
+                    {step === "garantia" && <CollateralPanel o={o} />}
+                    {step === "desembolsos" && <MilestoneTimeline o={o} />}
+                    {step === "calificacion" && <ScorePanel o={o} />}
+                    {step === "empresa" && <PassportPanel company={o.company} />}
+                    {step === "orden" && <WaterfallPanel o={o} />}
+                    {step === "mercado" && <OrderBook opportunitySlug={o.slug} />}
+                  </div>
                 </motion.div>
               </AnimatePresence>
             </div>

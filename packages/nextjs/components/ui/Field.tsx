@@ -7,18 +7,50 @@ export function Field({
   suffix,
   hint,
   error,
+  compact = false,
   ...rest
 }: {
   label: string;
   suffix?: ReactNode;
   hint?: ReactNode;
   error?: string | null;
+  /**
+   * Pista y error al final de la línea del rótulo, en vez de debajo del
+   * campo. El campo alto —rótulo, caja, mensaje, tres renglones— es el
+   * correcto en un formulario, donde la página scrollea; en una barra de
+   * acción cuesta 40px de alto que se le restan al documento de abajo, y
+   * además hace saltar la barra cada vez que aparece un error. Acá el alto
+   * no cambia: el mensaje ocupa el aire que el rótulo deja libre.
+   */
+  compact?: boolean;
 } & InputHTMLAttributes<HTMLInputElement>) {
   const messageId = useId();
 
+  const message = error ? (
+    // role="alert" para que un lector de pantalla lo anuncie: antes el
+    // error aparecía en silencio.
+    <span
+      id={messageId}
+      role="alert"
+      className="text-[12px]"
+      style={{ color: "var(--negative)" }}
+    >
+      {error}
+    </span>
+  ) : hint ? (
+    <span id={messageId} className="text-[12px] text-low">
+      {hint}
+    </span>
+  ) : null;
+
   return (
     <label className="flex flex-col gap-1.5">
-      <span className="text-[12.5px] font-medium text-hi">{label}</span>
+      <span className="flex items-baseline justify-between gap-3">
+        <span className="shrink-0 text-[12.5px] font-medium text-hi">
+          {label}
+        </span>
+        {compact && message}
+      </span>
 
       {/* El contorno vive en el envoltorio porque el input lo anula con
           outline-none para no dibujarlo por dentro del borde. Sin esto un
@@ -38,24 +70,7 @@ export function Field({
         )}
       </span>
 
-      {error ? (
-        // role="alert" para que un lector de pantalla lo anuncie: antes el
-        // error aparecía en silencio.
-        <span
-          id={messageId}
-          role="alert"
-          className="text-[12px]"
-          style={{ color: "var(--negative)" }}
-        >
-          {error}
-        </span>
-      ) : (
-        hint && (
-          <span id={messageId} className="text-[12px] text-low">
-            {hint}
-          </span>
-        )
-      )}
+      {!compact && message}
     </label>
   );
 }
