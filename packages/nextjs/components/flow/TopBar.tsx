@@ -41,7 +41,10 @@ export function TopBar({
       className="relative z-30 flex h-14 shrink-0 items-center justify-between border-b border-border bg-surface px-4 sm:h-[60px] sm:px-6 lg:px-8"
     >
       <motion.div variants={fadeUp} initial="hidden" animate="show">
-        <Wordmark />
+        {/* "Inversiones" es el par de "Empresas" en BusinessTopBar. Solo
+            esta barra lo tenía sin poner, así que el dueño de negocio veía
+            en qué lado estaba y el inversionista no. */}
+        <Wordmark suffix="Inversiones" />
       </motion.div>
 
       <div className="flex items-center gap-1.5 sm:gap-2.5">

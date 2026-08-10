@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/Button";
 import { ComoFunciona } from "@/components/flow/ComoFunciona";
 import { Wordmark } from "@/components/ui/Logo";
 import { Modal } from "@/components/ui/Modal";
-import { Waiting } from "@/components/ui/Waiting";
 import { useSession } from "@/lib/useSession";
 import { fadeUp } from "@/lib/motion";
 
@@ -24,24 +23,20 @@ export function BusinessAuthFlow() {
     switchAccount,
     connecting,
     connectError,
-    cancelConnect,
     pendingAccount,
     resumeSession,
   } = useSession();
   const [showTerms, setShowTerms] = useState(false);
 
-
-  // Ver AuthFlow: los tres botones comparten `connectWallet` y la bandera
-  // `connecting`, así que sin registrar la intención la espera decía
-  // "Creando tu wallet" incluso al cambiar de cuenta — que es justo cuando
-  // useSession está cerrando la sesión anterior, no creando nada.
-  const [intent, setIntent] = useState<"connect" | "switch">("connect");
-
   // Ver AuthFlow: cambiar de cuenta va por `switchAccount`, no por
   // `connectWallet` — este último entra con la sesión viva y por lo tanto
   // devolvía la cuenta anterior sin pedir correo.
+  //
+  // Ya no se registra la intención. Existía para que la caja de espera
+  // dijera "cerrando tu sesión" o "creando tu wallet" según el caso; sin
+  // esa caja, el único que informa es el botón que se apretó, y ese ya
+  // sabe cuál es.
   function start(next: "connect" | "switch") {
-    setIntent(next);
     if (next === "switch") switchAccount();
     else connectWallet();
   }
@@ -62,7 +57,10 @@ export function BusinessAuthFlow() {
         animate="show"
         className="flex shrink-0 items-center justify-between"
       >
-        <Wordmark suffix="Empresas" />
+        {/* Sin la etiqueta del lado: acá todavía no entraste a ninguno.
+            "Empresas" vive en la barra del panel, con sesión abierta, que
+            es donde sirve para distinguir un lado del otro (ver Wordmark). */}
+        <Wordmark />
         <Link
           href="/negocios"
           className="focusable flex h-9 items-center rounded-[var(--r-input)] px-2.5 text-[12.5px] text-mid transition-colors hover:bg-surface-soft hover:text-hi"
@@ -93,11 +91,15 @@ export function BusinessAuthFlow() {
                     cuenta son dos salidas distintas y ambas deben verse. */}
                 {pendingAccount ? (
                   <>
+                    {/* `loading` y no solo `disabled`: sin la caja de
+                        espera debajo, el botón es lo único que puede
+                        decir que algo está pasando. Apagado y sin barrer
+                        se lee como un botón roto. */}
                     <Button
                       size="lg"
                       className="mt-7 w-full"
                       onClick={resumeSession}
-                      disabled={connecting}
+                      loading={connecting}
                     >
                       Continuar como {pendingAccount}
                     </Button>
@@ -138,25 +140,19 @@ export function BusinessAuthFlow() {
                   </>
                 )}
 
-                {/* Ver AuthFlow: el modal de Privy ya es la pantalla, así
-                    que no montamos otra detrás. Solo agregamos lo que Privy
-                    no puede saber, y una salida. */}
-                {connecting && !connectError && (
-                  <div className="mt-4 rounded-[var(--r-panel)] border border-border px-3.5 py-3">
-                    <Waiting label="Conectando" width={64} />
-                    <div className="mt-2 text-[12px] leading-relaxed text-mid">
-                      {intent === "switch"
-                        ? "Cerrando tu sesión actual para pedirte el otro correo. La wallet de tu empresa no se toca."
-                        : "Continúa en la ventana que se abrió."}
-                      <button
-                        onClick={cancelConnect}
-                        className="focusable ml-1.5 font-medium underline decoration-dotted transition-colors hover:text-hi"
-                      >
-                        Cancelar
-                      </button>
-                    </div>
-                  </div>
-                )}
+                {/* Acá aparecía una caja al apretar cualquier botón:
+                    "Conectando… Continúa en la ventana que se abrió.
+                    Cancelar". Le narraba a la persona algo que ya está
+                    viendo —el modal de Privy está encima, pidiéndole el
+                    correo— y de paso empujaba el resto de la columna hacia
+                    abajo justo cuando el foco se acababa de ir a otra
+                    parte. Un cartel que describe la ventana que tapa el
+                    cartel.
+
+                    La espera ya la dice el botón, que entra en `loading` y
+                    no cambia de tamaño. Y quedarse pegado en "conectando"
+                    tiene su propia red: useSession corta solo a los 45
+                    segundos si Privy nunca avisa. */}
 
                 {connectError && (
                   <div
