@@ -12,26 +12,31 @@ import { chromium } from "playwright";
 const BASE_URL = process.env.CHECK_BASE_URL ?? "http://localhost:3000";
 
 const CASES = [
+  // Las tres rutas privadas de empresa salen por la MISMA puerta que el
+  // lado inversionista. Antes salían a /negocios/login: cerrar sesión
+  // desde el panel de empresa y desde el catálogo dejaba a la persona en
+  // dos pantallas distintas, y la de empresa además la encerraba en un
+  // lado antes de preguntarle si es el suyo.
   {
     path: "/solicitar",
-    expectUrl: "/negocios/login",
-    expectText: "Conecta tu empresa",
-    why: "el panel es privado: sin sesión manda al login de empresa",
+    expectUrl: "/login",
+    expectText: "Soy inversionista",
+    why: "el panel es privado: sin sesión sale por la puerta",
   },
   {
     // Armar un expediente es un módulo con URL propia, no un modal: si no
     // describe lo que muestra, deja de poder enlazarse y recargarse.
     path: "/solicitar/nueva",
-    expectUrl: "/negocios/login",
-    expectText: "Conecta tu empresa",
+    expectUrl: "/login",
+    expectText: "Soy inversionista",
     why: "armar un expediente exige sesión de empresa",
   },
   {
     // Acreditar la empresa es el trámite que va antes de todo lo demás, y
     // también tiene URL propia: se envía una vez y se puede volver a ella.
     path: "/solicitar/empresa",
-    expectUrl: "/negocios/login",
-    expectText: "Conecta tu empresa",
+    expectUrl: "/login",
+    expectText: "Soy inversionista",
     why: "acreditar la empresa exige sesión de empresa",
   },
   {
@@ -49,18 +54,42 @@ const CASES = [
     why: "página pública de venta, nunca un interstitial",
   },
   {
-    path: "/negocios/login",
-    expectUrl: "/negocios/login",
-    expectText: "Conecta tu empresa",
-    why: "login de empresa con URL propia",
-  },
-  {
     path: "/login",
     expectUrl: "/login",
     // La puerta ya no pide una wallet, pide una travesía: es la misma
     // StandGate que sirve `/`. Ver app/login/page.tsx.
     expectText: "Soy inversionista",
     why: "puerta de entrada con URL propia, enlazable desde el QR",
+  },
+  {
+    // `/negocios/login` se borró. Había DOS logins: la puerta, que
+    // pregunta de qué lado eres, y un login de empresa que lo daba por
+    // sentado — dos entradas para el mismo acto, y solo una era la salida
+    // al cerrar sesión. La ruta estuvo viva, así que queda un redirect
+    // permanente (next.config.ts) en vez de un 404: los marcadores y los
+    // enlaces compartidos no se enteran de que borramos algo.
+    path: "/negocios/login",
+    expectUrl: "/login",
+    expectText: "Soy inversionista",
+    why: "el login de empresa ya no existe: hay una sola puerta",
+  },
+  {
+    // La raíz no pinta ninguna pantalla: reparte. Servía la puerta —la
+    // misma que `/login`, o sea una pantalla en dos direcciones— y, con
+    // sesión, el catálogo en una URL que no lo nombraba.
+    path: "/",
+    expectUrl: "/login",
+    expectText: "Soy inversionista",
+    why: "la raíz solo reparte: sin sesión, a la puerta",
+  },
+  {
+    // El catálogo del inversionista era la única superficie sin nombre:
+    // `/solicitar` y `/verifier` sí lo tenían, y esta dependía de la raíz
+    // para existir. Ahora se llama como su titular.
+    path: "/oportunidades",
+    expectUrl: "/login",
+    expectText: "Soy inversionista",
+    why: "el catálogo es privado: sin sesión sale por la puerta",
   },
 ];
 

@@ -77,10 +77,35 @@ export const sheet: Variants = {
  *  teléfono: una capa que crece desde el centro no tiene de dónde crecer
  *  cuando ocupa el viewport entero, y el borde inferior es el único que
  *  la mano alcanza. Misma curva, mismo rol — otra dirección. */
+/**
+ * Hoja que sube desde el borde de abajo.
+ *
+ * El `opacity: 1` explícito NO es decorativo: sin él la ficha era
+ * invisible en teléfono. `useEsHoja` arranca en false —en el servidor no
+ * hay viewport—, así que el primer frame se pinta con las variantes de
+ * `dialog`, que sí traen `opacity: 0` en `hidden`. Cuando el efecto
+ * corrige a true y las variantes se cambian por estas, motion anima hacia
+ * `show`… que no decía nada de la opacidad, así que el 0 heredado se
+ * quedaba puesto: la hoja terminaba a tamaño completo, en su sitio y
+ * completamente transparente.
+ *
+ * Regla: dos juegos de variantes intercambiables tienen que declarar las
+ * MISMAS propiedades, o el que llega hereda lo que el otro dejó.
+ */
 export const sheetUp: Variants = {
-  hidden: { y: "100%" },
-  show: { y: 0, transition: { duration: DUR.base, ease: EASE } },
-  exit: { y: "100%", transition: { duration: DUR.fast, ease: EASE } },
+  hidden: { y: "100%", opacity: 1, scale: 1 },
+  show: {
+    y: 0,
+    opacity: 1,
+    scale: 1,
+    transition: { duration: DUR.base, ease: EASE },
+  },
+  exit: {
+    y: "100%",
+    opacity: 1,
+    scale: 1,
+    transition: { duration: DUR.fast, ease: EASE },
+  },
 };
 
 /** Carta del deck en móvil: entra desde el lado por el que se deslizó.

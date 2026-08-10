@@ -4,12 +4,8 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { RoleGate } from "@/components/flow/RoleGate";
 import { FullScreenLoader } from "@/components/ui/FullScreenLoader";
-import { useSession, type Role } from "@/lib/useSession";
-
-/** A dónde vive cada rol una vez elegido. */
-export function homeFor(role: Role): string {
-  return role === "business" ? "/solicitar" : "/";
-}
+import { homeFor } from "@/lib/routes";
+import { useSession } from "@/lib/useSession";
 
 /**
  * Pantalla de /rol — el paso "¿inversionista o dueño de negocio?" con URL

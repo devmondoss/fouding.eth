@@ -18,7 +18,7 @@ export default function AcreditarEmpresaPage() {
 
   useEffect(() => {
     if (session === undefined) return;
-    if (session === null) router.replace("/negocios/login");
+    if (session === null) router.replace("/login");
     else if (session.role === "investor") router.replace("/solicitar");
   }, [session, router]);
 

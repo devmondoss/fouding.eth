@@ -169,15 +169,42 @@ export function ProfilePanel({
                   ? "Solicitud en revisión"
                   : "Acceso de inversionista pendiente"}
             </div>
-            {!session.verified && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="mt-3"
-                onClick={() => setVerifying(true)}
-              >
-                {session.accessStatus === 1 ? "Solicitud pendiente" : "Solicitar acceso"}
-              </Button>
+
+            {/* Aprobado, sí — pero por una regla automática, no por una
+                persona que miró tu documento. Callarlo dejaría en pantalla
+                una afirmación que el producto no puede sostener, y decirlo
+                cuesta una línea. Es la misma regla que sostiene "Catálogo
+                de demostración" y "Declarado". */}
+            {session.verified && (
+              <p className="mt-1.5 text-[12.5px] leading-relaxed text-mid">
+                Revisión automática, no humana. En producción este paso lo
+                hace una persona contra tu documento.
+              </p>
+            )}
+            {/* En revisión no hay botón. Había uno que decía "Solicitud
+                pendiente" — un control que nombra un ESTADO en vez de una
+                acción, y que al pulsarlo reabría el formulario ya enviado,
+                o sea que invitaba a mandar dos veces lo mismo. Lo que hace
+                falta ahí no es un botón: es la consecuencia, que es lo
+                único que cambia lo que la persona puede hacer ahora. El
+                procedimiento interno —quién revisa y contra qué— no se
+                cuenta (docs/design-system.md §5.2). */}
+            {session.accessStatus === 1 ? (
+              <p className="mt-1.5 text-[12.5px] leading-relaxed text-mid">
+                Puedes seguir explorando el catálogo. Comprometer capital
+                queda bloqueado hasta que se apruebe.
+              </p>
+            ) : (
+              !session.verified && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-3"
+                  onClick={() => setVerifying(true)}
+                >
+                  Solicitar acceso
+                </Button>
+              )
             )}
           </div>
 

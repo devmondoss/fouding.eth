@@ -1,5 +1,5 @@
 // Guardrail: body.app-shell (scroll bloqueado a propósito) SOLO debería
-// aparecer en "/" — el módulo único del inversionista (ver globals.css).
+// aparecer en /oportunidades — el módulo único del inversionista (ver globals.css).
 // Cualquier otra ruta es un documento normal y debe poder scrollear.
 // Corre contra un dev server ya levantado en localhost:3000.
 //
@@ -11,13 +11,25 @@ const BASE_URL = process.env.CHECK_BASE_URL ?? "http://localhost:3000";
 
 // Rutas públicas (sin login) suficientes para detectar un overflow:hidden
 // que se filtró fuera del módulo del inversionista. Rutas detrás de login
-// (el wizard de /solicitar, el dashboard de /) heredan el mismo <body>,
+// (el wizard de /solicitar, el catálogo de /oportunidades) heredan el mismo <body>,
 // así que si estas pasan, esas también.
+//
+// El caso bloqueado ya NO se prueba. Hasta ahora, sin sesión, la raíz pintaba
+// la puerta con el shell montado y el bloqueo puesto; desde que la puerta
+// tiene URL propia, `/` y `/oportunidades` sin sesión salen a `/login` y el bloqueo se
+// quita al desmontar. O sea que el caso bloqueado quedó **detrás de una
+// sesión de inversionista**, y este guardarraíl no puede crear una: pasa
+// por el correo y el código de Privy.
+//
+// Lo que sigue cubriendo —que es para lo que se escribió— es la fuga: que
+// el bloqueo NO aparezca donde no corresponde. Que sí aparezca donde
+// corresponde se comprueba entrando.
 const ROUTES = [
   { path: "/solicitar", expectLocked: false },
   { path: "/negocios", expectLocked: false },
   { path: "/login", expectLocked: false },
-  { path: "/", expectLocked: true },
+  { path: "/", expectLocked: false },
+  { path: "/oportunidades", expectLocked: false },
 ];
 
 async function main() {

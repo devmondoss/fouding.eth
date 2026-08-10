@@ -387,6 +387,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
 
       await access.requestAccess(body.applicationHash as `0x${string}`);
+
+      // Y la revisión se resuelve sola, en segundos. El circuito manual
+      // (`/verifier` → "Acceso de inversionistas") sigue existiendo y
+      // manda: este endpoint solo toca lo que está en `Pending`, así que
+      // un rechazo humano no se puede deshacer desde acá.
+      //
+      // Si falla, NO se propaga el error: la solicitud ya quedó anclada
+      // en cadena y esa parte salió bien. Reventar acá le diría a la
+      // persona que su solicitud no se registró, que es falso — se queda
+      // en revisión y la aprueba una persona, como antes.
+      await fetch("/api/compliance/auto-review", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => null);
+
+      // El estado vive en la cadena, así que hay que volver a leerlo para
+      // que la barra y el panel dejen de decir "Sin acceso".
+      await access.refetch();
     },
     [access, address, getAccessToken],
   );

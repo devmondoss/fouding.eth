@@ -91,6 +91,23 @@ export async function listAccessRequests(): Promise<AccessRequest[]> {
   });
 }
 
+/**
+ * Estado de UNA dirección. `listAccessRequests` recorre todo el log de
+ * `AccessRequested` desde el bloque 0 para armar la cola del operador;
+ * cuando solo hace falta saber en qué quedó una wallet concreta, eso es
+ * un barrido entero de la cadena para tirar el 99% del resultado.
+ */
+export async function getAccessStatus(investor: Address): Promise<AccessStatus> {
+  const registry = getDeployment("AccessRegistry");
+  const record = (await getPublicClient().readContract({
+    address: registry.address,
+    abi: registry.abi,
+    functionName: "getAccessRecord",
+    args: [investor],
+  } as never)) as { status: number };
+  return record.status as AccessStatus;
+}
+
 export async function decideAccess(
   investor: Address,
   approve: boolean,

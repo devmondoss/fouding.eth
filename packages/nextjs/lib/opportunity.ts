@@ -28,10 +28,23 @@ export function escrowAmount(o: Opportunity): bigint {
   return o.raisedAmount - releasedAmount(o);
 }
 
-/** Interés simple por el plazo completo. */
+/** Interés simple por el plazo completo, sobre lo YA comprometido. */
 export function expectedInterest(o: Opportunity): bigint {
   return (
     (o.raisedAmount * BigInt(o.apyBps) * BigInt(o.termMonths)) / 10000n / 12n
+  );
+}
+
+/**
+ * Interés del crédito completo, sobre la meta. No es lo mismo que
+ * `expectedInterest`: con la operación al 18% fondeada, aquel devuelve el
+ * interés de esa porción. Mostrarlo bajo el rótulo "interés total del
+ * crédito" —como se hacía en la ficha— dividía la cifra por cinco y
+ * describía la mitad de un dato como si fuera el dato.
+ */
+export function creditInterest(o: Opportunity): bigint {
+  return (
+    (o.targetAmount * BigInt(o.apyBps) * BigInt(o.termMonths)) / 10000n / 12n
   );
 }
 

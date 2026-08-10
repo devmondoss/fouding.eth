@@ -8,6 +8,22 @@ const nextConfig: NextConfig = {
   experimental: {
     useTypeScriptCli: false,
   },
+  /**
+   * `/negocios/login` se borró: había dos logins para el mismo acto y solo
+   * uno era la salida al cerrar sesión. Borrar una ruta que estuvo viva no
+   * es suficiente —queda en marcadores, en el historial y en cualquier
+   * enlace que se haya compartido— así que se redirige en vez de dar 404.
+   * Permanente: no va a volver.
+   */
+  async redirects() {
+    return [
+      {
+        source: "/negocios/login",
+        destination: "/login",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

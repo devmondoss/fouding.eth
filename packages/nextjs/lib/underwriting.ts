@@ -8,7 +8,7 @@
  */
 
 import type { Grade, Opportunity } from "./types";
-import { coverageBps, expectedInterest } from "./opportunity";
+import { coverageBps, creditInterest, expectedInterest } from "./opportunity";
 
 // ---------------------------------------------------------------- SCORING
 
@@ -218,4 +218,62 @@ export function waterfallForOpportunity(
     principal,
     interest: expectedInterest(o),
   });
+}
+
+/**
+ * El escenario malo, en números: la empresa no paga, se ejecuta la
+ * garantía por su valor neto recuperable y se reparte por la cascada.
+ * Devuelve qué fracción de (capital + interés) le vuelve al inversionista.
+ *
+ * Se calcula sobre la META y no sobre lo recaudado hasta ahora: describe
+ * el crédito, no el minuto de fondeo en que se lo está mirando. Con la
+ * operación al 18% fondeada, usar lo recaudado daría recupero perfecto
+ * —una garantía dimensionada para 150,000 sobra para 27,700— y esa cifra
+ * halagüeña se evaporaría sola conforme entrara el resto del capital.
+ *
+ * Es la pregunta que la ficha no respondía en ningún lado: cuánto pierdo
+ * si esto sale mal. Una cobertura de 1.53x la insinúa; esto la contesta,
+ * ya descontados los costos de ejecución y el servicing.
+ */
+/** Lo que la ejecución tiene que cubrir antes de que sobre un centavo
+ *  para el inversionista, más su capital e interés. */
+function totalACubrir(o: Opportunity): bigint {
+  const principal = o.targetAmount;
+  return (
+    (principal * BigInt(DEFAULT_COSTS.legalBps)) / 10000n +
+    (principal * BigInt(DEFAULT_COSTS.servicingBps)) / 10000n +
+    principal +
+    creditInterest(o)
+  );
+}
+
+/**
+ * El colchón: cuánto puede caer el valor neto de la garantía antes de que
+ * el inversionista deje de recuperar todo.
+ *
+ * Cuando la cobertura alcanza, decir "recuperas 1,063 de 1,063" hace
+ * parecer que el default no cuesta nada — y de paso repite la cifra del
+ * escenario bueno, que se lee como un error de cálculo. Lo que informa
+ * ahí es cuánto margen hay: un activo tasado puede venderse por menos, y
+ * este número dice cuánto menos aguanta la operación.
+ *
+ * 0 significa que ya no hay colchón: la garantía no alcanza ni en el
+ * escenario en que se vende a su valor neto estimado.
+ */
+export function lossBufferBps(o: Opportunity): number {
+  const neto = o.collateral.netRecoverableValue;
+  const necesario = totalACubrir(o);
+  if (o.targetAmount === 0n || neto <= necesario) return 0;
+  return Number(((neto - necesario) * 10000n) / neto);
+}
+
+export function recoveryOnDefaultBps(o: Opportunity): number {
+  const principal = o.targetAmount;
+  if (principal === 0n) return 0;
+  return computeWaterfall(o.collateral.netRecoverableValue, {
+    legalCosts: (principal * BigInt(DEFAULT_COSTS.legalBps)) / 10000n,
+    servicingFee: (principal * BigInt(DEFAULT_COSTS.servicingBps)) / 10000n,
+    principal,
+    interest: creditInterest(o),
+  }).investorRecoveryBps;
 }

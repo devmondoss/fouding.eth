@@ -18,7 +18,7 @@ import type { SubmissionWithEvents } from "@/lib/verifier/types";
  * describir lo que se ve (ver conversación de agosto 2026):
  *
  *   /negocios         página pública de venta
- *   /negocios/login   login de empresa
+ *   /login            la puerta: el único login, de los dos lados
  *   /rol              elegir inversionista o empresa (una vez por wallet)
  *   /solicitar        ← acá: el panel, ya con sesión y rol de empresa
  *
@@ -40,7 +40,12 @@ export default function SolicitarPage() {
 
   useEffect(() => {
     if (session === undefined) return;
-    if (session === null) router.replace("/negocios/login");
+    // Sin sesión se sale por la puerta, que es la única que hay. Antes
+    // esto mandaba a un login de empresa aparte: cerrar sesión desde acá
+    // y desde el catálogo te dejaba en dos pantallas distintas, y la de
+    // empresa encima te encerraba en un lado antes de preguntarte si es
+    // el tuyo. Ese login se borró.
+    if (session === null) router.replace("/login");
     else if (session.role === null) router.replace("/rol");
     // Una cuenta de inversionista NO se redirige en silencio: se le dice
     // por qué no puede estar acá. Rebotarla a `/` la dejaba mirando el
@@ -52,7 +57,7 @@ export default function SolicitarPage() {
       <RoleConflict
         pedido="business"
         real="investor"
-        onContinuar={() => router.replace("/")}
+        onContinuar={() => router.replace("/oportunidades")}
         onOtraCuenta={switchAccount}
       />
     );

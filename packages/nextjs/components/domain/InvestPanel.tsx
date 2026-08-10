@@ -308,21 +308,29 @@ export function InvestPanel({
               </button>
             </div>
 
+            {/* Sin monto tecleado, estas dos filas decían "+0" y "0 USDC":
+                dos renglones ocupando lugar para informar que no se ha
+                escrito nada, que es justo lo que el campo vacío de arriba
+                ya dice. Aparecen cuando hay una cifra que calcular. */}
             <div className="mt-4">
               <Row
                 label={`Rentabilidad · ${o.termMonths}m`}
                 value={formatBps(o.apyBps)}
               />
-              <Row
-                label="Ganancia estimada"
-                value={`+${formatUsdc(projectedReturn(o, value), 2)}`}
-                accent="var(--positive)"
-                strong
-              />
-              <Row
-                label="Total al vencimiento"
-                value={`${formatUsdc(value + projectedReturn(o, value), 2)} USDC`}
-              />
+              {parsed > 0 ? (
+                <>
+                  <Row
+                    label="Ganancia estimada"
+                    value={`+${formatUsdc(projectedReturn(o, value), 2)}`}
+                    accent="var(--positive)"
+                    strong
+                  />
+                  <Row
+                    label="Total al vencimiento"
+                    value={`${formatUsdc(value + projectedReturn(o, value), 2)} USDC`}
+                  />
+                </>
+              ) : null}
             </div>
 
             <Button
