@@ -76,25 +76,46 @@ export function StandGate() {
         animate="show"
         className="mx-auto flex w-full max-w-[520px] flex-1 flex-col justify-center py-7 sm:py-10"
       >
-        {/* El titular nombra el intercambio, porque el intercambio ES el
-            negocio: entra capital, sale un proyecto financiado, y hay un
-            retorno pactado de por medio. */}
+        {/* El titular abre por el final malo, y es a propósito.
+         *
+         * Decía "Capital para un proyecto concreto, con retorno pactado":
+         * cierto, y también la descripción exacta de un préstamo bancario,
+         * de un fondo de deuda privada y de cualquier plataforma de
+         * crowdlending del mercado. Una promesa que el vecino puede copiar
+         * palabra por palabra no está posicionando nada.
+         *
+         * Lo que nadie de ese grupo puede poner en su portada es esto: qué
+         * pasa cuando la empresa NO paga. Ahí es donde el resto manda a leer
+         * un PDF y a esperar a un abogado, y donde acá el orden en que cobra
+         * cada uno está escrito en el contrato y se ejecuta solo. PRODUCT.md
+         * §Principles lo dice sin rodeos —"el camino de default es tan
+         * importante como el feliz; es el diferenciador y debe ser visible,
+         * no una letra chica"—, y la letra más grande de la casa es esta.
+         *
+         * Abrir por el riesgo en vez de por el retorno además hace el trabajo
+         * que el copy institucional tiene que hacer: quien mueve capital de
+         * terceros desconfía de quien solo le muestra el escenario bueno. */}
         <motion.h1
           variants={fadeUp}
           className="h1 text-[26px] leading-[1.1] text-balance sm:text-[34px]"
         >
           {vuelve
             ? "Bienvenido de vuelta."
-            : "Capital para un proyecto concreto, con retorno pactado."}
+            : "Lo que pasa si la empresa no paga ya está escrito en el contrato."}
         </motion.h1>
 
+        {/* El subtítulo sostiene el titular con los otros dos hechos, en el
+            orden del dinero: qué se ejecuta solo, y dónde está el capital
+            mientras tanto. La wallet se fue de acá — la dice el botón que
+            está tres centímetros más abajo, y gastar el último renglón del
+            argumento en un detalle de registro era enterrarlo. */}
         <motion.p
           variants={fadeUp}
           className="mt-3 max-w-[46ch] text-[14px] leading-relaxed text-mid sm:mt-4 sm:text-[15px]"
         >
           {vuelve
             ? `Entras como ${identidad}.`
-            : "La garantía y el orden de pago se ejecutan en el contrato. Tu wallet se crea con tu correo, al instante."}
+            : "No en letra chica: el orden en que cobra cada uno lo ejecuta el contrato. Y mientras tanto el capital no está en la empresa — está retenido y sale por hitos verificados."}
         </motion.p>
 
         <motion.div variants={fadeUp} className="mt-7">
