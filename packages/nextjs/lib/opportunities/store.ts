@@ -258,6 +258,43 @@ export async function setOpportunityVaultAddress(
   return getOpportunityBySlug(slug);
 }
 
+/**
+ * Pone la recaudación del catálogo a lo que dice la cadena.
+ *
+ * Hasta ahora `raised_amount` solo se movía cuando alguien lo escribía a
+ * mano: después de la inversión de prueba del 9 de agosto hubo que
+ * corregirlo con un UPDATE. Con el catálogo sembrado eso no molesta —
+ * ninguna cifra pretende ser real—, pero en cuanto una persona invierte
+ * en vivo la tarjeta empieza a mentir sobre cuánto lleva colocado una
+ * operación, que es justo el dato con el que se decide.
+ *
+ * La unidad ya coincide y no hay conversión: `raised_amount` se guarda
+ * en micro-USDC (`usdc(118_500)` en el seed) y `getAccounting` devuelve
+ * las unidades base del token, que para `MockUSDC` son las mismas seis
+ * decimales. Convertir acá sería el error clásico de mostrar mil
+ * millones donde van dos mil.
+ *
+ * **`investor_count` NO se toca.** Se podría contar de `onchain_activity`,
+ * pero el indexer solo ve los eventos desde que arranca: una oportunidad
+ * fondeada antes daría cero y la tarjeta pasaría de un número sembrado a
+ * uno falso. Preferible que quede viejo a que quede inventado.
+ *
+ * Devuelve el slug que se actualizó, o null si ninguna oportunidad
+ * apunta a ese vault.
+ */
+export async function syncRaisedFromVault(
+  vaultAddress: string,
+  raisedAmount: bigint,
+): Promise<string | null> {
+  const rows = (await sql`
+    UPDATE opportunities
+       SET raised_amount = ${raisedAmount.toString()}
+     WHERE lower(vault_address) = ${vaultAddress.toLowerCase()}
+    RETURNING slug
+  `) as { slug: string }[];
+  return rows[0]?.slug ?? null;
+}
+
 export async function getOpportunityBySubmission(
   submissionId: string,
 ): Promise<WireOpportunity | null> {

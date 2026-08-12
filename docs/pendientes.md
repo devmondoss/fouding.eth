@@ -22,6 +22,17 @@ Toda de producto y UI. Ni contratos ni llaves.
 - ⚠️ **Sin construir, del brief de móvil:** el ciclo comprimido del inversionista (invertir → escrow → hito → repago) y `/solicitar` rediseñado a un grupo por pantalla.
 - ⚠️ **Nada detrás del login se verificó con captura.** Entrar exige el correo y el código de Privy, que no se puede manejar sin cabeza. El verificador sí se vio (su puerta es una API key en `localStorage`).
 
+### La recaudación ya se sincroniza sola
+
+- ✅ **El indexer lee `getAccounting` y lo escribe en el catálogo** (`syncRaisedFromVault` en `lib/opportunities/store.ts`). Corre al arrancar —para cubrir las inversiones que hayan ocurrido con el indexer caído, cuyos eventos ya no van a llegar— y una vez por lote de logs que traiga algún `Funded`, no una vez por evento: el contrato ya acumuló todo.
+  - **La unidad coincide y no se convierte**: `raised_amount` se guarda en micro-USDC (`usdc(118_500)` en el seed) y `getAccounting` devuelve unidades base del token, seis decimales en `MockUSDC`. Convertir habría sido el error clásico de mostrar mil millones donde van dos mil.
+  - **`investor_count` NO se toca a propósito.** Se podría contar de `onchain_activity`, pero el indexer solo ve eventos desde que arranca: una oportunidad fondeada antes daría cero y la tarjeta pasaría de un número sembrado a uno falso. Sigue viejo, y eso es preferible a inventado.
+  - **Se comprobó contra la cadena, y la tarjeta estaba mintiendo de verdad**: el vault decía 5 500 USDC y el catálogo 2 000 — alguien invirtió 3 500 después del arreglo a mano del día 9. Corregido corriendo la función real contra Neon; ahora coinciden.
+- ⛔ **Los otros tres pendientes de infraestructura NO se pudieron tocar desde acá**, y conviene saber por qué antes de reintentarlo:
+  - `RepaymentRouter`: `cargo stylus` no está instalado en este equipo (`cargo` sí, 1.97.1).
+  - `CREDIT_VAULT_ADDRESS` en Railway: no hay CLI de Railway ni credenciales.
+  - `MINTER_ROLE` para la dispensadora: la llave admin del `MockUSDC` (`0x487B9d8b…`) **no está en el repo**. La única llave de despliegue presente es `0xa05D9756…`, que es justamente la que necesita el rol.
+
 ---
 
 ## 0.1 Sesión del 9 de agosto
@@ -36,7 +47,7 @@ Toda de producto y UI. Ni contratos ni llaves.
   - **Probado con una wallet nueva y vacía**, el camino exacto del visitante: gas de la dispensadora → `faucet()` (10 000 mUSDC) → `requestAccess` → compliance aprueba → `approve` + `fund`. Resultado: 2 000 mUSDC en el vault, posición del inversionista 2 000, saldo restante 8 000. Tx `0x43cad5c3…`.
   - La oportunidad `renovacion-de-embarcacion-1` quedó conectada a ese vault y su recaudación refleja lo que dice la cadena.
   - Y la raíz en el código: `deploy.ts` elegía Circle **solo por ser Sepolia**. Ahora usa `MockUSDC` en todas las redes y Circle queda detrás de `--circle-usdc`, para un despliegue que se fondee a mano.
-- ⚠️ **La recaudación de una oportunidad no se sincroniza sola con su vault.** Se puso a mano tras la prueba. Mientras el catálogo sea sembrado no molesta, pero una oportunidad viva necesita que alguien lea `getAccounting` — el indexer (`scripts/indexer.ts`) es el lugar natural.
+- ✅ ~~**La recaudación de una oportunidad no se sincroniza sola con su vault.**~~ Resuelto el 2026-08-10 — ver bloque 0.2.
 - ⚠️ **`MINTER_ROLE` opcional pero recomendable.** La dispensadora (`0xa05D9756…`) no lo tiene, así que el token lo reclama la wallet del visitante firmando en el navegador. Funciona, pero mete a wagmi en el camino crítico. Con `grantRole(MINTER_ROLE, 0xa05D9756…)` desde el admin del `MockUSDC` (`0x487B9d8b…`), el servidor mintea y el navegador no firma nada. Diagnóstico en `yarn faucet:check`.
 - ✅ **Las llaves operadoras estaban vacías y el circuito estaba muerto.** `PASSPORT_`, `SERVICER_` y `COMPLIANCE_OPERATOR_PRIVATE_KEY` estaban definidas pero en blanco en `.env.local`, así que aprobar un expediente devolvía 502 al intentar emitir el pasaporte, y lo mismo el acceso de inversionista y el servicing. La wallet del deployer (`0xa05D9756…`) **ya tenía todos los roles** en los contratos desplegados —`ISSUER_ROLE` y admin en `CompanyPassportSBT`, `COMPLIANCE_ROLE` en `AccessRegistry`, admin en `CreditRegistry`—, así que bastó cablearla. Probado de punta a punta: tomar → aprobar emite el SBT onchain (tx `0x2df89c91…`, tokenId 2).
 - ✅ **`yarn.lock` restaurado.** Alguien corrió `npm install` en un repo Yarn 3: quedó un `package-lock.json` y el lockfile reescrito en formato v1, lo que rompió `yarn migrate` y `tsx` (perdió el binario de esbuild).
@@ -193,9 +204,11 @@ Toda de producto y UI. Ni contratos ni llaves.
 
 ## Por dónde seguir ahora
 
-0. **Sincronizar la recaudación con el vault** (bloque 0.1): hoy la cifra de la tarjeta se puso a mano después de la inversión de prueba. El indexer es el lugar natural para leer `getAccounting` y que el catálogo no mienta cuando alguien invierta en vivo.
+0. ~~**Sincronizar la recaudación con el vault**~~ — hecho el 2026-08-10 (bloque 0.2). Falta la env var del punto 2 para que corra en Railway.
 1. **Diagnosticar el silencio de `cargo-stylus` con `RepaymentRouter`** — probar `cargo install cargo-stylus --version <otra>` (0.9.x o una más nueva que 0.10.8), o pedir ayuda en el Discord/GitHub de Offchain Labs con un repro mínimo. No es urgente: el protocolo funciona sin el router (fallback ya construido).
-2. **Actualizar `CREDIT_VAULT_ADDRESS` en Railway** con `0x2ff9d0da4040be9cb243bca4857a33ea0ba70848` (bloque 0) — pendiente de que el usuario lo pegue en el raw editor.
+2. **Actualizar `CREDIT_VAULT_ADDRESS` en Railway** con **`0xd470aadb20aeae8a225e68fef09a37addbde3797`** — pendiente de que el usuario lo pegue en el raw editor.
+   > ⚠️ Este paso decía `0x2ff9d0da4040be9cb243bca4857a33ea0ba70848`, que es el vault **viejo**: el que quedó inicializado con el USDC de Circle y por eso se reemplazó (ver bloque 0.1). Seguir la instrucción tal como estaba habría apuntado el indexer al contrato muerto y ninguna sincronización habría llegado nunca al catálogo. Corregido el 2026-08-10.
+   > La variable tampoco está en `.env.local`, así que el indexer local sale por el `process.exit(1)` del arranque.
 3. **Cifra de impacto** (bloque 9) — no depende de código, se puede resolver en paralelo.
 4. **Verificar los 4 contratos en Arbiscan + actualizar el README** con las direcciones de Sepolia y comparativa de gas (bloques 2 y 9) — cierra el requisito obligatorio A1 del track.
 5. **Probar el flujo completo en la UI** contra las direcciones nuevas: fondear, activar, liberar un hito, repagar, cobrar — nunca se probó de punta a punta contra Sepolia real, solo se verificó cada paso por transacción individual.

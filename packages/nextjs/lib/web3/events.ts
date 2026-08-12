@@ -93,3 +93,32 @@ export const CREDIT_VAULT_EVENTS_ABI = [
     ],
   },
 ] as const;
+
+/**
+ * El único fragmento de LECTURA que el indexer necesita, aparte de los
+ * eventos.
+ *
+ * Va acá y no se importa el ABI desplegado entero (`getDeployment`)
+ * porque el indexer corre como proceso suelto en Railway, apuntando a la
+ * dirección que le dice `CREDIT_VAULT_ADDRESS` — que puede no ser la
+ * registrada en `deployedContracts.ts`. Un fragmento explícito no
+ * depende de que esas dos coincidan.
+ *
+ * Devuelve, en orden: recaudado, principal vivo, repagado, reclamable y
+ * reclamado. Todo en unidades base del token.
+ */
+export const CREDIT_VAULT_ACCOUNTING_ABI = [
+  {
+    type: "function",
+    name: "getAccounting",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [
+      { name: "totalFunded", type: "uint256" },
+      { name: "principalOutstanding", type: "uint256" },
+      { name: "totalRepaid", type: "uint256" },
+      { name: "totalClaimable", type: "uint256" },
+      { name: "totalClaimed", type: "uint256" },
+    ],
+  },
+] as const;
