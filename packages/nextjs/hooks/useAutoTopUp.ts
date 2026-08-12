@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Address } from "viem";
 import { useSession } from "@/lib/useSession";
 import { useProtocolToken } from "@/hooks/useProtocolToken";
@@ -24,6 +24,30 @@ import { TOPUP_TOKEN_AMOUNT, type TopUpResult, type TopUpStatus } from "@/lib/fa
 export type AutoTopUpPhase = "idle" | "checking" | "loading" | "done" | "error";
 
 const doneKey = (wallet: string) => `founding.topup.${wallet.toLowerCase()}`;
+
+/**
+ * SaldoDePrueba (goteo automático) y AddFundsFlow (botón manual) montan
+ * cada uno su propia instancia de este hook, y las dos pueden estar
+ * vivas al mismo tiempo en /oportunidades. Sin algo compartido entre
+ * instancias, un click en "Recibir 10 000 mUSDC" mientras el goteo
+ * automático sigue en vuelo dispara dos POST /api/faucet reales para la
+ * misma wallet. El módulo, no el hook, es lo único que las dos
+ * instancias comparten.
+ */
+const inFlightWallets = new Set<string>();
+const inFlightListeners = new Set<() => void>();
+
+function setInFlight(walletKey: string, value: boolean) {
+  const was = inFlightWallets.has(walletKey);
+  if (value) inFlightWallets.add(walletKey);
+  else inFlightWallets.delete(walletKey);
+  if (was !== value) inFlightListeners.forEach((listener) => listener());
+}
+
+function subscribeInFlight(listener: () => void) {
+  inFlightListeners.add(listener);
+  return () => inFlightListeners.delete(listener);
+}
 
 /** Lo que se espera a que el navegador firme antes de darlo por perdido.
  * Una transacción en Arbitrum Sepolia se confirma en segundos; si a los
@@ -76,12 +100,18 @@ export function useAutoTopUp({ auto = true }: { auto?: boolean } = {}) {
   const [status, setStatus] = useState<TopUpStatus | null>(null);
   const [result, setResult] = useState<TopUpResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  /** Evita dos goteos en vuelo si el componente se re-monta. */
-  const running = useRef(false);
+
+  const locked = useSyncExternalStore(
+    subscribeInFlight,
+    () => (wallet ? inFlightWallets.has(wallet.toLowerCase()) : false),
+    () => false,
+  );
 
   const topUp = useCallback(async (): Promise<TopUpResult | null> => {
-    if (running.current) return null;
-    running.current = true;
+    if (!wallet) return null;
+    const key = wallet.toLowerCase();
+    if (inFlightWallets.has(key)) return null;
+    setInFlight(key, true);
     setPhase("loading");
     setError(null);
 
@@ -137,9 +167,9 @@ export function useAutoTopUp({ auto = true }: { auto?: boolean } = {}) {
       setPhase("error");
       return null;
     } finally {
-      running.current = false;
+      setInFlight(key, false);
     }
-  }, [getAccessToken]);
+  }, [wallet, getAccessToken]);
 
   useEffect(() => {
     if (!wallet) return;
@@ -183,8 +213,12 @@ export function useAutoTopUp({ auto = true }: { auto?: boolean } = {}) {
           return;
         }
 
-        window.sessionStorage.setItem(doneKey(wallet), "1");
-        await topUp();
+        // Se marca recién si el goteo salió bien: si `topUp()` falla
+        // (RPC lenta, timeout), el flag no debe quedar puesto, o una
+        // recarga de página posterior en la misma pestaña ya no vuelve a
+        // intentarlo aunque la wallet siga sin saldo.
+        const dripped = await topUp();
+        if (dripped) window.sessionStorage.setItem(doneKey(wallet), "1");
       } catch {
         if (alive) setPhase("idle");
       }
@@ -195,5 +229,5 @@ export function useAutoTopUp({ auto = true }: { auto?: boolean } = {}) {
     };
   }, [wallet, auto, getAccessToken, topUp]);
 
-  return { phase, status, result, error, topUp };
+  return { phase, status, result, error, topUp, locked };
 }

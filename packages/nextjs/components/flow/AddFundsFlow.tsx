@@ -61,6 +61,11 @@ export function AddFundsFlow({ onClose }: { onClose: () => void }) {
   const onChain = Boolean(token.address && session?.address);
   const canTopUp = onChain && token.faucetCapable && topUp.status?.available !== false;
   const canDeposit = onChain && !canTopUp;
+  // `locked` es compartido entre esta instancia y la del goteo automático
+  // de SaldoDePrueba (useAutoTopUp.ts): si el goteo sigue en vuelo, el
+  // botón manual no debe mandar un segundo POST /api/faucet para la
+  // misma wallet.
+  const topUpBusy = canTopUp && topUp.locked;
 
   const [step, setStep] = useState<Step>("monto");
   const [amount, setAmount] = useState("1000");
@@ -314,16 +319,18 @@ export function AddFundsFlow({ onClose }: { onClose: () => void }) {
                 <Button
                   className="mt-5 w-full"
                   size="lg"
-                  disabled={!canTopUp && !canDeposit && parsed <= 0}
+                  disabled={topUpBusy || (!canTopUp && !canDeposit && parsed <= 0)}
                   onClick={canDeposit ? onClose : () => setStep("procesando")}
                 >
-                  {canTopUp
-                    ? `Recibir ${TOPUP_TOKEN_AMOUNT.toLocaleString("es-PE")} ${token.symbol}`
-                    : canDeposit
-                      ? "Listo"
-                      : moneda === "pen"
-                        ? `Pagar con ${metodoLabel}`
-                        : "Confirmar"}
+                  {topUpBusy
+                    ? "Ya se está acreditando tu saldo…"
+                    : canTopUp
+                      ? `Recibir ${TOPUP_TOKEN_AMOUNT.toLocaleString("es-PE")} ${token.symbol}`
+                      : canDeposit
+                        ? "Listo"
+                        : moneda === "pen"
+                          ? `Pagar con ${metodoLabel}`
+                          : "Confirmar"}
                 </Button>
               </motion.div>
             )}
