@@ -90,7 +90,7 @@ export function PassportPanel({ company }: { company: Company }) {
     <div>
       <Encabezado>
         <Cifra
-          label="Créditos en Founding"
+          label="Créditos en Árbitro"
           value={p.completedDeals}
           nota={
             p.completedDeals === 0

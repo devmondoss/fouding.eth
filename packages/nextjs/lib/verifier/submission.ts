@@ -152,7 +152,7 @@ export function yearsError(value: string): string | null {
   if (!value.trim()) return "Cuántos años lleva operando";
   if (!Number.isFinite(n)) return "Ingresa un número de años";
   if (n < MIN_YEARS_OPERATING) {
-    return `Founding financia empresas con al menos ${MIN_YEARS_OPERATING} años de operación`;
+    return `Árbitro financia empresas con al menos ${MIN_YEARS_OPERATING} años de operación`;
   }
   return null;
 }

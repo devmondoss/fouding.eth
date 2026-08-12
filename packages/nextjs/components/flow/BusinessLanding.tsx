@@ -6,7 +6,7 @@ import { Logo } from "@/components/ui/Logo";
 import { fadeUp, T } from "@/lib/motion";
 
 /**
- * Página pública "Founding para empresas" — vive en /negocios, con URL
+ * Página pública "Árbitro para empresas" — vive en /negocios, con URL
  * propia y permanente.
  *
  * Deliberadamente NO es un paso del flujo de /solicitar: antes se
@@ -74,7 +74,7 @@ export function BusinessLanding() {
       <header className="flex h-14 items-center justify-between border-b border-border bg-surface px-5 sm:h-[60px] sm:px-8">
         <Link href="/" className="flex items-center gap-2">
           <Logo />
-          <span className="h2 text-[19px]">Founding</span>
+          <span className="h2 text-[19px]">Árbitro</span>
           <span className="ml-1 rounded-[var(--r-pill)] border border-border bg-surface-soft px-2 py-[2px] text-[11px] text-mid">
             Empresas
           </span>
@@ -186,7 +186,7 @@ export function BusinessLanding() {
           transition={T.base}
           className="mt-4 rounded-[var(--r-panel)] border border-border px-5 py-4 text-[12.5px] leading-relaxed text-mid"
         >
-          Founding está en versión de prueba: opera sobre una red de pruebas y
+          Árbitro está en versión de prueba: opera sobre una red de pruebas y
           todavía no mueve dinero real. Tus documentos quedan en
           almacenamiento privado — de la cadena solo queda su huella
           criptográfica, nunca el archivo.
@@ -196,7 +196,7 @@ export function BusinessLanding() {
           href="/"
           className="focusable -mx-2 mt-7 inline-flex h-9 items-center px-2 text-[12.5px] text-mid transition-colors hover:text-hi"
         >
-          ← Volver a Founding
+          ← Volver a Árbitro
         </Link>
       </main>
     </div>

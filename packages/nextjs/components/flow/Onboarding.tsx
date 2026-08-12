@@ -124,7 +124,7 @@ export function Onboarding({
       {/* Barra superior */}
       <div className="flex h-14 shrink-0 items-center justify-between px-5 sm:h-[60px] sm:px-8">
         <span className="text-[15px] font-bold tracking-[-0.02em] text-hi">
-          Founding
+          Árbitro
         </span>
         <button
           onClick={onDone}

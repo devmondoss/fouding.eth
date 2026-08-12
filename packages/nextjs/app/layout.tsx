@@ -15,9 +15,18 @@ const monaSans = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Founding — invierte en empresas peruanas que ya facturan",
+  title: "Árbitro — invierte en empresas peruanas que ya facturan",
   description:
     "Crédito privado con garantía real. Capital retenido en contrato y liberado contra hitos verificados, liquidado en USDC sobre Arbitrum.",
+  // La tarjeta del enlace compartido: acá sí entra el logo completo con su
+  // fondo oscuro, que es para lo que fue hecho. En la barra de la app no
+  // cabe — ver components/ui/Logo.tsx.
+  openGraph: {
+    title: "Árbitro — crédito privado con garantía real",
+    description:
+      "El capital se libera contra hitos verificados. Si la empresa no paga, el orden en que cobra cada uno lo ejecuta el contrato.",
+    images: [{ url: "/arbitro-og.png", width: 1672, height: 941 }],
+  },
 };
 
 /**

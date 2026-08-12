@@ -7,7 +7,7 @@ import { BusinessLanding } from "@/components/flow/BusinessLanding";
  * mostraba una vez y después reaparecía encima de la app.
  */
 export const metadata = {
-  title: "Founding para empresas — financia tu próxima etapa",
+  title: "Árbitro para empresas — financia tu próxima etapa",
   description:
     "Publica tu proyecto, sube tu expediente legal y conecta con inversionistas que respaldan operaciones con garantía real, en USDC sobre Arbitrum.",
 };

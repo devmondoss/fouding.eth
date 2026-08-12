@@ -63,7 +63,7 @@ Doble contexto confirmado por el usuario: **demo ahora, piloto después**. Ningu
 
 ## Brand Commitments
 
-- Nombre del producto: **Founding** (repo `fouding.eth`).
+- Nombre del producto: **Árbitro** (repo `fouding.eth`).
 - **El copy es institucional, no de consumo.** Esto mueve capital real de terceros: nada de frases coloquiales como título. La ficha muestra el dato duro, titulado en castellano llano.
 - Idioma de producto: español (Perú/Latam).
 - Tipografía comprometida hoy: Mona Sans, familia única. Es la única constante visual que el usuario no puso en discusión; el resto del mundo visual es reemplazable.

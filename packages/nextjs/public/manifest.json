@@ -1,5 +1,5 @@
 {
-  "name": "Scaffold-Stylus DApp",
-  "description": "A DApp built with Scaffold-Stylus",
-  "iconPath": "logo.svg"
+  "name": "Árbitro",
+  "description": "Crédito privado con garantía real, liquidado en USDC sobre Arbitrum.",
+  "iconPath": "/icon.svg"
 }

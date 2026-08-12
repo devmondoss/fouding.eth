@@ -66,7 +66,7 @@ export function StandGate() {
       <motion.div variants={fadeUp} initial="hidden" animate="show">
         <span className="flex items-center gap-2">
           <Logo size={30} />
-          <span className="h2 text-[19px]">Founding</span>
+          <span className="h2 text-[19px]">Árbitro</span>
         </span>
       </motion.div>
 

@@ -1,6 +1,6 @@
-# Founding
+# Árbitro
 
-Monorepo Scaffold-Stylus para el producto Fouding. El frontend existente vive
+Monorepo Scaffold-Stylus para el producto Árbitro. El frontend existente vive
 en `packages/nextjs`; la identidad y el registro del protocolo viven en
 Solidity/Foundry y la máquina financiera vive en Rust Stylus.
 

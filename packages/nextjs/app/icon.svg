@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- El ícono de pestaña. Misma geometría que components/ui/Logo.tsx, con
+       los colores escritos como literales a propósito: este archivo lo sirve
+       Next fuera de la app, sin la hoja de estilos donde viven los tokens.
+       --brand #e0ff4f / --brand-ink #00272b. -->
+  <rect width="32" height="32" rx="7" fill="#e0ff4f"/>
+  <g transform="translate(3.2 3.2) scale(1.0667)" fill="none">
+    <path d="M2.4 4.5 L2.4 19.5 L10.4 12 Z" fill="#00272b"/>
+    <path d="M21.6 4.5 L21.6 19.5 L13.6 12 Z" fill="#00272b"/>
+    <path d="M15.90 12 L13.95 15.38 L10.05 15.38 L8.10 12 L10.05 8.62 L13.95 8.62 Z" stroke="#00272b" stroke-width="1.9"/>
+    <circle cx="12" cy="12" r="1.5" fill="#00272b"/>
+    <path d="M17.10 12 L14.55 16.42 L9.45 16.42 L6.90 12 L9.45 7.58 L14.55 7.58 Z" stroke="#e0ff4f" stroke-width="1.6"/>
+  </g>
+</svg>

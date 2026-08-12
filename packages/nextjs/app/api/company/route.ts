@@ -56,7 +56,7 @@ export async function POST(req: Request) {
   if (!texto("city")) errors.push("La ciudad es obligatoria");
   if (entero("yearsOperating") < MIN_YEARS_OPERATING) {
     errors.push(
-      `Founding acredita empresas con al menos ${MIN_YEARS_OPERATING} años de operación`,
+      `Árbitro acredita empresas con al menos ${MIN_YEARS_OPERATING} años de operación`,
     );
   }
 

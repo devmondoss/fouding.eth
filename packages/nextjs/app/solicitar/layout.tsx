@@ -5,7 +5,7 @@
  * persona está haciendo (ver conversación de agosto 2026).
  */
 export const metadata = {
-  title: "Tus solicitudes — Founding para empresas",
+  title: "Tus solicitudes — Árbitro para empresas",
   description:
     "Estado de los expedientes que enviaste a revisión y envío de nuevas solicitudes de financiamiento.",
 };
