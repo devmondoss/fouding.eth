@@ -32,11 +32,13 @@ Y una tercera que no estaba en el plan original pero resultó ser la más rentab
 
 | Superficie | Ruta | Estado |
 | --- | --- | --- |
-| Inversionista | `/` | Catálogo, ficha, portafolio, cobro |
-| Empresa | `/negocios`, `/negocios/login`, `/solicitar` | Panel de solicitudes y envío de expedientes |
+| Inversionista | `/oportunidades` | Catálogo, ficha, portafolio, cobro |
+| Empresa | `/negocios`, `/solicitar` | Panel de solicitudes y envío de expedientes |
 | Verificador | `/verifier` | Decide expedientes, publica oportunidades y aprueba acceso de inversionistas |
 
-Cada wallet declara su rol UNA vez en `/rol` y ya no cambia: el KYC de la persona y el KYB de la empresa son verificaciones distintas y no pueden compartir el mismo estado.
+`/login` es la única puerta de las dos superficies y `/` no es una pantalla: mira la sesión y reparte hacia la que corresponde.
+
+Cada wallet declara su rol UNA vez en `/rol` y ya no cambia: el KYC de la persona y el KYB de la empresa son verificaciones distintas y no pueden compartir el mismo estado. Quien intenta entrar por el lado que no es el suyo recibe una pantalla que se lo dice, no un redirect callado.
 
 Lo que sigue sin interfaz: declarar incumplimiento, registrar repagos y ejecutar el recupero. El contrato ya los implementa; solo se alcanzan desde `packages/stylus/scripts/protocol_e2e.ts`.
 

@@ -84,12 +84,24 @@ export const END = {
  * @typedef {{role?:string,name?:string,css?:string,text?:string,optional?:boolean}} Target
  */
 
+/**
+ * Las escenas del inversionista van a `/oportunidades`, no a `/`.
+ *
+ * Apuntaban a la raíz porque ahí vivía el catálogo. Desde el 10 de
+ * agosto `/` no pinta ninguna pantalla: mira la sesión y reparte. El
+ * capturador navega con `waitUntil: "networkidle"` y arranca los pasos
+ * enseguida, así que dejarlo en `/` hacía que los selectores buscaran
+ * mientras el navegador todavía estaba yendo a otra ruta.
+ *
+ * NO se corrió el capturador después de este cambio —necesita la app
+ * levantada y ffmpeg—, así que está sin verificar.
+ */
 export const SCENES = [
   {
     id: "catalogo",
     chapter: "01 — Catálogo",
     caption: "Empresas peruanas con ventas verificables y garantía real.",
-    path: "/",
+    path: "/oportunidades",
     setup: [
       // El onboarding se marca en localStorage; si igual aparece, se cierra.
       { kind: "click", target: { role: "button", name: "Cerrar", optional: true } },
@@ -107,7 +119,7 @@ export const SCENES = [
     id: "garantia",
     chapter: "02 — La operación",
     caption: "Colateral inscrito, cobertura y castigo por tipo de activo.",
-    path: "/",
+    path: "/oportunidades",
     setup: [
       { kind: "click", target: { role: "button", name: "Cerrar", optional: true } },
       { kind: "wait", ms: 600 },
@@ -124,7 +136,7 @@ export const SCENES = [
     id: "escrow",
     chapter: "03 — Desembolso por hitos",
     caption: "El capital queda retenido en el contrato, no en la empresa.",
-    path: "/",
+    path: "/oportunidades",
     setup: [
       { kind: "click", target: { role: "button", name: "Cerrar", optional: true } },
       { kind: "wait", ms: 600 },
@@ -141,7 +153,7 @@ export const SCENES = [
     // Sin repetir "orden de pago": el chip del capítulo, justo encima, ya
     // lo dice. Decirlo dos veces en el mismo cuadro gasta el remate.
     caption: "Si la empresa no paga, el reparto ya está escrito en el contrato.",
-    path: "/",
+    path: "/oportunidades",
     setup: [
       { kind: "click", target: { role: "button", name: "Cerrar", optional: true } },
       { kind: "wait", ms: 600 },
@@ -168,7 +180,7 @@ export const SCENES = [
     // (PRODUCT.md §Terminología), y además es como se titula la pestaña que
     // se ve detrás en este mismo cuadro: "Calificación crediticia".
     caption: "La calificación sale del expediente verificado, no de una promesa.",
-    path: "/",
+    path: "/oportunidades",
     setup: [
       { kind: "click", target: { role: "button", name: "Cerrar", optional: true } },
       { kind: "wait", ms: 600 },

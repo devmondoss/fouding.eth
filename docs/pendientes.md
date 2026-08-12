@@ -1,6 +1,26 @@
 # Pendientes — lista única
 
-> Actualizado 2026-08-09. El producto se recorre entero sin salir de él: se entra sin wallet previa, se recibe saldo de prueba solo, el catálogo tiene 80 operaciones con su expediente detrás, y **una inversión real llega al contrato** —probada con una wallet vacía, de punta a punta—. Sigue pendiente `RepaymentRouter`.
+> Actualizado 2026-08-10. El producto se recorre entero sin salir de él: se entra sin wallet previa, se recibe saldo de prueba solo, el catálogo tiene 80 operaciones con su expediente detrás, y **una inversión real llega al contrato** —probada con una wallet vacía, de punta a punta—. Sigue pendiente `RepaymentRouter`.
+
+---
+
+## 0.2 Sesión del 10 de agosto
+
+Toda de producto y UI. Ni contratos ni llaves.
+
+- ✅ **Un solo login, y la raíz dejó de ser una pantalla.** Había dos puertas —`/login` y `/negocios/login`— y solo una era la salida al cerrar sesión, así que el mismo botón te dejaba en pantallas distintas según de qué lado vinieras. `/negocios/login` se borró (redirect permanente en `next.config.ts`, que la ruta estuvo viva y queda en marcadores). `/` tampoco pinta nada: mira la sesión y reparte a `/login`, `/rol`, `/oportunidades` o `/solicitar` — que es lo que permite que el QR del stand apunte al dominio pelado.
+- ✅ **El catálogo se llama `/oportunidades`.** Era la única superficie sin nombre: `/solicitar` y `/verifier` sí lo tenían y esta dependía de la raíz para existir. Movido con `git mv`, conserva historial.
+- ✅ **Una pregunta, una pantalla.** El login preguntaba el lado y `/rol` lo volvía a preguntar. Preguntarlo antes de que la wallet existiera obligaba a guardar la respuesta, hacerla sobrevivir al modal de Privy, caducarla a los diez minutos y reconciliar el choque después. Todo eso se borró con `lib/intendedRole.ts`.
+- ✅ **El rol se hace respetar y se explica.** `chooseRole` devolvía en silencio cuando la wallet ya tenía lado; ahora devuelve el efectivo y el choque tiene pantalla propia (`RoleConflict`), en las dos direcciones. Sigue sirviendo a `/solicitar`, que es donde puede ocurrir de verdad.
+- ✅ **Eliminar cuenta borra de verdad** (`lib/account/purge.ts`). Antes borraba el usuario en Privy y nada más: el nombre y el documento seguían en `access_applications`, la empresa en `companies` y los expedientes con sus PDFs en la base. Ahora purga siete tablas en orden de claves foráneas, con los documentos resueltos ANTES de borrar las filas que los referencian, y la base antes que Privy — al revés, un fallo dejaría a alguien sin poder entrar y con sus datos intactos. Una operación publicada corta el borrado con 409: esa fila la referencian inversionistas que pusieron capital.
+- ✅ **La solicitud de acceso se resuelve sola y se ve resolverse.** `/api/compliance/auto-review` solo toca lo que está en `Pending`, así que un rechazo humano desde `/verifier` no se puede deshacer. El modal muestra los tres pasos reales del trámite —dos son firmas en Arbitrum— sin inventar ninguno, y declara que la revisión fue automática. Se reintenta al entrar para las solicitudes que quedaron pendientes de antes.
+- ✅ **Sin los modales de Privy** (`showWalletUIs: false`). Interponía una segunda confirmación en inglés, con la dirección en hexadecimal, después de que InvestPanel ya había preguntado con monto, calificación, cobertura y riesgo de liquidez. Privy 3.36.1 no expone idioma: la única forma de que ese paso hable castellano es que sea nuestro. A cambio, InvestPanel nombra los dos pasos de la firma mientras corren.
+- ✅ **Responsividad de las cuatro superficies.** Ninguna desbordaba a 390px: el problema era qué cedía. En la lista de decididos del verificador el título se recortaba a ocho caracteres mientras "Aprobado" y "Publicar" conservaban su ancho en las veinte filas; en la cola el monto dejaba el titular en 200px. Auditado con capturas reales del panel entrando con la API key.
+- ✅ **El zoom involuntario de iOS.** Safari hace zoom sobre cualquier campo de menos de 16px al enfocarlo **y no vuelve atrás**: el primer toque en un formulario dejaba la app magnificada para el resto de la visita. 16px solo debajo de `sm`. Más `overscroll-behavior`, `text-size-adjust` y `touch-action`. **No se usó `user-scalable=no`**: mata también el zoom deliberado de quien no ve bien (WCAG 1.4.4).
+- ✅ **Node declarado** (`.nvmrc` + `engines`). El deploy de Railway moría porque Nixpacks elegía Node 18 y Next 16 exige ≥20.9; el repo no declaraba versión y en local se usa 24.
+- ⚠️ **El capturador del demo apunta a `/` en seis escenas** (`packages/demo/scenes.mjs`). `/` dejó de renderizar el catálogo hoy. Corregido a `/oportunidades` en esta misma sesión, pero **el capturador no se corrió** —necesita la app y ffmpeg—, así que la corrección está sin verificar.
+- ⚠️ **Sin construir, del brief de móvil:** el ciclo comprimido del inversionista (invertir → escrow → hito → repago) y `/solicitar` rediseñado a un grupo por pantalla.
+- ⚠️ **Nada detrás del login se verificó con captura.** Entrar exige el correo y el código de Privy, que no se puede manejar sin cabeza. El verificador sí se vio (su puerta es una API key en `localStorage`).
 
 ---
 

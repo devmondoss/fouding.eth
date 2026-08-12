@@ -197,10 +197,11 @@ Criterio para decidir: si la frase se puede borrar y la persona igual sabe qué 
 
 Reglas de esta arquitectura:
 
-- **El primer contacto no tiene chrome ni formulario.** Un botón crea la wallet y entras. Nadie necesita registrarse para mirar un catálogo.
-- **La verificación se mueve al momento de invertir**, que es donde la regulación la exige. Explorar es libre; comprometer capital no. Esta puerta **todavía no está construida** — ver `build-plan.md`.
+- **El primer contacto no tiene chrome ni formulario.** Un botón crea la wallet con el correo y entras. Nadie necesita registrarse para mirar un catálogo.
+- **Una pregunta, una pantalla.** El lado —inversionista o dueño de negocio— se elige en `/rol` y en ningún otro sitio. La puerta llegó a preguntarlo también, para ahorrar un paso, y el precio fue transportar la respuesta por `localStorage`, hacerla sobrevivir a un modal de terceros, caducarla y reconciliar el choque cuando la cuenta pertenecía al otro lado. Adelantar una pregunta un paso costaba cuatro mecanismos.
+- **La verificación se mueve al momento de invertir**, que es donde la regulación la exige. Explorar es libre; comprometer capital no. La solicitud se resuelve sola en segundos y **la pantalla declara que la revisión fue automática, no humana**: aprobar a todo el mundo en cuatro segundos y llamarlo verificación sería vender algo que no ocurrió.
 - **Lo que ya se explicó no se repite.** El onboarding se marca como visto en `localStorage` y no vuelve; queda accesible desde el botón de ayuda de la barra.
-- **Se pagina, no se hace scroll.** El catálogo avanza por páginas (flechas, puntos o teclado ←/→) y la ficha avanza por pasos.
+- **Se pagina, no se hace scroll**, y el eje es horizontal en los dos tamaños — ver §6.1.
 - **Excepción honesta:** dentro de la ficha y del panel lateral el contenido puede desbordar en pantallas bajas; ahí sí hay scroll interno. Es la válvula de seguridad, no el patrón.
 
 **Alcance:** el sistema cubre **cuatro superficies**, no una. La regla de un módulo sin scroll aplica solo a la primera.
